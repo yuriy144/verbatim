@@ -1,0 +1,1971 @@
+<!doctype html>
+<!DOCTYPE html>
+<!--
+  Verbatim — a local-only memorization and typing-accuracy trainer
+  Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
+  Source & docs: https://github.com/yuriy144/verbatim
+
+  Licensed under the PolyForm Noncommercial License 1.0.0.
+  Free for any noncommercial use. Commercial use requires a separate license.
+  Full terms: https://polyformproject.org/licenses/noncommercial/1.0.0
+  Required Notice: Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verbatim — memorization typing trainer</title>
+<style>
+  :root{
+    --bg:#1a1822;
+    --bg-2:#211f2c;
+    --panel:#252333;
+    --panel-2:#2c2a3c;
+    --rule:#3a3850;
+    --ink:#d8d3c4;
+    --dim:#8a87a0;
+    --dim-2:#5f5d75;
+    --gold:#cf9f54;
+    --gold-soft:#cf9f5433;
+    --correct:#74b07a;
+    --case-err:#e3bf52;
+    --punct-err:#8b9eea;
+    --sub-err:#e16a63;
+    --extra:#d3873f;
+    --extra-bg:#3a2a1a;
+    --missing:#e16a63;
+    --bg-glow-1:#2a2740;
+    --bg-glow-2:#221f30;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  [data-theme="light"]{
+    --bg:#f4f1ea;
+    --bg-2:#fbf9f4;
+    --panel:#ffffff;
+    --panel-2:#f0ece2;
+    --rule:#d9d2c4;
+    --ink:#2c2a33;
+    --dim:#6b6757;
+    --dim-2:#9a9484;
+    --gold:#9a6b1f;
+    --gold-soft:#9a6b1f22;
+    --correct:#3f8a47;
+    --case-err:#b07d12;
+    --punct-err:#4a5bb5;
+    --sub-err:#c0392b;
+    --extra:#b35e15;
+    --extra-bg:#f5e2cf;
+    --missing:#c0392b;
+    --bg-glow-1:#e9e3d6;
+    --bg-glow-2:#efe9dd;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--serif);}
+  body{
+    background-image:radial-gradient(circle at 18% 0%, var(--bg-glow-1) 0%, transparent 45%),
+                      radial-gradient(circle at 100% 100%, var(--bg-glow-2) 0%, transparent 50%);
+    min-height:100vh;
+    padding:36px 20px 60px;
+  }
+  .wrap{max-width:880px;margin:0 auto;}
+  header.top{margin-bottom:28px;position:relative;}
+  .theme-toggle{
+    position:absolute;top:0;right:0;
+    width:38px;height:38px;border-radius:50%;
+    background:var(--panel);border:1px solid var(--rule);color:var(--gold);
+    font-size:17px;line-height:1;cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .theme-toggle:hover{border-color:var(--gold);}
+  h1{
+    font-size:30px;margin:0 0 4px;font-weight:600;letter-spacing:.01em;color:var(--ink);
+    display:flex;align-items:baseline;gap:10px;
+  }
+  h1 .mark{color:var(--gold);font-style:italic;}
+  .subtitle{color:var(--dim);font-size:14.5px;margin:0;max-width:560px;line-height:1.5;}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--dim-2);margin:0 0 6px;
+  }
+
+  .panel{
+    background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+    padding:22px 24px;margin-bottom:20px;
+  }
+  .panel h2{
+    font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);
+    color:var(--gold);margin:0 0 14px;font-weight:600;
+  }
+
+  textarea{
+    display:block;width:100%;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    color:var(--ink);font-family:var(--serif);font-size:15px;padding:12px 14px;
+    resize:vertical;line-height:1.55;
+  }
+  textarea:focus{outline:none;border-color:var(--gold);}
+  textarea.mono{font-family:var(--mono);font-size:13.5px;line-height:1.7;}
+
+  #typeInput{
+    resize:none;overflow:hidden;font-family:var(--serif);font-size:16px;line-height:1.75;min-height:1.75em;letter-spacing:.01em;
+    padding-left:34px;
+  }
+  #typeInput.nowrap{white-space:pre;overflow-x:auto;overflow-y:hidden;}
+
+  button{
+    font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--panel-2);color:var(--ink);border:1px solid var(--rule);
+    padding:9px 16px;border-radius:3px;cursor:pointer;transition:border-color .15s, color .15s;
+  }
+  button:hover{border-color:var(--gold);color:var(--gold);}
+  button.primary{background:var(--gold-soft);border-color:var(--gold);color:var(--gold);}
+  button.primary:hover{background:var(--gold);color:var(--bg);}
+  button:disabled{opacity:.35;cursor:default;}
+  button:disabled:hover{border-color:var(--rule);color:var(--ink);}
+  .btnrow{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+  .hint{color:var(--dim-2);font-size:12px;font-family:var(--mono);}
+
+  .split-modes-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;position:relative;margin-bottom:10px;}
+  .split-modes{display:flex;gap:8px;flex-wrap:wrap;}
+  .split-modes-row .info-icon{margin-top:2px;flex:0 0 auto;}
+  .cue-box{
+    display:none;margin-bottom:14px;padding:14px 16px;
+    width:100%;box-sizing:border-box;
+    background:color-mix(in srgb, var(--gold) 9%, var(--bg-2));
+    border:1px solid color-mix(in srgb, var(--gold) 30%, var(--rule));
+    border-left:3px solid var(--gold);border-radius:3px;
+    font-family:var(--serif);font-size:17px;line-height:1.6;color:var(--ink);
+    white-space:normal;overflow-wrap:break-word;
+  }
+  .cue-box.show{display:block;}
+  .cue-box .cue-label{
+    display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:6px;
+  }
+  .cue-box .cue-num{font-family:var(--mono);font-weight:600;}
+  .split-modes button.active{border-color:var(--gold);color:var(--gold);}
+
+  /* ---------- practice layout ---------- */
+  .practice-grid{display:flex;gap:20px;align-items:flex-start;}
+  .rail{
+    width:54px;flex:0 0 54px;display:flex;flex-direction:column;gap:6px;
+    max-height:560px;overflow-y:auto;padding:4px;
+  }
+  .rail::-webkit-scrollbar{width:6px;}
+  .rail::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+  .mark-cell{
+    font-family:var(--mono);font-size:11px;color:var(--dim-2);
+    border:1px solid var(--rule);border-radius:3px;text-align:center;padding:5px 0;
+    background:var(--bg-2);
+  }
+  .mark-cell.pending{color:var(--dim-2);}
+  .mark-cell.current{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 1px var(--gold-soft) inset;}
+  .mark-cell.skip{color:var(--dim-2);border-style:dashed;}
+  .mark-cell.good{background:color-mix(in srgb, var(--correct) 16%, var(--bg-2));border-color:color-mix(in srgb, var(--correct) 40%, var(--bg-2));color:var(--correct);}
+  .mark-cell.mid{background:color-mix(in srgb, var(--case-err) 16%, var(--bg-2));border-color:color-mix(in srgb, var(--case-err) 40%, var(--bg-2));color:var(--case-err);}
+  .mark-cell.low{background:color-mix(in srgb, var(--sub-err) 16%, var(--bg-2));border-color:color-mix(in srgb, var(--sub-err) 40%, var(--bg-2));color:var(--sub-err);}
+
+  .stage{flex:1;min-width:0;}
+  .progress-line{
+    display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;
+    font-family:var(--mono);font-size:12px;color:var(--dim);
+  }
+  .progress-line b{color:var(--gold);}
+  .progress-right{display:inline-flex;align-items:center;gap:10px;position:relative;}
+  .info-icon{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:18px;height:18px;border-radius:50%;border:1px solid var(--rule);
+    color:var(--dim);font-family:var(--mono);font-size:11px;font-style:italic;
+    cursor:pointer;user-select:none;transition:border-color .15s,color .15s;
+  }
+  .info-icon:hover{border-color:var(--gold);color:var(--gold);}
+  .info-pop{
+    display:none;position:absolute;top:26px;right:0;z-index:10;
+    /* frosted-glass treatment: deliberately NOT the same tint as the panels it
+       usually floats over — if the tint matched, alpha blending would look just
+       as opaque as a solid panel even when it's technically translucent. A
+       distinctly darker/cooler tint (dark theme) or warmer tint (light theme)
+       guarantees the see-through quality is visible by simple alpha blending
+       alone, with backdrop-filter blur layered on top as a bonus where the
+       browser/device actually renders it. Plain rgba() (not color-mix()) so
+       there's no dependency on newer CSS color functions for this property. */
+    background:rgba(1, 2, 2, 0.6);
+    -webkit-backdrop-filter:blur(2.5px) saturate(180%);backdrop-filter:blur(2.5px) saturate(180%);
+    border:1px solid color-mix(in srgb, var(--rule) 70%, transparent);border-radius:8px;
+    padding:12px 14px;min-width:250px;
+    flex-direction:column;gap:5px;
+    font-family:var(--mono);font-size:11.5px;color:var(--dim);text-transform:none;letter-spacing:0;
+    box-shadow:0 12px 32px rgba(0,0,0,.4), inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+  [data-theme="light"] .info-pop{
+    background:rgba(225, 155, 215, 0.45);
+  }
+  .info-icon:hover .info-pop,
+  .info-icon.pinned .info-pop{display:flex;}
+  .info-pop b{color:var(--gold);margin-bottom:3px;text-transform:none;}
+  .info-pop span{display:flex;justify-content:space-between;gap:14px;}
+  .info-pop .info-note{color:var(--dim-2);margin-top:5px;justify-content:flex-start;font-style:italic;}
+  .info-pop .info-example{
+    display:block;background:var(--bg-2);border:1px solid var(--rule);border-radius:4px;
+    padding:8px 10px;margin:2px 0;color:var(--ink);line-height:1.6;font-style:normal;
+  }
+  .info-pop.info-pop-wide span{justify-content:flex-start;display:block;}
+  .info-pop kbd{
+    background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    padding:1px 5px;font-size:10.5px;color:var(--ink);font-family:var(--mono);
+  }
+  .elapsed{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.03em;}
+  .elapsed.time-low{color:var(--case-err);}
+  .elapsed.time-up{color:var(--sub-err);font-weight:600;animation:pulse-overtime 1.6s ease-in-out infinite;}
+  @keyframes pulse-overtime{0%,100%{opacity:1;}50%{opacity:.55;}}
+  .time-limit-field{display:inline-flex;align-items:center;gap:7px;margin-left:auto;}
+  .time-limit-field label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim-2);}
+  .time-limit-field input{
+    width:52px;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 8px;text-align:center;
+  }
+  .time-limit-field input:focus{outline:none;border-color:var(--gold);}
+
+  .diff-head{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;
+  }
+  .diff-label{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);
+  }
+  .micro-btn{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+    background:transparent;color:var(--dim);border:1px solid var(--rule);
+    padding:3px 9px;border-radius:3px;cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .micro-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .micro-btn:disabled{opacity:.3;cursor:default;}
+  .micro-btn:disabled:hover{border-color:var(--rule);color:var(--dim);}
+
+  .box-wrap{position:relative;width:100%;}
+  /* opaque gutter that masks horizontally-scrolled text behind the corner toggle */
+  .box-wrap::before{
+    content:"";position:absolute;top:1px;left:1px;bottom:1px;width:32px;z-index:1;
+    background:var(--bg-2);border-radius:3px 0 0 3px;pointer-events:none;
+  }
+  .corner-toggle{
+    position:absolute;top:6px;left:6px;z-index:2;
+    width:22px;height:22px;padding:0;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:15px;
+    background:var(--panel);color:var(--dim);border:1px solid var(--rule);border-radius:3px;
+    cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .corner-toggle:hover{border-color:var(--gold);color:var(--gold);}
+
+  .diff-box{
+    width:100%;box-sizing:border-box;
+    background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    padding:18px 20px 18px 34px;font-family:var(--mono);font-size:16px;line-height:1.75;
+    min-height:54px;letter-spacing:.005em;
+    white-space:normal;overflow-wrap:normal;word-break:normal;
+    transition:max-height .2s ease;
+  }
+  .diff-box .word{white-space:nowrap;}
+  .diff-box .ws{white-space:pre-wrap;}
+  .diff-box.hidden-box{display:none;}
+  .diff-box.nowrap{
+    white-space:nowrap;overflow-x:auto;
+  }
+  .diff-box.nowrap .ws{white-space:pre;}
+  .diff-box.nowrap::-webkit-scrollbar{height:6px;}
+  .diff-box.nowrap::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+  .diff-box span.correct{color:var(--correct);}
+  .diff-box span.case-err{color:var(--case-err);text-decoration:underline;text-decoration-color:var(--case-err);text-underline-offset:3px;}
+  .diff-box span.punct-err{color:var(--punct-err);text-decoration:underline;text-decoration-color:var(--punct-err);text-underline-offset:3px;}
+  .diff-box span.sub-err{color:var(--sub-err);text-decoration:underline wavy;text-decoration-color:var(--sub-err);text-underline-offset:3px;}
+  .diff-box span.pending{color:var(--dim-2);}
+  .diff-box span.pending.placeholder{color:var(--dim-2);opacity:.5;}
+  .diff-box span.extra{color:var(--extra);background:var(--extra-bg);border-radius:2px;text-decoration:line-through;}
+  .diff-box span.omitted{color:var(--missing);font-weight:600;}
+
+  .live-stats{
+    display:flex;gap:18px;margin:10px 2px 0;font-family:var(--mono);font-size:11.5px;color:var(--dim);
+    flex-wrap:wrap;
+  }
+  .live-stats b{color:var(--ink);}
+
+  .legend{
+    display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--dim);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+  #typeWrap{margin-top:16px;}
+
+  /* ---------- summary ---------- */
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);}
+  th{color:var(--dim-2);text-transform:uppercase;font-size:10.5px;letter-spacing:.08em;}
+  td.acc{font-weight:600;}
+  .stat-grid{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .stat{
+    flex:1;min-width:130px;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    padding:14px 16px;
+  }
+  .stat .num{font-family:var(--mono);font-size:24px;color:var(--gold);}
+  .stat .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim-2);margin-top:4px;}
+
+  .panel h2.review-heading{margin-top:48px;}
+  #reviewList{display:flex;flex-direction:column;gap:14px;margin-bottom:16px;}
+  .review-item{
+    background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;padding:12px 14px;
+    border-left:3px solid var(--rule);
+  }
+  .review-item.good{border-left-color:var(--correct);}
+  .review-item.mid{border-left-color:var(--case-err);}
+  .review-item.low{border-left-color:var(--sub-err);}
+  .review-item.unattempted{border-left-color:var(--dim-2);opacity:.7;}
+  .review-meta{
+    display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim-2);
+  }
+  .review-meta .acc{font-weight:600;}
+  .review-cue{margin-left:10px;color:var(--gold);text-transform:none;letter-spacing:0;font-style:italic;}
+  .review-diff{
+    font-family:var(--mono);font-size:14px;line-height:1.7;letter-spacing:.005em;
+    white-space:normal;overflow-wrap:normal;word-break:normal;
+  }
+  .review-diff .word{white-space:nowrap;}
+  .review-diff .ws{white-space:pre-wrap;}
+  .review-diff span.correct{color:var(--correct);}
+  .review-diff span.case-err{color:var(--case-err);text-decoration:underline;text-decoration-color:var(--case-err);text-underline-offset:3px;}
+  .review-diff span.punct-err{color:var(--punct-err);text-decoration:underline;text-decoration-color:var(--punct-err);text-underline-offset:3px;}
+  .review-diff span.sub-err{color:var(--sub-err);text-decoration:underline wavy;text-decoration-color:var(--sub-err);text-underline-offset:3px;}
+  .review-diff span.omitted{color:var(--missing);font-weight:600;}
+  .review-diff span.extra{color:var(--extra);background:var(--extra-bg);border-radius:2px;text-decoration:line-through;}
+
+  .hidden{display:none !important;}
+  footer{margin-top:30px;color:var(--dim-2);font-size:11.5px;font-family:var(--mono);text-align:center;}
+
+  /* ---------- responsive: tablets & phones ---------- */
+  @media (max-width: 720px){
+    body{padding:20px 14px 48px;}
+    h1{font-size:26px;}
+    .eyebrow{font-size:10px;letter-spacing:.1em;}
+    .theme-toggle{width:34px;height:34px;font-size:15px;}
+    .subtitle{font-size:13.5px;}
+    .panel{padding:18px 16px;}
+
+    /* rail becomes a horizontal, wrapping strip above the stage */
+    .practice-grid{flex-direction:column;gap:14px;}
+    .stage{width:100%;min-width:0;max-width:100%;}
+    .rail{
+      width:100%;flex:0 0 auto;flex-direction:row;flex-wrap:wrap;gap:5px;
+      max-height:none;overflow-y:visible;padding:0;
+    }
+    .mark-cell{min-width:30px;flex:0 0 auto;padding:5px 7px;}
+
+    .progress-line{flex-wrap:wrap;gap:4px 14px;}
+    .elapsed{order:3;}
+
+    /* keep Block/accuracy/timer and the recall prompt pinned to the top of the
+       viewport, so they stay visible even when the on-screen keyboard pushes
+       everything else up — the diff box can be hidden, but you always still see
+       what block you're on and what you're recalling while you type. */
+    .stage-sticky{
+      position:sticky;top:0;z-index:6;background:var(--bg);
+      padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid var(--rule);
+    }
+    .stage-sticky .cue-box{margin-bottom:0;}
+
+    /* full-width action buttons, easier tap targets */
+    .stage .btnrow{flex-direction:column;align-items:stretch;}
+    .stage .btnrow button{width:100%;padding:11px 14px;}
+
+    .stat-grid{gap:10px;}
+    .stat{min-width:calc(50% - 5px);}
+  }
+  @media (max-width: 430px){
+    .stat{min-width:100%;}
+    .diff-box, #typeInput{font-size:15px;}
+    .legend{font-size:10px;gap:10px 12px;}
+    h1{font-size:23px;}
+    table{font-size:11px;}
+    th,td{padding:6px 4px;}
+    th:first-child, td:first-child{padding-left:0;}
+    /* keep the Line preview from forcing the table wider than the screen */
+    td:nth-child(2){max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    /* drop the per-error-type columns on the narrowest screens — the same detail
+       is visible in the colored Full Review below, so nothing is lost */
+    th:nth-child(n+4), td:nth-child(n+4){display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <button id="btnTheme" class="theme-toggle" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
+    <p class="eyebrow">memorization &amp; typing-accuracy trainer</p>
+    <h1>Verbatim<span class="mark">.</span></h1>
+    <p class="subtitle">Paste a text, split it into blocks, and type each one against the original.
+    Every character is checked exactly as written — case, punctuation, and all. Upcoming text stays hidden behind dots until you choose to reveal it, so you can actually test recall.</p>
+    <p class="subtitle">
+    Note: Typing is not a replacement for hand-writing. I recommend to hand-write first, and then again after typing - for long-term understanding and retention.</p>
+  </header>
+
+  <!-- ================= SETUP ================= -->
+  <section id="setup">
+    <div class="panel">
+      <h2>01 · Reference text</h2>
+      <textarea id="sourceText" rows="8" placeholder="Paste the passage, monologue, lyric, or score text you want to memorize…"></textarea>
+      <div class="split-modes-row">
+        <div class="split-modes">
+          <button id="modeLine" class="active">Split into lines</button>
+          <button id="modeSentence">Split into sentences</button>
+          <button id="modeVerse">Verse (cue → recall)</button>
+          <button id="modeQA">Q &amp; A</button>
+        </div>
+        <span class="info-icon" id="formatInfo" tabindex="0" aria-label="Formatting tips">i
+          <span class="info-pop info-pop-wide" id="formatPop">
+            <b>Formatting tips</b>
+            <span>For reliable verse and Q/A prompt splitting, use these markers consistently:</span>
+            <span><kbd>v1</kbd>, <kbd>v2</kbd>… (or bare <kbd>1</kbd>, <kbd>2</kbd>… or <kbd>3:16</kbd>) to start each verse in Verse mode.</span>
+            <span><kbd>Q1</kbd>, <kbd>Q2</kbd>… to start each question, and <kbd>Answer</kbd> (or <kbd>A1</kbd>, <kbd>A2</kbd>…) right after it in Q &amp; A mode.</span>
+            <span>Multi-part numbering like <kbd>1)</kbd> <kbd>2)</kbd> <kbd>3)</kbd> carries through to both the question and the answer, for example:</span>
+            <span class="info-example">Q1 1) Who said it? 2) To whom?<br>Answer<br>1) Charlie 2) The unicorns</span>
+            <span class="info-note">Other formats like "1.", "(1)", or "[1]" aren't recognized — sticking to the markers above keeps the split predictable.</span>
+          </span>
+        </span>
+      </div>
+      <div class="hint" id="splitHint">Sentence splitting breaks on . ! ? only — so a heading or a line ending in a colon will merge into the sentence after it. Fix any mis-splits in the box on the right before you start.</div>
+    </div>
+
+    <div class="panel">
+      <h2>02 · Practice blocks (one per line — edit freely)</h2>
+      <textarea id="chunkText" class="mono" rows="8" placeholder="Split your text on the left first, or type/paste lines directly here. A line may use  cue → answer  to show a prompt you recall against."></textarea>
+      <div class="btnrow">
+        <button id="btnBegin" class="primary">Begin practice →</button>
+        <span class="hint" id="chunkCount">0 lines</span>
+        <span class="time-limit-field">
+          <label for="timeLimit">time limit</label>
+          <input type="text" id="timeLimit" inputmode="numeric" placeholder="none" autocomplete="off">
+          <span class="hint">min (optional)</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PRACTICE ================= -->
+  <section id="practice" class="hidden">
+    <div class="practice-grid">
+      <div class="rail" id="rail"></div>
+      <div class="stage">
+        <div class="stage-sticky" id="stageSticky">
+          <div class="progress-line">
+            <span>Block <b id="curIndex">1</b> of <span id="totalCount">0</span></span>
+            <span id="elapsedClock" class="elapsed">⏱ 0:00</span>
+            <span class="progress-right">
+              <span id="runningAcc">running accuracy: <b>—</b></span>
+              <span class="info-icon" id="shortcutsInfo" tabindex="0" aria-label="Keyboard shortcuts">i
+                <span class="info-pop" id="shortcutsPop">
+                  <b>Keyboard shortcuts</b>
+                  <span><kbd>Enter</kbd> score &amp; next block</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd> next block</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> previous block</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> retry block</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd> skip block</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> hide / show text</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>B</kbd> hide / show box</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>W</kbd> wrap / scroll box</span>
+                  <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> finish &amp; see summary</span>
+                  <span class="info-note">On Mac, use <kbd>Ctrl</kbd>+<kbd>Option</kbd>.</span>
+                </span>
+              </span>
+            </span>
+          </div>
+          <div class="cue-box" id="cueBox"></div>
+        </div>
+        <div class="diff-head">
+          <span class="diff-label">your typing vs. the original</span>
+          <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
+        </div>
+        <div class="box-wrap" id="diffWrap">
+          <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
+          <div class="diff-box" id="diffBox"></div>
+        </div>
+        <div class="live-stats">
+          <span>this line: <b id="liveAcc">0%</b></span>
+          <span>typed: <b id="liveLen">0</b> / <span id="targetLen">0</span></span>
+        </div>
+        <div class="box-wrap" id="typeWrap">
+          <button class="corner-toggle" data-corner-toggle="type" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
+          <textarea id="typeInput" rows="1" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Start typing — Enter or Next to score this line and advance"></textarea>
+        </div>
+        <div class="btnrow">
+          <button id="btnPrev" title="Previous block (Ctrl+Alt+P)">← Previous</button>
+          <button id="btnNext" title="Score this block and advance (Enter, or Ctrl+Alt+N)">Next →</button>
+          <button id="btnRetry" title="Clear and retry this block (Ctrl+Alt+R)">Retry</button>
+          <button id="btnSkip" title="Skip this block without scoring (Ctrl+Alt+S)">Skip</button>
+          <button id="btnReveal" title="Hide or show the upcoming text (Ctrl+Alt+H)">Show text</button>
+          <button id="btnFinish" title="Finish &amp; see session summary (Ctrl+Alt+Enter)">Finish</button>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--correct)"></i>correct</span>
+          <span><i style="background:var(--case-err)"></i>case mismatch</span>
+          <span><i style="background:var(--punct-err)"></i>punctuation mismatch</span>
+          <span><i style="background:var(--sub-err)"></i>wrong character</span>
+          <span><i style="background:var(--missing)"></i>missing</span>
+          <span><i style="background:var(--extra)"></i>extra (crossed out)</span>
+          <span><i style="background:var(--dim-2)"></i>not yet typed</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SUMMARY ================= -->
+  <section id="summary" class="hidden">
+    <div class="panel">
+      <div id="summaryCapture">
+        <h2>Session summary</h2>
+        <div class="stat-grid" id="statGrid"></div>
+        <table>
+          <thead><tr><th>#</th><th>Line</th><th>Accuracy</th><th>Case</th><th>Punct.</th><th>Other</th></tr></thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+        <h2 class="review-heading">Full review — your typing vs. the original</h2>
+        <div id="reviewList"></div>
+        <div class="legend" id="summaryLegend">
+          <span><i style="background:var(--correct)"></i>correct</span>
+          <span><i style="background:var(--case-err)"></i>case</span>
+          <span><i style="background:var(--punct-err)"></i>punctuation</span>
+          <span><i style="background:var(--sub-err)"></i>wrong character</span>
+          <span><i style="background:var(--missing)"></i>missing</span>
+          <span><i style="background:var(--extra)"></i>extra (crossed out)</span>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button id="btnRestart" class="primary">Start a new session</button>
+        <button id="btnBackToPractice">← Back to practice</button>
+        <button id="btnExportPng">Download PNG</button>
+        <button id="btnCopyPng">Copy PNG</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>Runs entirely in this browser tab. Nothing is uploaded, saved, or sent anywhere — closing the tab clears the session.</footer>
+</div>
+
+<script>
+/* ====================== state ====================== */
+const state = {
+  chunks: [],
+  prompts: [],   // same length as chunks: optional cue shown for each block ('' = none)
+  splitMode: 'lines', // 'lines' | 'sentences' | 'verse' | 'qa'
+  results: [],   // same length as chunks: null | {typed, accuracy, caseErr, punctErr, subErr, extraCount, omittedCount, targetLen, correctCount}
+  drafts: [],    // same length as chunks: whatever is currently typed for that line, committed or not
+  railCells: [], // cached rail cell DOM nodes (avoids repeated getElementById)
+  index: 0,
+  revealPending: false,
+  currentIsFinal: false, // whether the line currently shown is a committed result vs. still in progress
+  diffMode: 'scroll', // comparison box line handling: 'wrap' | 'scroll' (scroll = compact default)
+  typeMode: 'scroll', // typing box line handling: 'wrap' | 'scroll'
+  boxHidden: false, // whether the diff-box is collapsed/hidden entirely
+  startTime: null, // ms timestamp when practice began
+  endTime: null, // ms timestamp when the session was finished
+  timerInterval: null, // handle for the live clock
+  lastInputTime: null, // ms timestamp of the most recent keystroke
+  afkMs: 0, // accumulated away-from-keyboard time (gaps beyond the AFK threshold)
+  timeLimitSec: 0, // optional countdown limit in seconds (0 = no limit)
+};
+const AFK_THRESHOLD_MS = 7000; // a gap longer than this counts as away-from-keyboard
+
+/* ====================== helpers ====================== */
+function isPunct(ch){
+  if(!ch) return false;
+  try { return /[\p{P}\p{S}]/u.test(ch); } catch(e){ return /[^\w\s]/.test(ch); }
+}
+
+function normalizeText(text){
+  // Fold typographic variants to plain ASCII so the user isn't marked wrong for,
+  // say, typing a straight quote where the source used a curly one. Applied to the
+  // source before splitting AND to typed input before diffing, so both sides use
+  // the same canonical characters.
+  return text
+    .replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")   // ' ' ‚ ‛ ′ ‵ -> '
+    .replace(/[\u201c\u201d\u201e\u201f\u2033\u2036]/g, '"')   // " " „ ‟ ″ ‶ -> "
+    .replace(/[\u2013\u2014\u2015\u2212]/g, '-')               // – — ― − -> -
+    .replace(/[\u2026]/g, '...')                                // … -> ...
+    .replace(/[\u00a0\u2007\u202f\u2009\u200a]/g, ' ')          // non-breaking / thin spaces -> space
+    .replace(/[\u00ab\u00bb\u2039\u203a]/g, '"');              // « » ‹ › -> "
+}
+
+function splitSentences(text){
+  // Manual scan instead of a single backtracking regex: guarantees no text is ever
+  // silently dropped (the old regex could eat whole clauses when a sentence ended
+  // with punctuation immediately followed by a closing quote, e.g. `sure?"`).
+  // Each emitted chunk has its internal whitespace collapsed to single spaces, so
+  // a paragraph break that gets swallowed into a chunk doesn't survive as newlines.
+  text = normalizeText(text);
+  const closers = '"\'\u2019\u201d)\]\u203a\u00bb';
+  const openers = '"\u2018\u201c\u00ab\u2039'; // opening quotes that signal new quoted material
+  const sentences = [];
+  let buf = '';
+  let i = 0;
+  const flush = (s) => { const norm = s.replace(/\s+/g,' ').trim(); if(norm) sentences.push(norm); };
+  while(i < text.length){
+    const ch = text[i];
+    buf += ch;
+    if(ch === '.' || ch === '!' || ch === '?'){
+      // hard terminators: end the sentence (allowing trailing closing quotes)
+      let j = i + 1;
+      while(j < text.length && (text[j]==='.'||text[j]==='!'||text[j]==='?')){ buf += text[j]; j++; }
+      while(j < text.length && closers.includes(text[j])){ buf += text[j]; j++; }
+      if(j >= text.length || /\s/.test(text[j])){
+        flush(buf);
+        buf = '';
+        i = j;
+        continue;
+      }
+      i = j;
+      continue;
+    }
+    if(ch === ':' || ch === ';'){
+      // soft boundary: a colon/semicolon ends a chunk ONLY when what follows is a
+      // line break or an opening quote — the dialogue / scripture-citation pattern
+      // ("...the land and the sea:" then a new quoted line). A colon inside a list
+      // ("the following: a, b") or a ratio ("3:2") isn't followed by a quote or
+      // newline, so it correctly does NOT break there.
+      let k = i + 1;
+      while(k < text.length && (text[k]===' ' || text[k]==='\t')) k++;
+      const nextIsNewline = text[i+1]==='\n' || text[i+1]==='\r' || (k < text.length && (text[k]==='\n' || text[k]==='\r'));
+      const nextIsQuote = k < text.length && openers.includes(text[k]);
+      if(nextIsNewline || nextIsQuote){
+        flush(buf);
+        buf = '';
+        i = i + 1;
+        continue;
+      }
+    }
+    i++;
+  }
+  flush(buf);
+  return sentences;
+}
+function splitLines(text){
+  return normalizeText(text).split(/\r?\n/).map(s => s.replace(/\s+/g,' ').trim()).filter(Boolean);
+}
+
+// Verse mode: each verse becomes a block whose cue (prompt) is the verse marker
+// (v1, 1, 3:16…) and whose answer is the verse text. A line starting with a marker
+// begins a new verse; unmarked lines continue the current one. The marker becomes a
+// recall cue you see, instead of something you have to type.
+function splitVerse(text){
+  text = normalizeText(text);
+  const markerRe = /^\s*(v\.?\s*\d+(?::\d+)?|\d+(?::\d+)?)[.):\]]?\s*/i;
+  const out = [];
+  let cur = null;
+  for(const raw of text.split(/\r?\n/)){
+    const line = raw.trim();
+    if(!line) continue;
+    const m = line.match(markerRe);
+    if(m){
+      const rest = line.slice(m[0].length).trim();
+      let cue = m[1].replace(/\s+/g,'').replace(/^v\.?/i,'v');
+      if(/^\d+$/.test(cue)) cue = 'v' + cue;       // bare number -> v-prefixed; leave 3:16 as-is
+      if(cur) out.push(cur);
+      cur = { prompt: cue, answer: rest };
+    } else {
+      if(cur) cur.answer += ' ' + line;
+      else cur = { prompt: '', answer: line };
+    }
+  }
+  if(cur) out.push(cur);
+  return out.map(v => ({ prompt: v.prompt, answer: v.answer.replace(/\s+/g,' ').trim() }))
+            .filter(v => v.answer.length > 0);
+}
+
+// Q&A mode: a question section (Q1 / Question 1) becomes the cue you see; the
+// immediately following answer section (A1 / Answer 1 / bare "Answer") becomes
+// what you type. Multi-part numbering like "1) 2) 3)" is preserved in both.
+// Markers may be inline ("Q1 ... A1 ...") or on their own lines with the parts
+// beneath, and the answer marker doesn't need a number at all — many people just
+// write a bare "Answer" line, which has to be detected without also matching
+// ordinary sentences that happen to start with "A" or "Q".
+function splitQA(text){
+  text = normalizeText(text);
+  // Full words ("Question"/"Answer") are unambiguous, so they're allowed to stand
+  // alone with NO number at all. Short forms ("Q"/"A"/"Ans") are common English
+  // letters/words, so they REQUIRE a digit right after them — otherwise a normal
+  // sentence like "A few notes..." or "Always remember..." would be misread as a
+  // marker.
+  const qFullRe = /^\s*questions?\b\s*[:.]?\s*(\d+)?\s*[.):]?\s*/i;
+  const qShortRe = /^\s*q\s*[:.]?\s*(\d+)\s*[.):]?\s*/i;
+  const aFullRe = /^\s*answers?\b\s*[:.]?\s*(\d+)?\s*[.):]?\s*/i;
+  const aShortRe = /^\s*a(?:ns)?\s*[:.]?\s*(\d+)\s*[.):]?\s*/i;
+  const matchQ = line => line.match(qFullRe) || line.match(qShortRe);
+  const matchA = line => line.match(aFullRe) || line.match(aShortRe);
+
+  const sections = [];
+  let cur = null;
+  let qAutoNum = 0; // fallback numbering for a bare "Question" with no digit
+  for(const raw of text.split(/\r?\n/)){
+    const line = raw.trim();
+    if(!line) continue;
+    const qm = matchQ(line);
+    const am = !qm ? matchA(line) : null; // a line can't be both; check Q first
+    if(qm){
+      if(cur) sections.push(cur);
+      qAutoNum++;
+      const num = qm[1] || qAutoNum;
+      cur = { kind:'q', text: line.slice(qm[0].length).trim(), marker:`Q${num}` };
+    } else if(am){
+      if(cur) sections.push(cur);
+      cur = { kind:'a', text: line.slice(am[0].length).trim(), marker:'A' };
+    } else {
+      if(cur) cur.text += ' ' + line;
+    }
+  }
+  if(cur) sections.push(cur);
+  const out = [];
+  for(let i=0;i<sections.length;i++){
+    const s = sections[i];
+    if(s.kind !== 'q') continue;
+    let ans = null;
+    for(let j=i+1;j<sections.length;j++){
+      if(sections[j].kind === 'a'){ ans = sections[j]; break; }
+      if(sections[j].kind === 'q'){ break; }
+    }
+    const qText = s.text.replace(/\s+/g,' ').trim();
+    const prompt = (s.marker + (qText ? ' ' + qText : '')).trim();
+    const answer = ans ? ans.text.replace(/\s+/g,' ').trim() : '';
+    out.push({ prompt, answer });
+  }
+  return out.filter(x => x.answer.length > 0);
+}
+
+// Parse the editable chunk box into {prompt, answer} blocks. One block per line;
+// an optional " → " separates a cue (prompt) from the answer that gets typed.
+const CUE_SEP = ' → ';
+function parseChunkLines(raw){
+  return raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(line => {
+    const idx = line.indexOf(CUE_SEP.trim()); // tolerate stray spacing around the arrow
+    const arrowPos = line.indexOf('→');
+    if(arrowPos !== -1){
+      return { prompt: line.slice(0, arrowPos).trim(), answer: line.slice(arrowPos + 1).trim() };
+    }
+    return { prompt: '', answer: line };
+  }).filter(b => b.answer.length > 0);
+}
+
+function charDistance(a, b){
+  // Plain (case-insensitive) Levenshtein distance between two short strings,
+  // used only to decide how similar two whole words are.
+  a = a.toLowerCase(); b = b.toLowerCase();
+  const n = a.length, m = b.length;
+  if(n === 0) return m;
+  if(m === 0) return n;
+  let prev = new Array(m+1);
+  for(let j=0;j<=m;j++) prev[j] = j;
+  for(let i=1;i<=n;i++){
+    const cur = new Array(m+1);
+    cur[0] = i;
+    for(let j=1;j<=m;j++){
+      cur[j] = a[i-1]===b[j-1] ? prev[j-1] : 1 + Math.min(prev[j-1], prev[j], cur[j-1]);
+    }
+    prev = cur;
+  }
+  return prev[m];
+}
+
+const WORD_SUB_SIMILAR = 1;      // cost to substitute two words that are near-typos
+const WORD_SUB_DISSIMILAR = 2.001; // > delete + insert (=2): forces a clean skip+add instead
+const WORD_SIM_THRESHOLD = 0.5;
+function wordSubCost(a, b){
+  // Cost of treating word `a` (target) as having been mistyped as `b`.
+  // Equal: free. A near-typo (e.g. who/whom, given/give): cheap, so it's diffed
+  // character-by-character. Two unrelated words (e.g. had/were): made MORE expensive
+  // than deleting one and inserting the other, so the aligner shows them as a clean
+  // omitted word + extra word rather than mashing unrelated letters together.
+  if(a === b) return 0;
+  const aWs = /^\s+$/.test(a), bWs = /^\s+$/.test(b);
+  if(aWs || bWs) return WORD_SUB_DISSIMILAR; // whitespace runs only ever match exactly
+  if(a.toLowerCase() === b.toLowerCase()) return WORD_SUB_SIMILAR * 0.5; // case-only diff: very cheap
+  const sim = 1 - (charDistance(a,b) / (Math.max(a.length, b.length) || 1));
+  return sim >= WORD_SIM_THRESHOLD ? WORD_SUB_SIMILAR : WORD_SUB_DISSIMILAR;
+}
+
+function wordAlign(a, b){
+  // Weighted Levenshtein over whole tokens (words/whitespace) for COMMITTED lines.
+  // Indel cost is 1; substitution cost comes from wordSubCost, so dissimilar words
+  // are split into omit+add rather than character-mashed.
+  const n = a.length, m = b.length;
+  const dp = [];
+  for(let i=0;i<=n;i++) dp.push(new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) dp[i][0] = i;
+  for(let j=0;j<=m;j++) dp[0][j] = j;
+  for(let i=1;i<=n;i++){
+    for(let j=1;j<=m;j++){
+      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1]), dp[i-1][j]+1, dp[i][j-1]+1);
+    }
+  }
+  const ops = [];
+  let i = n, j = m;
+  while(i > 0 || j > 0){
+    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1])){
+      ops.push({type: a[i-1].toLowerCase()===b[j-1].toLowerCase() ? 'match' : 'sub', ai:i-1, bi:j-1}); i--; j--;
+    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
+      ops.push({type:'del', ai:i-1}); i--;
+    } else {
+      ops.push({type:'ins', bi:j-1}); j--;
+    }
+  }
+  ops.reverse();
+  return ops;
+}
+
+function wordAlignPrefix(target, typed){
+  // Weighted word alignment for the LIVE case: prefix-anchored (typed fully
+  // consumed, target free to have an unreached tail), choosing the end row that
+  // costs least and consumes the most target on ties (earliest-match anchoring),
+  // and using wordSubCost so dissimilar words split cleanly here too.
+  const n = target.length, m = typed.length;
+  const dp = [];
+  for(let i=0;i<=n;i++) dp.push(new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) dp[i][0] = i;
+  for(let j=0;j<=m;j++) dp[0][j] = j;
+  for(let i=1;i<=n;i++){
+    for(let j=1;j<=m;j++){
+      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(target[i-1], typed[j-1]), dp[i-1][j]+1, dp[i][j-1]+1);
+    }
+  }
+  let best = Infinity, endRow = 0;
+  for(let i=0;i<=n;i++){ if(dp[i][m] <= best){ best = dp[i][m]; endRow = i; } }
+  const ops = [];
+  let i = endRow, j = m;
+  while(i > 0 || j > 0){
+    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + wordSubCost(target[i-1], typed[j-1])){
+      ops.push({type: target[i-1].toLowerCase()===typed[j-1].toLowerCase() ? 'match' : 'sub', ai:i-1, bi:j-1}); i--; j--;
+    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
+      ops.push({type:'del', ai:i-1}); i--;
+    } else {
+      ops.push({type:'ins', bi:j-1}); j--;
+    }
+  }
+  ops.reverse();
+  for(let k=endRow; k<n; k++) ops.push({type:'pending', ai:k});
+  return ops;
+}
+
+function levenshteinAlign(a, b, eq){
+  // Full global Levenshtein alignment with backtrace — used for COMMITTED lines,
+  // where both sides are complete and we want the globally cheapest accounting of
+  // every character/word. Parameterized over the equality test so it works for
+  // whole tokens (words/whitespace runs) and for characters within one token.
+  const n = a.length, m = b.length;
+  const dp = [];
+  for(let i=0;i<=n;i++) dp.push(new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) dp[i][0] = i;
+  for(let j=0;j<=m;j++) dp[0][j] = j;
+  for(let i=1;i<=n;i++){
+    for(let j=1;j<=m;j++){
+      if(eq(a[i-1], b[j-1])) dp[i][j] = dp[i-1][j-1];
+      else dp[i][j] = 1 + Math.min(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  const ops = [];
+  let i = n, j = m;
+  while(i > 0 || j > 0){
+    if(i>0 && j>0 && eq(a[i-1],b[j-1]) && dp[i][j]===dp[i-1][j-1]){
+      ops.push({type:'match', ai:i-1, bi:j-1}); i--; j--;
+    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
+      ops.push({type:'del', ai:i-1}); i--;
+    } else if(j>0 && dp[i][j] === dp[i][j-1]+1){
+      ops.push({type:'ins', bi:j-1}); j--;
+    } else {
+      ops.push({type:'sub', ai:i-1, bi:j-1}); i--; j--;
+    }
+  }
+  ops.reverse();
+  return ops;
+}
+
+function prefixAlign(target, typed, eq){
+  // Prefix-anchored alignment for the LIVE (in-progress) case.
+  //
+  // A global Levenshtein has no notion of "typed is an unfinished prefix", so on
+  // ties its backtrace can match what you've typed against a LATER occurrence of
+  // the same word or letters — making everything in between flash as crossed-out
+  // until the next keystroke (the "jump to the third 'four'" and the
+  // green/crossed/green "sta-ndi-n" glitches).
+  //
+  // Here the typed side must be fully consumed, but the target is allowed a FREE
+  // unconsumed tail (what you haven't reached yet). We pick the end row that costs
+  // the least and, on ties, consumes the MOST target — so a true prefix anchors to
+  // the EARLIEST matching run rather than a coincidental later one. Everything past
+  // the chosen end row becomes the pending tail.
+  const n = target.length, m = typed.length;
+  const dp = [];
+  for(let i=0;i<=n;i++) dp.push(new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) dp[i][0] = i;
+  for(let j=0;j<=m;j++) dp[0][j] = j;
+  for(let i=1;i<=n;i++){
+    for(let j=1;j<=m;j++){
+      const matchCost = eq(target[i-1], typed[j-1]) ? dp[i-1][j-1] : dp[i-1][j-1]+1;
+      dp[i][j] = Math.min(matchCost, dp[i-1][j]+1, dp[i][j-1]+1);
+    }
+  }
+  let best = Infinity, endRow = 0;
+  for(let i=0;i<=n;i++){ if(dp[i][m] <= best){ best = dp[i][m]; endRow = i; } } // largest i on tie
+  const ops = [];
+  let i = endRow, j = m;
+  while(i > 0 || j > 0){
+    if(i>0 && j>0 && eq(target[i-1],typed[j-1]) && dp[i][j]===dp[i-1][j-1]){
+      ops.push({type:'match', ai:i-1, bi:j-1}); i--; j--;
+    } else if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1]+1){
+      ops.push({type:'sub', ai:i-1, bi:j-1}); i--; j--;
+    } else if(j>0 && dp[i][j] === dp[i][j-1]+1){
+      ops.push({type:'ins', bi:j-1}); j--;
+    } else {
+      ops.push({type:'del', ai:i-1}); i--;
+    }
+  }
+  ops.reverse();
+  for(let k=endRow; k<n; k++) ops.push({type:'pending', ai:k}); // unreached tail
+  return ops;
+}
+
+function classifySub(t, u){
+  if(t.toLowerCase() === u.toLowerCase() && t.toLowerCase() !== t.toUpperCase()) return 'case-err';
+  if(isPunct(t) || isPunct(u)) return 'punct-err';
+  return 'sub-err';
+}
+
+function charDiffPair(targetWord, typedWord, isFinal, isLastReachedWord){
+  // Character-level diff within a single aligned word (or whitespace run).
+  // isLastReachedWord: true only for the final word the typist has reached while
+  // typing live. For any earlier word, a leftover (un-typed) character is a real
+  // omission — the typist has already moved past it — so it must not be shown as
+  // "pending"/not-yet-reached (that was the missing-comma bug).
+  const ops = isFinal
+    ? levenshteinAlign(targetWord.split(''), typedWord.split(''), (x,y)=>x===y)
+    : prefixAlign(targetWord.split(''), typedWord.split(''), (x,y)=>x===y);
+  const cells = [];
+  let correctCount=0, caseErr=0, punctErr=0, subErr=0, extraCount=0, omittedCount=0;
+  for(const op of ops){
+    if(op.type === 'match'){
+      cells.push({ch:targetWord[op.ai], cls:'correct'}); correctCount++;
+    } else if(op.type === 'sub'){
+      const cls = classifySub(targetWord[op.ai], typedWord[op.bi]);
+      cells.push({ch:targetWord[op.ai], cls});
+      if(cls === 'case-err') caseErr++; else if(cls === 'punct-err') punctErr++; else subErr++;
+    } else if(op.type === 'del'){
+      cells.push({ch:targetWord[op.ai], cls:'omitted'}); omittedCount++;
+    } else if(op.type === 'pending'){
+      if(isFinal || !isLastReachedWord){
+        // already moved past this word -> a leftover char is a genuine omission
+        cells.push({ch:targetWord[op.ai], cls:'omitted'}); omittedCount++;
+      } else {
+        cells.push({ch:targetWord[op.ai], cls:'pending'}); // genuinely not reached yet
+      }
+    } else {
+      cells.push({ch:typedWord[op.bi], cls:'extra'}); extraCount++;
+    }
+  }
+  return {cells, correctCount, caseErr, punctErr, subErr, extraCount, omittedCount};
+}
+
+function computeDiff(target, typed, isFinal){
+  // Two-tier diff: align whole words/whitespace runs first (case-insensitively,
+  // so "The" and "the" share a slot), then diff characters within each aligned
+  // pair. Word-level alignment lets a skipped phrase of any length show up as one
+  // clean block instead of cascading through the rest of the line.
+  //
+  // isFinal distinguishes a committed line from one still being typed. Committed
+  // lines use a full global Levenshtein (every char accounted for, unreached text
+  // counts as omitted). In-progress lines use a prefix-anchored alignment: matches
+  // anchor to the earliest target occurrence and the unreached tail stays pending.
+  //
+  // While typing, trailing whitespace is stripped first: the space pressed right
+  // before the next word means "ready for the next word", not content yet. On a
+  // final commit, whitespace is kept exactly as typed so it's still graded.
+  // Normalize typed input too: mobile keyboards and autocorrect often insert
+  // curly quotes/dashes, which should match the normalized target rather than
+  // count as errors.
+  typed = normalizeText(typed);
+  const effectiveTyped = isFinal ? typed : typed.replace(/\s+$/,'');
+  const targetTokens = target.match(/\S+|\s+/g) || [];
+  const typedTokens = effectiveTyped.match(/\S+|\s+/g) || [];
+  const ops = isFinal
+    ? wordAlign(targetTokens, typedTokens)
+    : wordAlignPrefix(targetTokens, typedTokens);
+
+  const cells = [];
+  let correctCount=0, caseErr=0, punctErr=0, subErr=0, extraCount=0, omittedCount=0;
+
+  // Index of the last word/space op that the typist actually reached (i.e. that
+  // consumed some typed input). Pending characters inside any earlier word are
+  // genuine omissions; only the last reached word can have a "not yet typed" tail.
+  let lastReachedOp = -1;
+  ops.forEach((op, idx) => { if(op.type === 'match' || op.type === 'sub' || op.type === 'ins') lastReachedOp = idx; });
+
+  ops.forEach((op, idx) => {
+    if(op.type === 'match' || op.type === 'sub'){
+      const isLastReachedWord = !isFinal && idx === lastReachedOp;
+      const sub = charDiffPair(targetTokens[op.ai], typedTokens[op.bi], isFinal, isLastReachedWord);
+      cells.push(...sub.cells);
+      correctCount += sub.correctCount; caseErr += sub.caseErr; punctErr += sub.punctErr;
+      subErr += sub.subErr; extraCount += sub.extraCount; omittedCount += sub.omittedCount;
+    } else if(op.type === 'del'){
+      for(const ch of targetTokens[op.ai]){ cells.push({ch, cls:'omitted'}); omittedCount++; }
+    } else if(op.type === 'pending'){
+      // unreached tail of an in-progress line: pending while typing, omitted once committed
+      for(const ch of targetTokens[op.ai]){
+        if(isFinal){ cells.push({ch, cls:'omitted'}); omittedCount++; }
+        else { cells.push({ch, cls:'pending'}); }
+      }
+    } else {
+      for(const ch of typedTokens[op.bi]){ cells.push({ch, cls:'extra'}); extraCount++; }
+    }
+  });
+
+  const accuracy = target.length ? Math.round((correctCount/target.length)*1000)/10 : 0;
+  return {cells, correctCount, caseErr, punctErr, subErr, extraCount, omittedCount, targetLen: target.length, accuracy};
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/ /g,'&nbsp;');
+}
+function escapeProse(s){
+  // Like escapeHtml but keeps real breakable spaces — for normal prose (the cue
+  // box), as opposed to the diff box's per-character cells where &nbsp; matters.
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ====================== setup screen ====================== */
+const sourceText = document.getElementById('sourceText');
+const chunkText = document.getElementById('chunkText');
+const chunkCount = document.getElementById('chunkCount');
+const modeSentence = document.getElementById('modeSentence');
+const modeLine = document.getElementById('modeLine');
+const modeVerse = document.getElementById('modeVerse');
+const modeQA = document.getElementById('modeQA');
+const splitHint = document.getElementById('splitHint');
+
+const MODE_BTNS = { lines: modeLine, sentences: modeSentence, verse: modeVerse, qa: modeQA };
+const MODE_HINTS = {
+  lines: 'Each line becomes one block you type verbatim. Best for scripture, poetry, and lyrics laid out line by line.',
+  sentences: 'Sentence splitting breaks on . ! ? only — so a heading or a line ending in a colon merges into the sentence after it. Fix any mis-splits before you start.',
+  verse: 'Each verse marker (v1, 1, 3:16…) becomes a cue you see; you recall and type the verse text itself — no need to type the number. Edit the  cue → answer  lines freely.',
+  qa: 'Mark each question with Q1, Q2… and put a literal "Answer" (or A1, A2…) right after it — that consistency is what makes the split reliable. Multi-part "1) 2) 3)" numbering is kept in both the question and the answer. See the i for details.',
+};
+function setActiveMode(mode){
+  state.splitMode = mode;
+  Object.values(MODE_BTNS).forEach(b => b.classList.remove('active'));
+  MODE_BTNS[mode].classList.add('active');
+  splitHint.textContent = MODE_HINTS[mode];
+}
+function pairsToChunkText(pairs){
+  // Render {prompt, answer} blocks into the editable one-per-line format,
+  // using " → " only where a cue is present.
+  return pairs.map(p => p.prompt ? (p.prompt + CUE_SEP + p.answer) : p.answer).join('\n');
+}
+modeLine.addEventListener('click', () => {
+  setActiveMode('lines');
+  chunkText.value = splitLines(sourceText.value).join('\n');
+  updateChunkCount();
+});
+modeSentence.addEventListener('click', () => {
+  setActiveMode('sentences');
+  chunkText.value = splitSentences(sourceText.value).join('\n');
+  updateChunkCount();
+});
+modeVerse.addEventListener('click', () => {
+  setActiveMode('verse');
+  chunkText.value = pairsToChunkText(splitVerse(sourceText.value));
+  updateChunkCount();
+});
+modeQA.addEventListener('click', () => {
+  setActiveMode('qa');
+  chunkText.value = pairsToChunkText(splitQA(sourceText.value));
+  updateChunkCount();
+});
+chunkText.addEventListener('input', updateChunkCount);
+function updateChunkCount(){
+  const n = parseChunkLines(chunkText.value).length;
+  chunkCount.textContent = n + (n===1 ? ' block' : ' blocks');
+}
+
+document.getElementById('btnBegin').addEventListener('click', () => {
+  const blocks = parseChunkLines(chunkText.value);
+  if(blocks.length === 0){ chunkText.focus(); return; }
+  const limitRaw = parseFloat(document.getElementById('timeLimit').value);
+  state.timeLimitSec = (isFinite(limitRaw) && limitRaw > 0) ? Math.round(limitRaw * 60) : 0;
+  state.chunks = blocks.map(b => b.answer);
+  state.prompts = blocks.map(b => b.prompt || '');
+  state.results = new Array(blocks.length).fill(null);
+  state.drafts = new Array(blocks.length).fill('');
+  state.index = 0;
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('summary').classList.add('hidden');
+  document.getElementById('practice').classList.remove('hidden');
+  document.getElementById('totalCount').textContent = blocks.length;
+  buildRail();
+  applyBoxMode();
+  startTimer();
+  renderPractice();
+  typeInput.focus();
+});
+
+function formatDuration(ms){
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if(h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function noteActivity(){
+  // Called on every keystroke. If the gap since the last keystroke exceeded the
+  // AFK threshold, the whole gap is logged as away-from-keyboard time.
+  const now = Date.now();
+  if(state.lastInputTime != null){
+    const gap = now - state.lastInputTime;
+    if(gap > AFK_THRESHOLD_MS) state.afkMs += gap;
+  }
+  state.lastInputTime = now;
+}
+function currentAfkMs(){
+  // Include an in-progress idle stretch (if the user is AFK right now) so the
+  // live display and a mid-idle finish both reflect it.
+  let afk = state.afkMs;
+  if(state.lastInputTime != null && state.endTime == null){
+    const gap = Date.now() - state.lastInputTime;
+    if(gap > AFK_THRESHOLD_MS) afk += gap;
+  }
+  return afk;
+}
+function renderClockDisplay(){
+  // Pure display update — never triggers side effects, so calling it from both
+  // the ticking interval and from start/stopTimer can never recurse.
+  if(state.startTime == null) return;
+  const elapsed = (state.endTime ?? Date.now()) - state.startTime;
+  const el = document.getElementById('elapsedClock');
+  if(!el) return;
+  if(state.timeLimitSec > 0){
+    const limitMs = state.timeLimitSec * 1000;
+    if(elapsed >= limitMs){
+      // Past the limit: don't block or force-finish — just make it visually
+      // obvious you're running over, and let the session continue normally.
+      el.textContent = '⏱ +' + formatDuration(elapsed - limitMs) + ' over';
+      el.classList.add('time-up');
+      el.classList.remove('time-low');
+    } else {
+      const remaining = limitMs - elapsed;
+      el.textContent = '⏱ ' + formatDuration(remaining) + ' left';
+      el.classList.toggle('time-low', remaining <= 30000);
+      el.classList.remove('time-up');
+    }
+  } else {
+    el.textContent = '⏱ ' + formatDuration(elapsed);
+    el.classList.remove('time-low', 'time-up');
+  }
+}
+function tickClock(){
+  renderClockDisplay();
+}
+function startTimer(){
+  // Only start the clock the first time; revisiting practice from the summary
+  // shouldn't reset elapsed time.
+  if(state.startTime == null){
+    state.startTime = Date.now();
+    state.endTime = null;
+    state.lastInputTime = null;
+    state.afkMs = 0;
+  }
+  if(state.timerInterval == null){
+    state.timerInterval = setInterval(tickClock, 1000);
+  }
+  renderClockDisplay();
+}
+function stopTimer(){
+  if(state.endTime == null) state.endTime = Date.now();
+  if(state.timerInterval != null){
+    clearInterval(state.timerInterval);
+    state.timerInterval = null;
+  }
+  renderClockDisplay();
+}
+
+/* ====================== practice screen ====================== */
+const diffBox = document.getElementById('diffBox');
+const cueBox = document.getElementById('cueBox');
+const typeInput = document.getElementById('typeInput');
+const liveAcc = document.getElementById('liveAcc');
+const liveLen = document.getElementById('liveLen');
+const targetLenEl = document.getElementById('targetLen');
+const curIndexEl = document.getElementById('curIndex');
+const runningAcc = document.getElementById('runningAcc');
+const rail = document.getElementById('rail');
+
+function buildRail(){
+  rail.innerHTML = '';
+  state.railCells = [];
+  const frag = document.createDocumentFragment();
+  state.chunks.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'mark-cell pending';
+    d.textContent = (i+1);
+    d.title = 'Jump to block ' + (i+1);
+    d.style.cursor = 'pointer';
+    d.addEventListener('click', () => {
+      if(i !== state.index) commitCurrentForNavigation();
+      state.index = i;
+      renderPractice();
+    });
+    frag.appendChild(d);
+    state.railCells.push(d);
+  });
+  rail.appendChild(frag);
+}
+function refreshRailCell(i){
+  const cell = state.railCells && state.railCells[i];
+  if(!cell) return;
+  cell.className = 'mark-cell';
+  const r = state.results[i];
+  if(i === state.index) cell.classList.add('current');
+  else if(r === null) cell.classList.add('pending');
+  else if(r === 'skip') cell.classList.add('skip');
+  else if(r.accuracy >= 95) cell.classList.add('good');
+  else if(r.accuracy >= 75) cell.classList.add('mid');
+  else cell.classList.add('low');
+}
+function refreshAllRail(){
+  state.chunks.forEach((_, i) => refreshRailCell(i));
+}
+
+function autoGrow(el){
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function setTypedValue(text, isFinal){
+  typeInput.value = text;
+  state.drafts[state.index] = text;
+  renderDiff(text, isFinal);
+  autoGrow(typeInput);
+}
+
+function renderCue(){
+  const prompt = (state.prompts && state.prompts[state.index]) || '';
+  if(!prompt){ cueBox.classList.remove('show'); cueBox.innerHTML = ''; return; }
+  // Make a short verse marker stand out; show longer Q&A prompts as flowing text.
+  const isShort = prompt.length <= 12 && !/\s/.test(prompt);
+  const body = isShort
+    ? `<span class="cue-num">${escapeProse(prompt)}</span>`
+    : escapeProse(prompt);
+  cueBox.innerHTML = `<span class="cue-label">recall this</span>${body}`;
+  cueBox.classList.add('show');
+}
+
+function renderPractice(){
+  const target = state.chunks[state.index];
+  curIndexEl.textContent = state.index + 1;
+  targetLenEl.textContent = target.length;
+  renderCue();
+  const priorTyped = state.drafts[state.index] || '';
+  const committed = state.results[state.index] && state.results[state.index] !== 'skip';
+  state.currentIsFinal = !!committed;
+  setTypedValue(priorTyped, state.currentIsFinal);
+  diffBox.scrollLeft = 0;       // reset sideways scroll from the previous block
+  typeInput.scrollLeft = 0;
+  refreshAllRail();
+  updateRunningAccuracy();
+  typeInput.focus();
+  typeInput.setSelectionRange(priorTyped.length, priorTyped.length);
+  document.getElementById('btnPrev').disabled = state.index === 0;
+  followScroll(priorTyped);     // if a draft was restored, keep its end in view
+}
+
+function buildDiffHtml(cells, maskPending){
+  // Group consecutive non-space character-spans into a .word wrapper that won't
+  // break internally, so wrapping happens at spaces (real word boundaries) rather
+  // than mid-word. Whitespace cells are emitted between words as breakable spaces.
+  // maskPending: when true, not-yet-typed characters render as dots (live view);
+  // when false, pending text is shown in full (summary review).
+  let html = '';
+  let wordOpen = false;
+  const closeWord = () => { if(wordOpen){ html += '</span>'; wordOpen = false; } };
+  cells.forEach(c => {
+    const isSpace = /\s/.test(c.ch);
+    let cls = c.cls;
+    let displayChar = c.ch;
+    if(c.cls === 'pending' && maskPending){
+      displayChar = isSpace ? c.ch : '\u00b7';
+      cls = 'pending placeholder';
+    }
+    if(isSpace){
+      closeWord();
+      const safe = displayChar.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `<span class="${cls} ws">${safe}</span>`;
+    } else {
+      if(!wordOpen){ html += '<span class="word">'; wordOpen = true; }
+      html += `<span class="${cls}">${escapeHtml(displayChar)}</span>`;
+    }
+  });
+  closeWord();
+  return html || '&nbsp;';
+}
+
+function renderDiff(typed, isFinal){
+  const target = state.chunks[state.index];
+  const d = computeDiff(target, typed, isFinal);
+  diffBox.innerHTML = buildDiffHtml(d.cells, !state.revealPending);
+  liveAcc.textContent = d.accuracy + '%';
+  liveLen.textContent = typed.length;
+}
+
+typeInput.addEventListener('input', (e) => {
+  noteActivity();
+  state.drafts[state.index] = e.target.value;
+  state.currentIsFinal = false; // actively editing again, even if this line was committed before
+  renderDiff(e.target.value, false);
+  autoGrow(typeInput);
+  followScroll(e.target.value);
+});
+typeInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    commitLine();
+  }
+});
+window.addEventListener('resize', () => {
+  if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
+});
+
+function centerInputInViewport(){
+  // On phones, keep the typing box roughly centered in whatever vertical space
+  // is actually visible (which shrinks when the on-screen keyboard appears), so
+  // the prompt and diff box stay visible above it, instead of the previous/next
+  // buttons getting squeezed into the gap right above the keyboard. Scoped to
+  // mobile widths only — on desktop there's no keyboard to make room for, and
+  // an unexpected scroll-jump would just be annoying.
+  if(document.activeElement !== typeInput) return;
+  if(!window.matchMedia('(max-width: 720px)').matches) return;
+  typeInput.scrollIntoView({block:'center', behavior:'smooth'});
+}
+typeInput.addEventListener('focus', () => {
+  // a short delay lets the keyboard's viewport resize start/settle first
+  setTimeout(centerInputInViewport, 60);
+});
+if(window.visualViewport){
+  // fires again once the keyboard finishes animating in/out, when the centering
+  // actually needs to be (re)computed against the real, settled viewport height
+  window.visualViewport.addEventListener('resize', centerInputInViewport);
+}
+
+function followScroll(typed){
+  // Keep each box (whichever is in scroll mode) scrolled so the position the user
+  // is typing stays in view, instead of the text growing past the visible edge.
+  if(state.typeMode === 'scroll'){
+    typeInput.scrollLeft = typeInput.scrollWidth;
+  }
+  if(state.diffMode === 'scroll' && diffBox.scrollWidth > diffBox.clientWidth){
+    const target = state.chunks[state.index] || '';
+    const frac = target.length ? Math.min(1, typed.length / target.length) : 0;
+    const maxScroll = diffBox.scrollWidth - diffBox.clientWidth;
+    diffBox.scrollLeft = maxScroll * frac;
+  }
+}
+
+function recordResult(){
+  // Score the current line and store it (partial credit included), without
+  // deciding where to go next.
+  const target = state.chunks[state.index];
+  const typed = typeInput.value;
+  const d = computeDiff(target, typed, true);
+  state.results[state.index] = {
+    typed, accuracy:d.accuracy, caseErr:d.caseErr, punctErr:d.punctErr,
+    subErr:d.subErr, extraCount:d.extraCount, omittedCount:d.omittedCount,
+    targetLen:d.targetLen, correctCount:d.correctCount
+  };
+  refreshRailCell(state.index);
+}
+
+function commitCurrentForNavigation(){
+  // Used when jumping to another block via the rail: give the current line
+  // partial credit if it has any typing and isn't already scored.
+  const typed = typeInput.value;
+  const existing = state.results[state.index];
+  if(typed.trim().length > 0 && existing !== 'skip'){
+    recordResult();
+  }
+}
+
+function commitLine(){
+  recordResult();
+  goNext();
+}
+
+function goNext(){
+  if(state.index < state.chunks.length - 1){
+    state.index++;
+    renderPractice();
+  } else {
+    showSummary();
+  }
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if(state.index > 0){ commitCurrentForNavigation(); state.index--; renderPractice(); }
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  commitLine();
+});
+document.getElementById('btnRetry').addEventListener('click', () => {
+  state.currentIsFinal = false;
+  setTypedValue('', false);
+  typeInput.focus();
+});
+document.getElementById('btnSkip').addEventListener('click', () => {
+  state.results[state.index] = 'skip';
+  refreshRailCell(state.index);
+  goNext();
+});
+function applyRevealState(){
+  const btn = document.getElementById('btnReveal');
+  btn.textContent = state.revealPending ? 'Hide text' : 'Show text';
+  btn.classList.toggle('primary', state.revealPending);
+  renderDiff(typeInput.value, state.currentIsFinal);
+}
+document.getElementById('btnReveal').addEventListener('click', () => {
+  state.revealPending = !state.revealPending;
+  applyRevealState();
+});
+
+function applyBoxMode(){
+  const diffScroll = state.diffMode === 'scroll';
+  const typeScroll = state.typeMode === 'scroll';
+  diffBox.classList.toggle('nowrap', diffScroll);
+  typeInput.classList.toggle('nowrap', typeScroll);
+  diffBox.classList.toggle('hidden-box', state.boxHidden);
+  document.getElementById('diffWrap').style.display = state.boxHidden ? 'none' : '';
+  // each corner toggle shows its own box's mode: ▾ = wrapping, ▸ = scrolling
+  document.querySelectorAll('[data-corner-toggle]').forEach(b => {
+    const scroll = b.getAttribute('data-corner-toggle') === 'diff' ? diffScroll : typeScroll;
+    b.textContent = scroll ? '▶' : '▼';
+    b.title = scroll ? 'This box scrolls sideways — click to wrap (Ctrl+Alt+W)' : 'This box wraps — click to scroll sideways (Ctrl+Alt+W)';
+  });
+  const hideBtn = document.getElementById('btnBoxHide');
+  hideBtn.textContent = state.boxHidden ? 'show ▾' : 'hide ▴';
+  hideBtn.classList.toggle('primary', state.boxHidden);
+  if(!state.boxHidden) autoGrow(typeInput);
+}
+function toggleBoxMode(which){
+  if(which === 'diff'){
+    state.diffMode = state.diffMode === 'wrap' ? 'scroll' : 'wrap';
+  } else {
+    state.typeMode = state.typeMode === 'wrap' ? 'scroll' : 'wrap';
+  }
+  applyBoxMode();
+  renderDiff(typeInput.value, state.currentIsFinal);
+  followScroll(typeInput.value);
+}
+document.querySelectorAll('[data-corner-toggle]').forEach(b => {
+  b.addEventListener('click', () => toggleBoxMode(b.getAttribute('data-corner-toggle')));
+});
+document.getElementById('btnBoxHide').addEventListener('click', () => {
+  state.boxHidden = !state.boxHidden;
+  applyBoxMode();
+});
+document.getElementById('btnFinish').addEventListener('click', showSummary);
+
+// info icons (keyboard shortcuts, formatting tips, …): hover shows the popup
+// (pure CSS); click pins it open until dismissed by clicking elsewhere.
+document.querySelectorAll('.info-icon').forEach(icon => {
+  icon.addEventListener('click', (e) => {
+    e.stopPropagation();
+    icon.classList.toggle('pinned');
+  });
+});
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.info-icon.pinned').forEach(icon => {
+    if(!icon.contains(e.target)) icon.classList.remove('pinned');
+  });
+});
+
+// ---- keyboard shortcuts ----
+// Uses Ctrl+Alt (Control+Option on Mac). Critically, we match on e.code (the
+// physical key, e.g. "KeyN") rather than e.key: on macOS, holding Option changes
+// e.key to the special character it would type (Option+N = "˜", Option+P = "π"),
+// so matching e.key silently failed there. e.code is layout- and modifier-stable.
+document.addEventListener('keydown', (e) => {
+  if(document.getElementById('practice').classList.contains('hidden')) return;
+
+  // Ctrl/Cmd+Enter (or Ctrl+Alt+Enter) -> finish & summary
+  if((e.code === 'Enter' || e.code === 'NumpadEnter') && (e.ctrlKey || e.metaKey)){
+    e.preventDefault();
+    showSummary();
+    return;
+  }
+
+  // remaining shortcuts: Ctrl+Alt+<key> (accept Cmd+Alt too, for Mac muscle memory)
+  if(!((e.ctrlKey || e.metaKey) && e.altKey)) return;
+  const actions = {
+    'KeyN': () => commitLine(),                                                                            // next
+    'KeyP': () => { if(state.index > 0){ commitCurrentForNavigation(); state.index--; renderPractice(); } }, // previous
+    'KeyR': () => { state.currentIsFinal = false; setTypedValue('', false); typeInput.focus(); },           // retry
+    'KeyS': () => { state.results[state.index] = 'skip'; refreshRailCell(state.index); goNext(); },          // skip
+    'KeyH': () => { state.revealPending = !state.revealPending; applyRevealState(); },                       // hide/show upcoming
+    'KeyB': () => { state.boxHidden = !state.boxHidden; applyBoxMode(); },                                   // hide/show box
+    'KeyW': () => toggleBoxMode('diff'),                                                                     // wrap/scroll
+  };
+  if(actions[e.code]){
+    e.preventDefault();
+    actions[e.code]();
+  }
+});
+
+function updateRunningAccuracy(){
+  const scored = state.results.filter(r => r && r !== 'skip');
+  if(scored.length === 0){ runningAcc.innerHTML = 'running accuracy: <b>—</b>'; return; }
+  const correct = scored.reduce((a,r)=>a+r.correctCount,0);
+  const total = scored.reduce((a,r)=>a+r.targetLen,0);
+  const pct = total ? Math.round((correct/total)*1000)/10 : 0;
+  runningAcc.innerHTML = 'running accuracy: <b>' + pct + '%</b>';
+}
+
+function computeSessionStats(){
+  const scored = state.results.filter(r => r && r !== 'skip');
+  const correct = scored.reduce((a,r)=>a+r.correctCount,0);
+  const total = scored.reduce((a,r)=>a+r.targetLen,0);
+  const overall = total ? Math.round((correct/total)*1000)/10 : 0;
+  const caseErr = scored.reduce((a,r)=>a+r.caseErr,0);
+  const punctErr = scored.reduce((a,r)=>a+r.punctErr,0);
+  const lengthSlips = scored.reduce((a,r)=>a+r.extraCount+r.omittedCount,0);
+  const perfect = scored.filter(r=>r.accuracy===100).length;
+  const elapsedMs = (state.endTime && state.startTime) ? (state.endTime - state.startTime) : 0;
+  const afkMs = Math.min(state.afkMs, elapsedMs);
+  const activeMs = Math.max(0, elapsedMs - afkMs);
+  const stats = [
+    ['Total time', formatDuration(elapsedMs)],
+    ['Active time', formatDuration(activeMs)],
+    ['Idle / AFK time', formatDuration(afkMs)],
+  ];
+  if(state.timeLimitSec > 0){
+    const overBy = Math.max(0, elapsedMs - state.timeLimitSec*1000);
+    stats.push([overBy > 0 ? 'Over time limit by' : 'Finished within limit', overBy > 0 ? formatDuration(overBy) : '✓']);
+  }
+  stats.push(
+    ['Overall accuracy', overall + '%'],
+    ['Lines scored', scored.length + ' / ' + state.chunks.length],
+    ['Perfect lines', String(perfect)],
+    ['Case errors', String(caseErr)],
+    ['Punctuation errors', String(punctErr)],
+    ['Length slips', String(lengthSlips)],
+  );
+  return {stats, scored, overall, caseErr, punctErr, lengthSlips, perfect, elapsedMs, afkMs, activeMs};
+}
+
+/* ====================== summary screen ====================== */
+function showSummary(){
+  stopTimer();
+  document.getElementById('practice').classList.add('hidden');
+  document.getElementById('summary').classList.remove('hidden');
+
+  const {stats, scored} = computeSessionStats();
+
+  const statGrid = document.getElementById('statGrid');
+  statGrid.innerHTML = stats.map(([lbl,num]) => `<div class="stat"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`).join('');
+
+  const body = document.getElementById('summaryBody');
+  body.innerHTML = state.chunks.map((c,i) => {
+    const r = state.results[i];
+    const preview = c.length > 46 ? c.slice(0,46)+'…' : c;
+    if(r === 'skip'){
+      return `<tr><td>${i+1}</td><td>${escapeHtml(preview).replace(/&nbsp;/g,' ')}</td><td colspan="4" style="color:var(--dim-2)">skipped</td></tr>`;
+    }
+    if(!r){
+      return `<tr><td>${i+1}</td><td>${escapeHtml(preview).replace(/&nbsp;/g,' ')}</td><td colspan="4" style="color:var(--dim-2)">not attempted</td></tr>`;
+    }
+    const color = r.accuracy>=95?'var(--correct)':r.accuracy>=75?'var(--case-err)':'var(--sub-err)';
+    const other = r.subErr + r.extraCount + r.omittedCount;
+    return `<tr><td>${i+1}</td><td>${escapeHtml(preview).replace(/&nbsp;/g,' ')}</td>
+      <td class="acc" style="color:${color}">${r.accuracy}%</td>
+      <td>${r.caseErr}</td><td>${r.punctErr}</td><td>${other}</td></tr>`;
+  }).join('');
+
+  // Full per-line review: re-run the committed diff for each attempted line so the
+  // user sees the same colored highlights they saw while typing, all in one place.
+  const review = document.getElementById('reviewList');
+  review.innerHTML = state.chunks.map((c,i) => {
+    const r = state.results[i];
+    const prompt = (state.prompts && state.prompts[i]) || '';
+    const cueLabel = prompt ? `<span class="review-cue">${escapeProse(prompt.length > 60 ? prompt.slice(0,60)+'…' : prompt)}</span>` : '';
+    const blockLabel = `Block ${i+1}`;
+    if(r === 'skip' || !r){
+      const note = r === 'skip' ? 'skipped' : 'not attempted';
+      return `<div class="review-item unattempted">
+        <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span>${note}</span></div>
+        <div class="review-diff">${buildDiffHtml(computeDiff(c, '', true).cells, false)}</div>
+      </div>`;
+    }
+    const d = computeDiff(c, r.typed, true);
+    const cls = r.accuracy>=95?'good':r.accuracy>=75?'mid':'low';
+    return `<div class="review-item ${cls}">
+      <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span class="acc">${r.accuracy}%</span></div>
+      <div class="review-diff">${buildDiffHtml(d.cells, false)}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('btnBackToPractice').addEventListener('click', () => {
+  document.getElementById('summary').classList.add('hidden');
+  document.getElementById('practice').classList.remove('hidden');
+  // resuming work: clear the recorded end time and let the clock run again
+  state.endTime = null;
+  startTimer();
+  renderPractice();
+});
+document.getElementById('btnRestart').addEventListener('click', () => {
+  document.getElementById('summary').classList.add('hidden');
+  document.getElementById('practice').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+  // brand-new session: reset the timer entirely
+  stopTimer();
+  state.startTime = null;
+  state.endTime = null;
+});
+
+function exportTimestampSlug(){
+  // yyyyMMdd-HH.mm, e.g. 20260627-21.23 — used in the downloaded file's name.
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}.${p(d.getMinutes())}`;
+}
+
+document.getElementById('btnExportPng').addEventListener('click', async () => {
+  const btn = document.getElementById('btnExportPng');
+  const original = btn.textContent;
+  btn.textContent = 'Rendering…'; btn.disabled = true;
+  try {
+    const canvas = await renderSummaryCanvas();
+    await new Promise(res => canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Verbatim_Study_${exportTimestampSlug()}.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      res();
+    }, 'image/png'));
+    btn.textContent = 'Saved ✓';
+  } catch(err){
+    console.error(err);
+    btn.textContent = 'Failed — retry';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = original; }, 2500);
+  }
+});
+
+document.getElementById('btnCopyPng').addEventListener('click', async () => {
+  const btn = document.getElementById('btnCopyPng');
+  const original = btn.textContent;
+  btn.textContent = 'Copying…'; btn.disabled = true;
+  try {
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      throw new Error('Clipboard image API unavailable in this browser');
+    }
+    const canvas = await renderSummaryCanvas();
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+    btn.textContent = 'Copied ✓';
+  } catch(err){
+    console.error(err);
+    // common causes: non-secure context (file:// is fine in most browsers, but
+    // some require https), or browser without ClipboardItem (e.g. older Firefox)
+    btn.textContent = 'Copy unsupported — use Download';
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = original; }, 3000);
+  }
+});
+
+async function renderSummaryCanvas(){
+  // Manual Canvas 2D rendering of the summary. We deliberately do NOT rasterize
+  // the DOM via an SVG <foreignObject>: drawing such an image onto a canvas taints
+  // it in Chrome, which blocks toBlob/toDataURL ("Tainted canvases may not be
+  // exported") — the actual reason the old export silently failed. Painting text
+  // and shapes directly keeps the canvas clean, so both download and clipboard
+  // copy work, fully offline, in every browser.
+  const cssVar = (n, fallback) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    return v || fallback;
+  };
+  const C = {
+    bg: cssVar('--bg', '#1a1822'),
+    panel: cssVar('--bg-2', '#211f2c'),
+    rule: cssVar('--rule', '#3a3850'),
+    ink: cssVar('--ink', '#e9e5da'),
+    dim: cssVar('--dim', '#8a87a0'),
+    dim2: cssVar('--dim-2', '#5f5d75'),
+    gold: cssVar('--gold', '#cf9f54'),
+    correct: cssVar('--correct', '#74b07a'),
+    caseErr: cssVar('--case-err', '#e3bf52'),
+    punctErr: cssVar('--punct-err', '#8b9eea'),
+    subErr: cssVar('--sub-err', '#e16a63'),
+    extra: cssVar('--extra', '#d3873f'),
+    missing: cssVar('--missing', '#e16a63'),
+  };
+  const SERIF = 'Georgia, "Palatino Linotype", Palatino, serif';
+  const MONO = 'Menlo, Consolas, "SF Mono", monospace';
+  const colorFor = cls => ({
+    'correct': C.correct, 'case-err': C.caseErr, 'punct-err': C.punctErr,
+    'sub-err': C.subErr, 'omitted': C.missing, 'extra': C.extra, 'pending': C.dim2,
+  }[cls] || C.ink);
+
+  const scale = 2;
+  const W = 760;
+  const padX = 28, padY = 26;
+  const contentW = W - padX*2;
+
+  // ---- gather data from session state (shared with the on-screen summary,
+  // so the export can never drift out of sync with it) ----
+  const {stats} = computeSessionStats();
+
+  // Precompute per-line diff cells
+  const lines = state.chunks.map((c,i) => {
+    const r = state.results[i];
+    if(r === 'skip') return {i, note:'skipped', cells:null, acc:null};
+    if(!r) return {i, note:'not attempted', cells:null, acc:null};
+    return {i, cells: computeDiff(c, r.typed, true).cells, acc:r.accuracy};
+  });
+
+  // ---- measuring canvas (offscreen) to lay out wrapping before sizing ----
+  const meas = document.createElement('canvas').getContext('2d');
+  const diffFontSize = 14, diffLineH = 24, charFont = `${diffFontSize}px ${MONO}`;
+  meas.font = charFont;
+
+  // group diff cells into words for wrapping, measuring each
+  function layoutDiff(cells){
+    // tokens: {chars:[{ch,cls}], width, isSpace}
+    const tokens = [];
+    let cur = null;
+    for(const c of cells){
+      const isSpace = /\s/.test(c.ch);
+      if(isSpace){
+        if(cur){ tokens.push(cur); cur=null; }
+        tokens.push({chars:[c], isSpace:true, width: meas.measureText(c.ch==='\t'?'    ':' ').width});
+      } else {
+        if(!cur) cur = {chars:[], isSpace:false, width:0};
+        cur.chars.push(c);
+        cur.width += meas.measureText(c.ch).width;
+      }
+    }
+    if(cur) tokens.push(cur);
+    // wrap into lines within contentW - 24 (review item padding)
+    const maxW = contentW - 28;
+    const rows = [];
+    let row = [], rw = 0;
+    for(const t of tokens){
+      if(!t.isSpace && rw + t.width > maxW && row.length){
+        rows.push(row); row=[]; rw=0;
+      }
+      row.push(t); rw += t.width;
+    }
+    if(row.length) rows.push(row);
+    return rows;
+  }
+
+  const lineLayouts = lines.map(l => l.cells ? layoutDiff(l.cells) : null);
+
+  // ---- compute total height ----
+  let y = padY;
+  y += 30;                       // title
+  // stat cards: 3 per row
+  const statCols = 3, statGap = 10;
+  const statCardW = (contentW - statGap*(statCols-1)) / statCols;
+  const statRows = Math.ceil(stats.length / statCols);
+  const statCardH = 52;
+  y += statRows * (statCardH + statGap) + 8;
+  // per-line table
+  y += 26;                       // table header
+  y += lines.length * 22 + 14;
+  // review heading
+  y += 56;
+  // review items
+  lineLayouts.forEach((rows, idx) => {
+    const n = rows ? rows.length : 1;
+    y += 14 + 18 + n*diffLineH + 12; // padding + meta + diff rows + gap
+  });
+  y += 10; // legend
+  y += 24;
+  const totalH = y + padY;
+
+  // ---- create the real canvas ----
+  const canvas = document.createElement('canvas');
+  canvas.width = W * scale;
+  canvas.height = totalH * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.textBaseline = 'alphabetic';
+
+  // background
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, totalH);
+
+  // ---- draw ----
+  let yy = padY + 22;
+  ctx.fillStyle = C.gold;
+  ctx.font = `600 22px ${SERIF}`;
+  ctx.fillText('Session summary', padX, yy);
+  // timestamp, right-aligned on the same baseline as the title
+  const ts = new Date();
+  const tsStr = ts.toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'}) +
+                ' · ' + ts.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit',hour12:false});
+  ctx.fillStyle = C.dim2; ctx.font = `12px ${MONO}`; ctx.textAlign = 'right';
+  ctx.fillText(tsStr, padX + contentW, yy - 2);
+  ctx.textAlign = 'left';
+  yy += 14;
+
+  // stat cards
+  stats.forEach((s, i) => {
+    const col = i % statCols, rowi = Math.floor(i / statCols);
+    const x = padX + col*(statCardW+statGap);
+    const cy = yy + rowi*(statCardH+statGap);
+    ctx.fillStyle = C.panel;
+    roundRect(ctx, x, cy, statCardW, statCardH, 3); ctx.fill();
+    ctx.strokeStyle = C.rule; ctx.lineWidth = 1; roundRect(ctx, x, cy, statCardW, statCardH, 3); ctx.stroke();
+    ctx.fillStyle = C.gold; ctx.font = `20px ${MONO}`;
+    ctx.fillText(s[1], x+12, cy+26);
+    ctx.fillStyle = C.dim2; ctx.font = `10px ${MONO}`;
+    ctx.fillText(s[0].toUpperCase(), x+12, cy+42);
+  });
+  yy += statRows*(statCardH+statGap) + 16;
+
+  // per-line table
+  ctx.fillStyle = C.dim2; ctx.font = `10px ${MONO}`;
+  ctx.fillText('#', padX, yy);
+  ctx.fillText('LINE', padX+28, yy);
+  ctx.fillText('ACCURACY', padX+contentW-180, yy);
+  ctx.fillText('CASE', padX+contentW-96, yy);
+  ctx.fillText('PUNCT', padX+contentW-56, yy);
+  ctx.fillText('OTHER', padX+contentW-14, yy);
+  yy += 6;
+  ctx.strokeStyle = C.rule; ctx.beginPath(); ctx.moveTo(padX, yy); ctx.lineTo(padX+contentW, yy); ctx.stroke();
+  yy += 16;
+  lines.forEach((l) => {
+    const r = state.results[l.i];
+    const chunk = state.chunks[l.i];
+    ctx.fillStyle = C.dim; ctx.font = `12px ${MONO}`;
+    ctx.fillText(String(l.i+1), padX, yy);
+    const preview = chunk.length > 38 ? chunk.slice(0,38)+'…' : chunk;
+    ctx.fillStyle = C.ink; ctx.font = `12px ${SERIF}`;
+    ctx.fillText(preview, padX+28, yy);
+    if(r && r !== 'skip'){
+      const ac = r.accuracy>=95?C.correct:r.accuracy>=75?C.caseErr:C.subErr;
+      ctx.fillStyle = ac; ctx.font = `12px ${MONO}`;
+      ctx.fillText(r.accuracy+'%', padX+contentW-180, yy);
+      ctx.fillStyle = C.dim;
+      ctx.fillText(String(r.caseErr), padX+contentW-96, yy);
+      ctx.fillText(String(r.punctErr), padX+contentW-56, yy);
+      ctx.fillText(String(r.subErr+r.extraCount+r.omittedCount), padX+contentW-14, yy);
+    } else {
+      ctx.fillStyle = C.dim2; ctx.font = `12px ${MONO}`;
+      ctx.fillText(l.note || 'skipped', padX+contentW-180, yy);
+    }
+    yy += 22;
+  });
+  yy += 36;
+
+  // review heading
+  ctx.fillStyle = C.gold; ctx.font = `600 18px ${SERIF}`;
+  ctx.fillText('Full review — your typing vs. the original', padX, yy);
+  yy += 18;
+
+  // review items
+  lines.forEach((l, idx) => {
+    const rows = lineLayouts[idx];
+    const n = rows ? rows.length : 1;
+    const itemH = 14 + 18 + n*diffLineH;
+    const accCol = l.acc==null ? C.dim2 : l.acc>=95?C.correct:l.acc>=75?C.caseErr:C.subErr;
+    // card
+    ctx.fillStyle = C.panel; roundRect(ctx, padX, yy, contentW, itemH, 3); ctx.fill();
+    // left accent
+    ctx.fillStyle = accCol; ctx.fillRect(padX, yy, 3, itemH);
+    // meta
+    ctx.fillStyle = C.dim2; ctx.font = `10px ${MONO}`;
+    ctx.fillText('LINE ' + (l.i+1), padX+14, yy+18);
+    const accLabel = l.acc==null ? (l.note||'').toUpperCase() : l.acc+'%';
+    ctx.fillStyle = accCol; ctx.textAlign='right';
+    ctx.fillText(accLabel, padX+contentW-14, yy+18);
+    ctx.textAlign='left';
+    // diff rows
+    if(rows){
+      let ry = yy + 18 + diffLineH - 6;
+      ctx.font = charFont;
+      for(const row of rows){
+        let rx = padX+14;
+        for(const tok of row){
+          if(tok.isSpace){ rx += tok.width; continue; }
+          for(const c of tok.chars){
+            const w = meas.measureText(c.ch).width;
+            ctx.fillStyle = colorFor(c.cls);
+            ctx.fillText(c.ch, rx, ry);
+            if(c.cls==='extra'){ // strike-through
+              ctx.strokeStyle = colorFor(c.cls); ctx.lineWidth=1.2;
+              ctx.beginPath(); ctx.moveTo(rx, ry-4); ctx.lineTo(rx+w, ry-4); ctx.stroke();
+            } else if(c.cls==='case-err'||c.cls==='punct-err'||c.cls==='sub-err'){ // underline
+              ctx.strokeStyle = colorFor(c.cls); ctx.lineWidth=1;
+              ctx.beginPath(); ctx.moveTo(rx, ry+3); ctx.lineTo(rx+w, ry+3); ctx.stroke();
+            }
+            rx += w;
+          }
+        }
+        ry += diffLineH;
+      }
+    } else {
+      ctx.fillStyle = C.dim2; ctx.font = `13px ${MONO}`;
+      ctx.fillText(l.note || '', padX+14, yy+18+diffLineH-6);
+    }
+    yy += itemH + 12;
+  });
+
+  // legend
+  yy += 4;
+  ctx.font = `11px ${MONO}`;
+  const legend = [['correct',C.correct],['case',C.caseErr],['punct',C.punctErr],['wrong char',C.subErr],['missing',C.missing],['extra',C.extra]];
+  let lx = padX;
+  for(const [label,col] of legend){
+    ctx.fillStyle = col; roundRect(ctx, lx, yy-9, 9, 9, 2); ctx.fill();
+    ctx.fillStyle = C.dim; ctx.fillText(label, lx+14, yy);
+    lx += 16 + ctx.measureText(label).width + 16;
+  }
+
+  return canvas;
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+// ---- theme toggle (light / dark) ----
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('btnTheme');
+  // icon shows what you'll switch TO: moon while in light, sun while in dark
+  btn.textContent = theme === 'light' ? '☾' : '☀';
+  btn.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+}
+let currentTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+applyTheme(currentTheme);
+document.getElementById('btnTheme').addEventListener('click', () => {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  applyTheme(currentTheme);
+});
+
+updateChunkCount();
+</script>
+</body>
+</html>
