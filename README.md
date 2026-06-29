@@ -2,7 +2,7 @@
 
 **A memorization and typing-accuracy trainer that lives in a single HTML file and forgets everything the moment you close it.**
 
-Verbatim helps you commit text to memory by making you actually *type it out* — and then telling you, character by character, exactly where you went wrong. Scripture, poetry, song lyrics, speeches, study notes, that one quote you keep almost-but-not-quite getting right: paste it in, break it into bite-sized chunks, and drill until it sticks.
+Verbatim started as a way to actually memorize scripture and poetry instead of just re-reading them and hoping something sticks, and it grew from there into a proper typing-accuracy trainer with a diff engine that does not let you get away with a misplaced comma. Verbatim helps you commit text to memory by making you actually *type it out* — and then telling you, character by character, exactly where you went wrong. Scripture, poetry, exam Q&A, song lyrics, speeches, study notes, that one quote you keep almost-but-not-quite getting right: paste it in, break it into bite-sized chunks or prompt-based Q&A, and drill until it sticks.
 
 No app store. No login. No "create an account to continue." It's one file. You open it. It works.
 
