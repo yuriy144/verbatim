@@ -406,63 +406,70 @@
   }
 
   /* ---------- mobile: pin the typing box directly above the keyboard ----------
-     PRIORITY behaviour: the typing box must sit at the top of the keyboard and
+     PRIORITY behaviour: the typing box must sit on the keyboard's top edge and
      never be obscured, however the user got there (tap, type, or resume after
-     scrolling). The robust way on iOS is NOT to position one floating bar with a
-     `bottom` offset (that depends on how each iOS version reconciles fixed
-     elements with the keyboard, and can land behind the accessory bar). Instead,
-     when the keyboard is open we turn the whole practice stage into a fixed frame
-     sized to the *visible* area — its top and height are driven by the
-     visualViewport (--vv-top / --vv-height) — and lay it out as a flex column:
+     scrolling), with NO gap below it and the diff hugging it just above.
 
-         [ stage-top: block/timer ]   (fixed, small)
-         [ live-scroll: cue + diff ]  (flex:1, scrolls if too tall)
-         [ typeDock: the typing box ] (fixed, sits at the frame's bottom edge)
+     Approach: when the box is focused on a phone, the practice stage becomes a
+     CONTENT-HEIGHT dock pinned to the keyboard by `bottom` — it is only as tall
+     as its content needs. Pinning by `bottom` (rather than by a measured height)
+     is what makes it robust: there is no live height that can come out stale
+     mid-animation or when the keyboard layout changes, so the box can't drift up
+     leaving a gap (the bug the full-height frame had). Stacked top->bottom:
 
-     Because the typing box is the LAST flex child of a frame whose bottom edge is
-     the keyboard's top edge, the box is always exactly above the keyboard — it
-     can't be pushed off no matter how tall the cue/diff get, and a long cue/diff
-     simply scrolls inside live-scroll. The action buttons & legend are hidden
-     while the keyboard is up (the Return key scores & advances); a scroll/drag on
-     the prompt-diff area dismisses the keyboard to bring the buttons back.
+         [ stage-top: block / timer ]      (flex:0)
+         [ live-scroll: cue + diff ]       (flex:0 1 auto; scrolls only if needed)
+         [ typeDock: the typing box ]      (flex:0; sits on the keyboard)
 
-     --kb-clearance is a small tunable cushion: if the iOS accessory bar ever
-     overlaps the box on a given device, bump it (e.g. to 44px) in one place. */
+     The dock's bottom is the keyboard's top edge plus --kb-clearance; it grows
+     upward only as far as content needs, capped by max-height. A long cue scrolls
+     inside live-scroll while the diff stays pinned just above the box. Buttons &
+     legend are hidden while typing (Return scores & advances); a scroll/drag
+     dismisses the keyboard to bring them back.
+
+     --kb-clearance cushions the iOS form accessory bar (the up/down/done bar that
+     web pages can't remove); bump it in one place if a device needs more. */
   @media (max-width: 720px){
-    /* --kb-clearance lifts the frame's bottom off the keyboard. iOS does NOT
-       shrink visualViewport.height for the form accessory bar (the up/down/done
-       bar), so without a cushion the typing box hides behind it. ~44px clears the
-       Apple bar; tune here if a device needs more/less. */
+    /* --kb-clearance lifts the dock off the keyboard. iOS does NOT shrink
+       visualViewport.height for the form accessory bar (the up/down/done bar), so
+       without a cushion the typing box hides behind it. ~44px clears the Apple
+       bar; tune here if a device needs more/less. */
     :root{--kb-clearance:44px;}
     body.kb-open #practice{margin:0;}
     body.kb-open #practice .practice-grid{display:block;}
     body.kb-open #practice .rail{display:none;}    /* rail not needed while typing */
+
+    /* The cluster is a CONTENT-HEIGHT dock pinned to the keyboard's top edge —
+       NOT a full-height frame. Pinning by `bottom` (not by a measured height)
+       means there's no height to come out stale, so the typing box always sits
+       right on the keyboard with no gap below it, and the diff hugs the box.
+       --kb-bottom-raw = distance from the layout-viewport bottom up to the
+       keyboard's top edge (from JS); we add the clearance on top. The dock grows
+       upward only as far as its content needs, capped by max-height; if the cue
+       is long, #liveScroll scrolls (the diff stays pinned just above the box). */
     body.kb-open #practice .stage{
       position:fixed;left:0;right:0;
-      top:var(--vv-top, 0px);
-      height:calc(var(--vv-height, 100%) - var(--kb-clearance));
+      bottom:calc(var(--kb-bottom-raw, 0px) + var(--kb-clearance));
+      max-height:calc(var(--vv-height, 100%) - var(--kb-clearance) - 8px);
       z-index:9;background:var(--bg);
       display:flex;flex-direction:column;
-      margin:0;padding:8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
-      overflow:hidden;
+      margin:0;padding:8px 14px;
+      border-top:1px solid var(--rule);
+      box-shadow:0 -16px 30px -14px rgba(0,0,0,.55);
     }
     body.kb-open #stageTop{flex:0 0 auto;}
     body.kb-open #stageTop .progress-line{margin-bottom:8px;}
     body.kb-open #liveScroll{
-      flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
-      display:flex;flex-direction:column;
+      flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
       border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:8px;
     }
-    /* bottom-align the cue+diff so the diff hugs the typing box (no big gap); a
-       long cue/diff overflows at the TOP and is reachable by scrolling up */
-    body.kb-open #liveInner{margin-top:auto;}
     body.kb-open #liveScroll::-webkit-scrollbar{width:6px;}
     body.kb-open #liveScroll::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
     body.kb-open #typeDock{flex:0 0 auto;margin:0;}
     body.kb-open #typeDock .live-stats{margin:0 2px 6px;}
     body.kb-open #typeDock #typeWrap{margin-top:0;}
-    body.kb-open #typeDock #typeInput{max-height:32vh;overflow-y:auto;}
-    /* nothing above the keyboard except prompt/diff/typing while the keyboard is up */
+    body.kb-open #typeDock #typeInput{max-height:30vh;overflow-y:auto;}
+    /* nothing above the keyboard except status/prompt/diff/typing while typing */
     body.kb-open .stage > .btnrow,
     body.kb-open .stage > .legend{display:none;}
   }
@@ -1421,6 +1428,7 @@ typeInput.addEventListener('input', (e) => {
   renderDiff(e.target.value, false);
   autoGrow(typeInput);
   followScroll(e.target.value);
+  if(document.body.classList.contains('kb-open')) keepDiffInView();
 });
 typeInput.addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){
@@ -1433,25 +1441,26 @@ window.addEventListener('resize', () => {
 });
 
 /* ----- mobile keyboard handling -----
-   On phones we turn the practice stage into a fixed frame that exactly overlays
-   the *visible* area above the keyboard, with the typing box as its bottom-most
-   row (see the CSS). Here we keep that frame's geometry in sync with the real
-   visible area reported by the visualViewport API, decide when the keyboard is
-   "open", snap the box back into place when typing resumes, and dismiss the
-   keyboard on a scroll gesture so the action buttons can be reached. */
+   On phones the practice stage becomes a content-height dock pinned to the
+   keyboard's top edge (see CSS). Here we keep the pin geometry in sync with the
+   visible area reported by the visualViewport API, flag the keyboard as open the
+   instant the box is focused (so the buttons never flash back), keep the diff in
+   view, and dismiss the keyboard on a scroll gesture so the buttons can be used. */
 const vv = window.visualViewport;
 const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
 function syncViewportVars(){
   if(!vv) return;
-  // position/size of the visible area, in layout-viewport coordinates
-  document.documentElement.style.setProperty('--vv-top', vv.offsetTop + 'px');
   document.documentElement.style.setProperty('--vv-height', vv.height + 'px');
-  // how much the keyboard (plus any bottom chrome) covers — used only to decide
-  // whether the keyboard is up, not to position anything
-  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  const open = isPhone() && inset > 150 && document.activeElement === typeInput;
-  document.body.classList.toggle('kb-open', open);
+  // distance from the layout-viewport bottom up to the keyboard's top edge — the
+  // dock is pinned `bottom` to this (plus the accessory-bar clearance), so it
+  // always rides the keyboard with no measured height to come out stale
+  const bottomRaw = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  document.documentElement.style.setProperty('--kb-bottom-raw', bottomRaw + 'px');
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
+}
+function keepDiffInView(){
+  const ls = document.getElementById('liveScroll');
+  if(ls) ls.scrollTop = ls.scrollHeight;   // diff sits at the bottom, hugging the box
 }
 if(vv){
   // fire as the keyboard animates in/out and as the visible area shifts
@@ -1460,16 +1469,17 @@ if(vv){
   syncViewportVars();
 }
 typeInput.addEventListener('focus', () => {
-  // resume typing -> snap the box back above the keyboard and reveal the diff
-  setTimeout(() => {
-    syncViewportVars();
-    const ls = document.getElementById('liveScroll');
-    if(ls) ls.scrollTop = ls.scrollHeight;   // show the diff (it hugs the typing box)
-  }, 60);
-  setTimeout(syncViewportVars, 250); // a second pass once the keyboard settles
+  // engage the dock immediately on phones so the buttons don't flash in; geometry
+  // then catches up as the keyboard animates open
+  if(isPhone()) document.body.classList.add('kb-open');
+  const settle = () => { syncViewportVars(); keepDiffInView(); };
+  settle();
+  setTimeout(settle, 120);
+  setTimeout(settle, 350);
 });
 typeInput.addEventListener('blur', () => {
-  // keyboard gone -> drop the frame so the normal page (with buttons) returns
+  // keyboard gone -> drop the dock so the normal page (with buttons) returns
+  document.body.classList.remove('kb-open');
   setTimeout(syncViewportVars, 60);
 });
 
