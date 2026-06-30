@@ -84,6 +84,9 @@
     display:flex;align-items:baseline;gap:10px;
   }
   h1 .mark{color:var(--gold);font-style:italic;}
+  h1 a#brandLink{color:inherit;text-decoration:none;cursor:pointer;}
+  h1 a#brandLink:hover .mark{color:var(--ink);}
+  h1 a#brandLink:hover{color:var(--gold);}
   .subtitle{color:var(--dim);font-size:14.5px;margin:0;max-width:560px;line-height:1.5;}
   .eyebrow{
     font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
@@ -228,17 +231,21 @@
   .time-limit-field input:focus{outline:none;border-color:var(--gold);}
 
   .diff-head{
-    display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;gap:10px;
   }
+  .diff-head-actions{display:inline-flex;gap:8px;align-items:center;flex:0 0 auto;}
   .diff-label{
     font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .micro-btn{
     font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
     background:transparent;color:var(--dim);border:1px solid var(--rule);
     padding:3px 9px;border-radius:3px;cursor:pointer;transition:border-color .15s,color .15s;
+    white-space:nowrap;
   }
   .micro-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .micro-btn.active{border-color:var(--gold);color:var(--gold);background:var(--gold-soft);}
   .micro-btn:disabled{opacity:.3;cursor:default;}
   .micro-btn:disabled:hover{border-color:var(--rule);color:var(--dim);}
 
@@ -372,16 +379,6 @@
     .progress-line{flex-wrap:wrap;gap:4px 14px;}
     .elapsed{order:3;}
 
-    /* keep Block/accuracy/timer and the recall prompt pinned to the top of the
-       viewport, so they stay visible even when the on-screen keyboard pushes
-       everything else up — the diff box can be hidden, but you always still see
-       what block you're on and what you're recalling while you type. */
-    .stage-sticky{
-      position:sticky;top:0;z-index:6;background:var(--bg);
-      padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid var(--rule);
-    }
-    .stage-sticky .cue-box{margin-bottom:0;}
-
     /* full-width action buttons, easier tap targets */
     .stage .btnrow{flex-direction:column;align-items:stretch;}
     .stage .btnrow button{width:100%;padding:11px 14px;}
@@ -405,37 +402,58 @@
   }
 
   /* ---------- mobile: pin the typing box directly above the keyboard ----------
-     The typing box (plus its small live-stats caption) is lifted out of flow and
-     fixed to the bottom of the *visible* area — directly above the on-screen
-     keyboard. We don't guess the keyboard's height: the visualViewport API tells
-     us how much of the layout viewport is no longer visible, and that leftover
-     space (--kb-inset) is exactly what the keyboard + any bottom browser chrome
-     covers. Because vv.height already excludes the iOS form accessory bar (the
-     up/down/done bar that web pages cannot remove), the inset includes it too, so
-     the dock lands ABOVE that bar, not behind it. This works for any keyboard at
-     its real height — native iOS, or SwiftKey with its number row and paste/gif
-     toolbar. It's declarative positioning (no scrollTo/scrollBy), so it never
-     jumps while you type, in either scroll or wrap mode.
+     PRIORITY behaviour: the typing box must sit at the top of the keyboard and
+     never be obscured, however the user got there (tap, type, or resume after
+     scrolling). The robust way on iOS is NOT to position one floating bar with a
+     `bottom` offset (that depends on how each iOS version reconciles fixed
+     elements with the keyboard, and can land behind the accessory bar). Instead,
+     when the keyboard is open we turn the whole practice stage into a fixed frame
+     sized to the *visible* area — its top and height are driven by the
+     visualViewport (--vv-top / --vv-height) — and lay it out as a flex column:
 
-     To keep the requested order — nothing between the prompt/diff and the box,
-     and nothing between the box and the keyboard — the action buttons & legend
-     are tucked away while the keyboard is up (the Return key scores & advances).
-     They reappear the moment the keyboard is dismissed. */
+         [ stage-top: block/timer ]   (fixed, small)
+         [ live-scroll: cue + diff ]  (flex:1, scrolls if too tall)
+         [ typeDock: the typing box ] (fixed, sits at the frame's bottom edge)
+
+     Because the typing box is the LAST flex child of a frame whose bottom edge is
+     the keyboard's top edge, the box is always exactly above the keyboard — it
+     can't be pushed off no matter how tall the cue/diff get, and a long cue/diff
+     simply scrolls inside live-scroll. The action buttons & legend are hidden
+     while the keyboard is up (the Return key scores & advances); a scroll/drag on
+     the prompt-diff area dismisses the keyboard to bring the buttons back.
+
+     --kb-clearance is a small tunable cushion: if the iOS accessory bar ever
+     overlaps the box on a given device, bump it (e.g. to 44px) in one place. */
   @media (max-width: 720px){
-    body.kb-open #typeDock{
-      position:fixed;left:0;right:0;bottom:var(--kb-inset, 0px);z-index:8;
-      margin:0;padding:8px 14px calc(6px + env(safe-area-inset-bottom, 0px));
-      background:var(--bg);border-top:1px solid var(--rule);
-      box-shadow:0 -14px 28px -12px rgba(0,0,0,.5);
+    :root{--kb-clearance:0px;}
+    body.kb-open{overflow:hidden;}                 /* the frame owns the screen */
+    body.kb-open #practice{margin:0;}
+    body.kb-open #practice .practice-grid{display:block;}
+    body.kb-open #practice .rail{display:none;}    /* rail not needed while typing */
+    body.kb-open #practice .stage{
+      position:fixed;left:0;right:0;
+      top:var(--vv-top, 0px);
+      height:calc(var(--vv-height, 100%) - var(--kb-clearance));
+      z-index:9;background:var(--bg);
+      display:flex;flex-direction:column;
+      margin:0;padding:8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
+      overflow:hidden;
     }
+    body.kb-open #stageTop{flex:0 0 auto;}
+    body.kb-open #stageTop .progress-line{margin-bottom:8px;}
+    body.kb-open #liveScroll{
+      flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:8px;
+    }
+    body.kb-open #liveScroll::-webkit-scrollbar{width:6px;}
+    body.kb-open #liveScroll::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+    body.kb-open #typeDock{flex:0 0 auto;margin:0;}
     body.kb-open #typeDock .live-stats{margin:0 2px 6px;}
     body.kb-open #typeDock #typeWrap{margin-top:0;}
     body.kb-open #typeDock #typeInput{max-height:32vh;overflow-y:auto;}
-    /* clean zone above the keyboard: hide the controls while typing */
+    /* nothing above the keyboard except prompt/diff/typing while the keyboard is up */
     body.kb-open .stage > .btnrow,
     body.kb-open .stage > .legend{display:none;}
-    /* leave room so a long wrapped diff can be scrolled clear of the fixed dock */
-    body.kb-open .stage{padding-bottom:calc(var(--kb-inset, 0px) + 200px);}
   }
 </style>
 </head>
@@ -445,7 +463,7 @@
   <header class="top">
     <button id="btnTheme" class="theme-toggle" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
     <p class="eyebrow">memorization &amp; typing-accuracy trainer</p>
-    <h1>Verbatim<span class="mark">.</span></h1>
+    <h1><a href="." id="brandLink" title="Reload Verbatim — clear everything and start fresh">Verbatim<span class="mark">.</span></a></h1>
     <p class="subtitle">Paste a text, split it into blocks, and type each one against the original.
     Every character is checked exactly as written — case, punctuation, and all. Upcoming text stays hidden behind dots until you choose to reveal it, so you can actually test recall.</p>
     <p class="subtitle">
@@ -499,7 +517,7 @@
     <div class="practice-grid">
       <div class="rail" id="rail"></div>
       <div class="stage">
-        <div class="stage-sticky" id="stageSticky">
+        <div class="stage-top" id="stageTop">
           <div class="progress-line">
             <span>Block <b id="curIndex">1</b> of <span id="totalCount">0</span></span>
             <span id="elapsedClock" class="elapsed">⏱ 0:00</span>
@@ -522,15 +540,20 @@
               </span>
             </span>
           </div>
+        </div>
+        <div class="live-scroll" id="liveScroll">
           <div class="cue-box" id="cueBox"></div>
-        </div>
-        <div class="diff-head">
-          <span class="diff-label">your typing vs. the original</span>
-          <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
-        </div>
-        <div class="box-wrap" id="diffWrap">
-          <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
-          <div class="diff-box" id="diffBox"></div>
+          <div class="diff-head">
+            <span class="diff-label">your typing vs. the original</span>
+            <span class="diff-head-actions">
+              <button id="btnReveal" class="micro-btn" title="Hide or show the upcoming text (Ctrl+Alt+H)">show text ▾</button>
+              <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
+            </span>
+          </div>
+          <div class="box-wrap" id="diffWrap">
+            <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
+            <div class="diff-box" id="diffBox"></div>
+          </div>
         </div>
         <div id="typeDock">
           <div class="live-stats">
@@ -547,7 +570,6 @@
           <button id="btnNext" title="Score this block and advance (Enter, or Ctrl+Alt+N)">Next →</button>
           <button id="btnRetry" title="Clear and retry this block (Ctrl+Alt+R)">Retry</button>
           <button id="btnSkip" title="Skip this block without scoring (Ctrl+Alt+S)">Skip</button>
-          <button id="btnReveal" title="Hide or show the upcoming text (Ctrl+Alt+H)">Show text</button>
           <button id="btnFinish" title="Finish &amp; see session summary (Ctrl+Alt+Enter)">Finish</button>
         </div>
         <div class="legend">
@@ -1397,43 +1419,76 @@ window.addEventListener('resize', () => {
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 });
 
-/* On phones, pin the typing box directly above the on-screen keyboard.
-
-   The keyboard's height is measured, never guessed. The visualViewport API
-   reports how much of the layout viewport is no longer visible, and that
-   leftover space (--kb-inset) is exactly what the keyboard plus any bottom
-   browser chrome is covering. Because vv.height already excludes the iOS form
-   accessory bar (the up/down/done bar that web pages can't remove), the inset
-   includes it too — so the dock lands above that bar, not behind it. Driving the
-   dock's CSS `bottom` from this value keeps it correct for any keyboard at its
-   real height: native iOS, SwiftKey with its extra rows/toolbars, and so on.
-
-   This is purely declarative positioning. We never call scrollTo/scrollBy, so
-   the page can't jump while you type and there's nothing fighting iOS's own
-   focus handling. Desktop has no software keyboard, so the inset stays 0 and
-   #typeDock is a normal in-flow element. */
+/* ----- mobile keyboard handling -----
+   On phones we turn the practice stage into a fixed frame that exactly overlays
+   the *visible* area above the keyboard, with the typing box as its bottom-most
+   row (see the CSS). Here we keep that frame's geometry in sync with the real
+   visible area reported by the visualViewport API, decide when the keyboard is
+   "open", snap the box back into place when typing resumes, and dismiss the
+   keyboard on a scroll gesture so the action buttons can be reached. */
 const vv = window.visualViewport;
-function updateKeyboardInset(){
+const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
+function syncViewportVars(){
   if(!vv) return;
+  // position/size of the visible area, in layout-viewport coordinates
+  document.documentElement.style.setProperty('--vv-top', vv.offsetTop + 'px');
+  document.documentElement.style.setProperty('--vv-height', vv.height + 'px');
+  // how much the keyboard (plus any bottom chrome) covers — used only to decide
+  // whether the keyboard is up, not to position anything
   const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  document.documentElement.style.setProperty('--kb-inset', inset + 'px');
-  // only treat the keyboard as "open" once it covers a real chunk of the screen,
-  // so the address bar collapsing/expanding doesn't engage the dock on its own
-  document.body.classList.toggle('kb-open', inset > 150);
-  // the dock's available width changes when it goes fixed, so re-fit the textarea
+  const open = isPhone() && inset > 150 && document.activeElement === typeInput;
+  document.body.classList.toggle('kb-open', open);
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 }
 if(vv){
-  // both fire as the keyboard animates in/out and as the page scrolls beneath it,
-  // keeping --kb-inset (and therefore the dock) aligned to the keyboard's top edge
-  vv.addEventListener('resize', updateKeyboardInset);
-  vv.addEventListener('scroll', updateKeyboardInset);
-  updateKeyboardInset();
+  // fire as the keyboard animates in/out and as the visible area shifts
+  vv.addEventListener('resize', syncViewportVars);
+  vv.addEventListener('scroll', syncViewportVars);
+  syncViewportVars();
 }
 typeInput.addEventListener('focus', () => {
-  // fallback in case the viewport 'resize' is slow to fire when focus opens the keyboard
-  setTimeout(updateKeyboardInset, 120);
+  // resume typing -> snap the box back above the keyboard and show the prompt/diff
+  setTimeout(() => {
+    syncViewportVars();
+    const ls = document.getElementById('liveScroll');
+    if(ls) ls.scrollTop = 0;   // make sure the cue + diff are in view, not scrolled away
+  }, 60);
+  setTimeout(syncViewportVars, 250); // a second pass once the keyboard settles
 });
+typeInput.addEventListener('blur', () => {
+  // keyboard gone -> drop the frame so the normal page (with buttons) returns
+  setTimeout(syncViewportVars, 60);
+});
+
+/* Req 3: a scroll/drag gesture should dismiss the keyboard (so the buttons can be
+   reached). While the keyboard is up the page itself is locked, so we watch for a
+   real drag on the prompt/diff frame and, once it can't be consumed by scrolling
+   the cue/diff any further, blur the box — which closes the keyboard and brings
+   the full layout (buttons included) back. Touches that land in the typing box
+   are left alone so typing is never interrupted. */
+(function(){
+  let startY = null;
+  const live = () => document.getElementById('liveScroll');
+  const onStart = (e) => { startY = e.touches ? e.touches[0].clientY : e.clientY; };
+  const onMove = (e) => {
+    if(!document.body.classList.contains('kb-open') || startY == null) return;
+    if(typeInput.contains(e.target)) return;            // never interrupt typing
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const dragged = y - startY;
+    const ls = live();
+    // if the cue/diff can still scroll in the drag direction, let it; otherwise
+    // a clear drag means "I'm done typing" -> dismiss the keyboard
+    const canScrollDown = ls && ls.scrollTop > 0;
+    const canScrollUp = ls && ls.scrollTop + ls.clientHeight < ls.scrollHeight - 1;
+    const consumed = (dragged > 0 && canScrollDown) || (dragged < 0 && canScrollUp);
+    if(!consumed && Math.abs(dragged) > 24){
+      typeInput.blur();
+      startY = null;
+    }
+  };
+  document.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchmove', onMove, {passive:true});
+})();
 
 function followScroll(typed){
   // Keep each box (whichever is in scroll mode) scrolled so the position the user
@@ -1505,8 +1560,9 @@ document.getElementById('btnSkip').addEventListener('click', () => {
 });
 function applyRevealState(){
   const btn = document.getElementById('btnReveal');
-  btn.textContent = state.revealPending ? 'Hide text' : 'Show text';
-  btn.classList.toggle('primary', state.revealPending);
+  // micro-btn in the diff-head, mirroring the hide/show box button beside it
+  btn.textContent = state.revealPending ? 'hide text ▴' : 'show text ▾';
+  btn.classList.toggle('active', state.revealPending);
   renderDiff(typeInput.value, state.currentIsFinal);
 }
 document.getElementById('btnReveal').addEventListener('click', () => {
@@ -1529,7 +1585,9 @@ function applyBoxMode(){
   });
   const hideBtn = document.getElementById('btnBoxHide');
   hideBtn.textContent = state.boxHidden ? 'show ▾' : 'hide ▴';
-  hideBtn.classList.toggle('primary', state.boxHidden);
+  hideBtn.classList.toggle('active', state.boxHidden);
+  // the show/hide-text toggle only does something when the box is visible
+  document.getElementById('btnReveal').style.display = state.boxHidden ? 'none' : '';
   if(!state.boxHidden) autoGrow(typeInput);
 }
 function toggleBoxMode(which){
@@ -1549,7 +1607,13 @@ document.getElementById('btnBoxHide').addEventListener('click', () => {
   state.boxHidden = !state.boxHidden;
   applyBoxMode();
 });
-document.getElementById('btnFinish').addEventListener('click', showSummary);
+function finishSession(){
+  // Count whatever is currently typed (just like Next does) before summarizing,
+  // so an in-progress block isn't treated as unattempted/skipped.
+  commitCurrentForNavigation();
+  showSummary();
+}
+document.getElementById('btnFinish').addEventListener('click', finishSession);
 
 // info icons (keyboard shortcuts, formatting tips, …): hover shows the popup
 // (pure CSS); click pins it open until dismissed by clicking elsewhere.
@@ -1576,7 +1640,7 @@ document.addEventListener('keydown', (e) => {
   // Ctrl/Cmd+Enter (or Ctrl+Alt+Enter) -> finish & summary
   if((e.code === 'Enter' || e.code === 'NumpadEnter') && (e.ctrlKey || e.metaKey)){
     e.preventDefault();
-    showSummary();
+    finishSession();
     return;
   }
 
@@ -2041,6 +2105,12 @@ applyTheme(currentTheme);
 document.getElementById('btnTheme').addEventListener('click', () => {
   currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   applyTheme(currentTheme);
+});
+
+// ---- brand title: reload to a clean blank slate ----
+document.getElementById('brandLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  location.reload();
 });
 
 updateChunkCount();
