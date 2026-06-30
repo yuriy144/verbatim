@@ -84,7 +84,11 @@
     display:flex;align-items:baseline;gap:10px;
   }
   h1 .mark{color:var(--gold);font-style:italic;}
-  h1 a#brandLink{color:inherit;text-decoration:none;cursor:pointer;}
+  h1 a#brandLink{
+    color:inherit;text-decoration:none;cursor:pointer;
+    display:inline-flex;align-items:baseline;
+    touch-action:manipulation;-webkit-tap-highlight-color:rgba(207,159,84,.25);
+  }
   h1 a#brandLink:hover .mark{color:var(--ink);}
   h1 a#brandLink:hover{color:var(--gold);}
   .subtitle{color:var(--dim);font-size:14.5px;margin:0;max-width:560px;line-height:1.5;}
@@ -425,8 +429,11 @@
      --kb-clearance is a small tunable cushion: if the iOS accessory bar ever
      overlaps the box on a given device, bump it (e.g. to 44px) in one place. */
   @media (max-width: 720px){
-    :root{--kb-clearance:0px;}
-    body.kb-open{overflow:hidden;}                 /* the frame owns the screen */
+    /* --kb-clearance lifts the frame's bottom off the keyboard. iOS does NOT
+       shrink visualViewport.height for the form accessory bar (the up/down/done
+       bar), so without a cushion the typing box hides behind it. ~44px clears the
+       Apple bar; tune here if a device needs more/less. */
+    :root{--kb-clearance:44px;}
     body.kb-open #practice{margin:0;}
     body.kb-open #practice .practice-grid{display:block;}
     body.kb-open #practice .rail{display:none;}    /* rail not needed while typing */
@@ -443,8 +450,12 @@
     body.kb-open #stageTop .progress-line{margin-bottom:8px;}
     body.kb-open #liveScroll{
       flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      display:flex;flex-direction:column;
       border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:8px;
     }
+    /* bottom-align the cue+diff so the diff hugs the typing box (no big gap); a
+       long cue/diff overflows at the TOP and is reachable by scrolling up */
+    body.kb-open #liveInner{margin-top:auto;}
     body.kb-open #liveScroll::-webkit-scrollbar{width:6px;}
     body.kb-open #liveScroll::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
     body.kb-open #typeDock{flex:0 0 auto;margin:0;}
@@ -542,17 +553,19 @@
           </div>
         </div>
         <div class="live-scroll" id="liveScroll">
-          <div class="cue-box" id="cueBox"></div>
-          <div class="diff-head">
-            <span class="diff-label">your typing vs. the original</span>
-            <span class="diff-head-actions">
-              <button id="btnReveal" class="micro-btn" title="Hide or show the upcoming text (Ctrl+Alt+H)">show text ▾</button>
-              <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
-            </span>
-          </div>
-          <div class="box-wrap" id="diffWrap">
-            <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
-            <div class="diff-box" id="diffBox"></div>
+          <div class="live-inner" id="liveInner">
+            <div class="cue-box" id="cueBox"></div>
+            <div class="diff-head">
+              <span class="diff-label">your typing vs. the original</span>
+              <span class="diff-head-actions">
+                <button id="btnReveal" class="micro-btn" title="Hide or show the upcoming text (Ctrl+Alt+H)">show text ▾</button>
+                <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
+              </span>
+            </div>
+            <div class="box-wrap" id="diffWrap">
+              <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
+              <div class="diff-box" id="diffBox"></div>
+            </div>
           </div>
         </div>
         <div id="typeDock">
@@ -1447,11 +1460,11 @@ if(vv){
   syncViewportVars();
 }
 typeInput.addEventListener('focus', () => {
-  // resume typing -> snap the box back above the keyboard and show the prompt/diff
+  // resume typing -> snap the box back above the keyboard and reveal the diff
   setTimeout(() => {
     syncViewportVars();
     const ls = document.getElementById('liveScroll');
-    if(ls) ls.scrollTop = 0;   // make sure the cue + diff are in view, not scrolled away
+    if(ls) ls.scrollTop = ls.scrollHeight;   // show the diff (it hugs the typing box)
   }, 60);
   setTimeout(syncViewportVars, 250); // a second pass once the keyboard settles
 });
@@ -1460,30 +1473,26 @@ typeInput.addEventListener('blur', () => {
   setTimeout(syncViewportVars, 60);
 });
 
-/* Req 3: a scroll/drag gesture should dismiss the keyboard (so the buttons can be
-   reached). While the keyboard is up the page itself is locked, so we watch for a
-   real drag on the prompt/diff frame and, once it can't be consumed by scrolling
-   the cue/diff any further, blur the box — which closes the keyboard and brings
-   the full layout (buttons included) back. Touches that land in the typing box
-   are left alone so typing is never interrupted. */
+/* Req 3: scrolling/dragging the page should dismiss the keyboard so the action
+   buttons can be reached. While the typing box is focused, a deliberate vertical
+   drag that doesn't start inside the box blurs it — which closes the keyboard and
+   returns the normal page (with buttons). Touches on the typing box itself are
+   left alone so typing/selection is never interrupted. To see a cue/diff that's
+   been cut off, the user scrolls (dismissing the keyboard) and then taps the box
+   again to resume — at which point it snaps back above the keyboard. */
 (function(){
-  let startY = null;
-  const live = () => document.getElementById('liveScroll');
-  const onStart = (e) => { startY = e.touches ? e.touches[0].clientY : e.clientY; };
+  let startY = null, startX = null, fired = false;
+  const pt = (e) => e.touches && e.touches[0] ? e.touches[0] : e;
+  const onStart = (e) => { const t = pt(e); startY = t.clientY; startX = t.clientX; fired = false; };
   const onMove = (e) => {
-    if(!document.body.classList.contains('kb-open') || startY == null) return;
-    if(typeInput.contains(e.target)) return;            // never interrupt typing
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    const dragged = y - startY;
-    const ls = live();
-    // if the cue/diff can still scroll in the drag direction, let it; otherwise
-    // a clear drag means "I'm done typing" -> dismiss the keyboard
-    const canScrollDown = ls && ls.scrollTop > 0;
-    const canScrollUp = ls && ls.scrollTop + ls.clientHeight < ls.scrollHeight - 1;
-    const consumed = (dragged > 0 && canScrollDown) || (dragged < 0 && canScrollUp);
-    if(!consumed && Math.abs(dragged) > 24){
-      typeInput.blur();
-      startY = null;
+    if(fired || startY == null) return;
+    if(document.activeElement !== typeInput) return;   // only while typing
+    if(typeInput.contains(e.target)) return;           // never interrupt the box
+    const t = pt(e);
+    const dy = Math.abs(t.clientY - startY), dx = Math.abs(t.clientX - startX);
+    if(dy > 16 && dy > dx){                            // a deliberate vertical drag
+      fired = true;
+      typeInput.blur();                                // close the keyboard
     }
   };
   document.addEventListener('touchstart', onStart, {passive:true});
@@ -1497,10 +1506,15 @@ function followScroll(typed){
     typeInput.scrollLeft = typeInput.scrollWidth;
   }
   if(state.diffMode === 'scroll' && diffBox.scrollWidth > diffBox.clientWidth){
+    // Req 6: center the current typing position in the diff box so the user sees
+    // context on BOTH sides of where they are, rather than the text sliding off
+    // the left edge. The active position is ~ (typed / target) of the way across
+    // the (monospace) content; scroll so that point lands in the middle.
     const target = state.chunks[state.index] || '';
     const frac = target.length ? Math.min(1, typed.length / target.length) : 0;
+    const activeX = diffBox.scrollWidth * frac;
     const maxScroll = diffBox.scrollWidth - diffBox.clientWidth;
-    diffBox.scrollLeft = maxScroll * frac;
+    diffBox.scrollLeft = Math.max(0, Math.min(maxScroll, activeX - diffBox.clientWidth / 2));
   }
 }
 
@@ -2108,10 +2122,13 @@ document.getElementById('btnTheme').addEventListener('click', () => {
 });
 
 // ---- brand title: reload to a clean blank slate ----
-document.getElementById('brandLink').addEventListener('click', (e) => {
-  e.preventDefault();
-  location.reload();
-});
+// Bind to the whole <h1> (not just the inner <a>) so the entire title line is a
+// reliable tap target on mobile, where a thin inline link is easy to miss.
+(function(){
+  const reload = (e) => { e.preventDefault(); location.reload(); };
+  const h1 = document.querySelector('header.top h1');
+  if(h1) h1.addEventListener('click', reload);
+})();
 
 updateChunkCount();
 </script>
