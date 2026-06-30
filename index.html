@@ -13,7 +13,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-visual">
 <title>Verbatim — memorization typing trainer</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2328253b'/%3E%3Ctext x='34' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='42' font-weight='600' fill='%23d8d3c4'%3EV%3Ctspan fill='%23cba160' font-style='italic'%3E.%3C/tspan%3E%3C/text%3E%3C/svg%3E">
 <style>
@@ -403,6 +403,21 @@
        is visible in the colored Full Review below, so nothing is lost */
     th:nth-child(n+4), td:nth-child(n+4){display:none;}
   }
+
+  /* ---------- mobile: anchor the typing box just above the keyboard ---------- */
+  @media (max-width: 720px){
+    body.kb-open #typeDock{
+      position:fixed;left:0;right:0;bottom:var(--kb-inset, 0px);z-index:8;
+      margin:0;padding:8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
+      background:var(--bg);border-top:1px solid var(--rule);
+      box-shadow:0 -12px 24px -10px rgba(0,0,0,.45);
+    }
+    body.kb-open #typeDock .live-stats{margin:0 2px 7px;}
+    body.kb-open #typeDock #typeWrap{margin-top:0;}
+    body.kb-open #typeDock #typeInput{max-height:30vh;overflow-y:auto;}
+    /* extra scroll room so the buttons & legend can be brought up clear of the dock */
+    body.kb-open .stage{padding-bottom:calc(var(--kb-inset, 0px) + 200px);}
+  }
 </style>
 </head>
 <body>
@@ -498,13 +513,15 @@
           <button class="corner-toggle" data-corner-toggle="diff" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
           <div class="diff-box" id="diffBox"></div>
         </div>
-        <div class="live-stats">
-          <span>this line: <b id="liveAcc">0%</b></span>
-          <span>typed: <b id="liveLen">0</b> / <span id="targetLen">0</span></span>
-        </div>
-        <div class="box-wrap" id="typeWrap">
-          <button class="corner-toggle" data-corner-toggle="type" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
-          <textarea id="typeInput" rows="1" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Start typing — Enter or Next to score this line and advance"></textarea>
+        <div id="typeDock">
+          <div class="live-stats">
+            <span>this line: <b id="liveAcc">0%</b></span>
+            <span>typed: <b id="liveLen">0</b> / <span id="targetLen">0</span></span>
+          </div>
+          <div class="box-wrap" id="typeWrap">
+            <button class="corner-toggle" data-corner-toggle="type" title="Wrap or scroll this box (Ctrl+Alt+W)">▼</button>
+            <textarea id="typeInput" rows="1" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Start typing — Enter or Next to score this line and advance"></textarea>
+          </div>
         </div>
         <div class="btnrow">
           <button id="btnPrev" title="Previous block (Ctrl+Alt+P)">← Previous</button>
@@ -1361,25 +1378,31 @@ window.addEventListener('resize', () => {
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 });
 
-function centerInputInViewport(){
-  // On phones, keep the typing box roughly centered in whatever vertical space
-  // is actually visible (which shrinks when the on-screen keyboard appears), so
-  // the prompt and diff box stay visible above it, instead of the previous/next
-  // buttons getting squeezed into the gap right above the keyboard. Scoped to
-  // mobile widths only — on desktop there's no keyboard to make room for, and
-  // an unexpected scroll-jump would just be annoying.
-  if(document.activeElement !== typeInput) return;
-  if(!window.matchMedia('(max-width: 720px)').matches) return;
-  typeInput.scrollIntoView({block:'center', behavior:'smooth'});
+/* On phones, dock the typing box just above the on-screen keyboard so it stays
+   the anchor point while you type. Rather than guessing a keyboard height, we
+   measure how much of the layout viewport is actually being covered using the
+   visualViewport API and lift the dock by exactly that amount — so the anchor is
+   correct for ANY keyboard at its real height: the iOS default, or SwiftKey with
+   its extra number row, paste/gif toolbar, and the arrow/checkmark accessory bar.
+   Desktop has no software keyboard, so the inset stays 0 and #typeDock behaves
+   like a normal in-flow element. */
+const vv = window.visualViewport;
+function updateKeyboardInset(){
+  if(!vv) return;
+  // space between the bottom of the layout viewport and the visible area = the
+  // keyboard (plus any bottom browser chrome) currently overlapping the page
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  document.documentElement.style.setProperty('--kb-inset', inset + 'px');
+  // only treat the keyboard as "open" once it covers a real chunk of the screen,
+  // so the address bar collapsing/expanding doesn't engage the dock on its own
+  document.body.classList.toggle('kb-open', inset > 150);
+  // the dock's width changes slightly when it goes fixed, so re-fit the textarea
+  if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 }
-typeInput.addEventListener('focus', () => {
-  // a short delay lets the keyboard's viewport resize start/settle first
-  setTimeout(centerInputInViewport, 60);
-});
-if(window.visualViewport){
-  // fires again once the keyboard finishes animating in/out, when the centering
-  // actually needs to be (re)computed against the real, settled viewport height
-  window.visualViewport.addEventListener('resize', centerInputInViewport);
+if(vv){
+  vv.addEventListener('resize', updateKeyboardInset);
+  vv.addEventListener('scroll', updateKeyboardInset);
+  updateKeyboardInset();
 }
 
 function followScroll(typed){
@@ -1590,6 +1613,8 @@ function showSummary(){
   stopTimer();
   document.getElementById('practice').classList.add('hidden');
   document.getElementById('summary').classList.remove('hidden');
+  // leaving practice: drop the keyboard dock so the summary scrolls normally
+  document.body.classList.remove('kb-open');
 
   const {stats, scored} = computeSessionStats();
 
