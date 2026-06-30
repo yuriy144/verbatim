@@ -404,17 +404,38 @@
     th:nth-child(n+4), td:nth-child(n+4){display:none;}
   }
 
-  /* ---------- mobile: keep the typing box anchored just above the keyboard ----------
-     Desired top->bottom order while typing: sticky prompt, diff box, typing box,
-     keyboard — with the action buttons sitting in normal flow just BELOW the
-     typing box, so the user can scroll down to reach them. Everything stays
-     in-flow (no fixed dock, which would trap the buttons behind a pinned bar);
-     JS scrolls the typing box's bottom to rest just above the keyboard. The
-     extra bottom padding guarantees there's always room to scroll the box up to
-     the keyboard line and to bring the buttons up into view. */
+  /* ---------- mobile: pin the typing box directly above the keyboard ----------
+     The typing box (plus its small live-stats caption) is lifted out of flow and
+     fixed to the bottom of the *visible* area — directly above the on-screen
+     keyboard. We don't guess the keyboard's height: the visualViewport API tells
+     us how much of the layout viewport is no longer visible, and that leftover
+     space (--kb-inset) is exactly what the keyboard + any bottom browser chrome
+     covers. Because vv.height already excludes the iOS form accessory bar (the
+     up/down/done bar that web pages cannot remove), the inset includes it too, so
+     the dock lands ABOVE that bar, not behind it. This works for any keyboard at
+     its real height — native iOS, or SwiftKey with its number row and paste/gif
+     toolbar. It's declarative positioning (no scrollTo/scrollBy), so it never
+     jumps while you type, in either scroll or wrap mode.
+
+     To keep the requested order — nothing between the prompt/diff and the box,
+     and nothing between the box and the keyboard — the action buttons & legend
+     are tucked away while the keyboard is up (the Return key scores & advances).
+     They reappear the moment the keyboard is dismissed. */
   @media (max-width: 720px){
+    body.kb-open #typeDock{
+      position:fixed;left:0;right:0;bottom:var(--kb-inset, 0px);z-index:8;
+      margin:0;padding:8px 14px calc(6px + env(safe-area-inset-bottom, 0px));
+      background:var(--bg);border-top:1px solid var(--rule);
+      box-shadow:0 -14px 28px -12px rgba(0,0,0,.5);
+    }
+    body.kb-open #typeDock .live-stats{margin:0 2px 6px;}
+    body.kb-open #typeDock #typeWrap{margin-top:0;}
     body.kb-open #typeDock #typeInput{max-height:32vh;overflow-y:auto;}
-    body.kb-open .stage{padding-bottom:calc(var(--kb-inset, 0px) + 140px);}
+    /* clean zone above the keyboard: hide the controls while typing */
+    body.kb-open .stage > .btnrow,
+    body.kb-open .stage > .legend{display:none;}
+    /* leave room so a long wrapped diff can be scrolled clear of the fixed dock */
+    body.kb-open .stage{padding-bottom:calc(var(--kb-inset, 0px) + 200px);}
   }
 </style>
 </head>
@@ -1365,7 +1386,6 @@ typeInput.addEventListener('input', (e) => {
   renderDiff(e.target.value, false);
   autoGrow(typeInput);
   followScroll(e.target.value);
-  anchorTypingAboveKeyboard(); // as the box grows, keep its bottom on the keyboard line
 });
 typeInput.addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){
@@ -1377,62 +1397,42 @@ window.addEventListener('resize', () => {
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 });
 
-/* On phones, keep the typing box resting just above the on-screen keyboard,
-   in this top->bottom order: sticky prompt + diff box, then the typing box,
-   then the keyboard — with the action buttons in normal flow just below the
-   typing box, so scrolling down brings them into view.
+/* On phones, pin the typing box directly above the on-screen keyboard.
 
-   We deliberately do NOT fix the box to the viewport: a pinned bar would trap
-   the buttons behind it. Instead we measure the keyboard's REAL height via the
-   visualViewport API (the leftover space it covers, so it's correct for any
-   keyboard — the iOS default, or SwiftKey with its extra number row, paste/gif
-   toolbar, and arrow/checkmark accessory bar), flag the body as kb-open for the
-   extra scroll padding, and nudge the page so the typing box's bottom edge sits
-   a few px above the keyboard. Re-running on input keeps that bottom anchored as
-   the box grows; desktop has no software keyboard, so none of this engages. */
+   The keyboard's height is measured, never guessed. The visualViewport API
+   reports how much of the layout viewport is no longer visible, and that
+   leftover space (--kb-inset) is exactly what the keyboard plus any bottom
+   browser chrome is covering. Because vv.height already excludes the iOS form
+   accessory bar (the up/down/done bar that web pages can't remove), the inset
+   includes it too — so the dock lands above that bar, not behind it. Driving the
+   dock's CSS `bottom` from this value keeps it correct for any keyboard at its
+   real height: native iOS, SwiftKey with its extra rows/toolbars, and so on.
+
+   This is purely declarative positioning. We never call scrollTo/scrollBy, so
+   the page can't jump while you type and there's nothing fighting iOS's own
+   focus handling. Desktop has no software keyboard, so the inset stays 0 and
+   #typeDock is a normal in-flow element. */
 const vv = window.visualViewport;
-const KB_GAP = 8; // breathing room between the typing box and the keyboard top
-function keyboardInset(){
-  if(!vv) return 0;
-  // gap between the bottom of the layout viewport and the visible area = the
-  // keyboard (plus any bottom browser chrome) currently overlapping the page
-  return Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-}
 function updateKeyboardInset(){
-  const inset = keyboardInset();
+  if(!vv) return;
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   document.documentElement.style.setProperty('--kb-inset', inset + 'px');
   // only treat the keyboard as "open" once it covers a real chunk of the screen,
-  // so the address bar collapsing/expanding doesn't engage the layout on its own
+  // so the address bar collapsing/expanding doesn't engage the dock on its own
   document.body.classList.toggle('kb-open', inset > 150);
+  // the dock's available width changes when it goes fixed, so re-fit the textarea
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 }
-function anchorTypingAboveKeyboard(){
-  // Scroll the page so the typing box's bottom edge rests just above the keyboard.
-  if(!vv) return;
-  if(document.activeElement !== typeInput) return;
-  if(!window.matchMedia('(max-width: 720px)').matches) return;
-  if(keyboardInset() <= 150) return; // keyboard isn't up — nothing to anchor against
-  const rect = typeInput.getBoundingClientRect(); // layout-viewport coordinates
-  const visibleBottom = vv.offsetTop + vv.height;  // keyboard top, same coordinate space
-  const delta = rect.bottom - (visibleBottom - KB_GAP);
-  if(Math.abs(delta) > 2) window.scrollBy(0, delta); // instant; smooth would lag per keystroke
-}
-function onKeyboardGeometryChange(){
-  // keyboard opened/closed or resized: refresh the inset, let layout settle one
-  // frame, then re-anchor the box on the (new) keyboard line
-  updateKeyboardInset();
-  requestAnimationFrame(anchorTypingAboveKeyboard);
-}
 if(vv){
-  vv.addEventListener('resize', onKeyboardGeometryChange);
-  // a plain scroll just keeps the inset var fresh — it must NOT re-anchor, or the
-  // user could never scroll down to read the buttons without being snapped back
+  // both fire as the keyboard animates in/out and as the page scrolls beneath it,
+  // keeping --kb-inset (and therefore the dock) aligned to the keyboard's top edge
+  vv.addEventListener('resize', updateKeyboardInset);
   vv.addEventListener('scroll', updateKeyboardInset);
   updateKeyboardInset();
 }
 typeInput.addEventListener('focus', () => {
-  // give the keyboard a moment to begin animating in before we measure & anchor
-  setTimeout(onKeyboardGeometryChange, 120);
+  // fallback in case the viewport 'resize' is slow to fire when focus opens the keyboard
+  setTimeout(updateKeyboardInset, 120);
 });
 
 function followScroll(typed){
