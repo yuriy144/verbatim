@@ -406,63 +406,60 @@
   }
 
   /* ---------- mobile: pin the typing box directly above the keyboard ----------
-     PRIORITY behaviour: the typing box must sit on the keyboard's top edge and
-     never be obscured, however the user got there (tap, type, or resume after
-     scrolling), with NO gap below it and the diff hugging it just above.
+     PRIORITY behaviour: while typing, the typing box sits on the keyboard's top
+     edge and is never obscured; the diff hugs it just above; the cue is above the
+     diff; and NOTHING else (instructions, footer, buttons) is visible.
 
      Approach: when the box is focused on a phone, the practice stage becomes a
-     CONTENT-HEIGHT dock pinned to the keyboard by `bottom` — it is only as tall
-     as its content needs. Pinning by `bottom` (rather than by a measured height)
-     is what makes it robust: there is no live height that can come out stale
-     mid-animation or when the keyboard layout changes, so the box can't drift up
-     leaving a gap (the bug the full-height frame had). Stacked top->bottom:
+     full-screen fixed FRAME that overlays the entire visible area (top -> just
+     above the keyboard) with a solid background — so the page behind it
+     (instructions, footer) is completely hidden. Inside, a flex column:
 
-         [ stage-top: block / timer ]      (flex:0)
-         [ live-scroll: cue + diff ]       (flex:0 1 auto; scrolls only if needed)
-         [ typeDock: the typing box ]      (flex:0; sits on the keyboard)
+         [ stage-top: block / timer ]   (flex:0, top)
+         [ live-scroll: cue + diff ]    (flex:1; cue+diff bottom-aligned, scrolls)
+         [ typeDock: the typing box ]   (flex:0; the frame's bottom edge)
 
-     The dock's bottom is the keyboard's top edge plus --kb-clearance; it grows
-     upward only as far as content needs, capped by max-height. A long cue scrolls
-     inside live-scroll while the diff stays pinned just above the box. Buttons &
-     legend are hidden while typing (Return scores & advances); a scroll/drag
-     dismisses the keyboard to bring them back.
+     The box is the LAST flex child, so it sits exactly on the keyboard. The
+     cue+diff are bottom-aligned (margin-top:auto) so the diff hugs the box with
+     no gap; any extra space sits ABOVE the cue. The frame is sized from the
+     visualViewport, and the JS POLLS that measurement while focused (iOS doesn't
+     reliably fire a final resize, and the height changes with keyboard layout),
+     so the frame stays matched and the box never drifts up leaving a gap.
 
-     --kb-clearance cushions the iOS form accessory bar (the up/down/done bar that
-     web pages can't remove); bump it in one place if a device needs more. */
+     We do NOT lock body scroll (that made Safari pin its address bar); the fixed
+     frame simply covers the page. --kb-clearance cushions the iOS accessory bar
+     (the up/down/done bar that web pages can't remove); bump it if a device needs
+     more. */
   @media (max-width: 720px){
-    /* --kb-clearance lifts the dock off the keyboard. iOS does NOT shrink
-       visualViewport.height for the form accessory bar (the up/down/done bar), so
-       without a cushion the typing box hides behind it. ~44px clears the Apple
-       bar; tune here if a device needs more/less. */
     :root{--kb-clearance:44px;}
+    /* lock the page behind the frame so the intro/disclaimer text can't scroll
+       into view while typing */
+    body.kb-open{overflow:hidden;}
     body.kb-open #practice{margin:0;}
     body.kb-open #practice .practice-grid{display:block;}
     body.kb-open #practice .rail{display:none;}    /* rail not needed while typing */
-
-    /* The cluster is a CONTENT-HEIGHT dock pinned to the keyboard's top edge —
-       NOT a full-height frame. Pinning by `bottom` (not by a measured height)
-       means there's no height to come out stale, so the typing box always sits
-       right on the keyboard with no gap below it, and the diff hugs the box.
-       --kb-bottom-raw = distance from the layout-viewport bottom up to the
-       keyboard's top edge (from JS); we add the clearance on top. The dock grows
-       upward only as far as its content needs, capped by max-height; if the cue
-       is long, #liveScroll scrolls (the diff stays pinned just above the box). */
+    /* Pin BOTH edges to the visual viewport (top + bottom) so the browser derives
+       the height live every frame — there's no measured height to come out stale,
+       which is what caused the gaps. --vv-top/--vv-bottom-gap come from JS. */
     body.kb-open #practice .stage{
       position:fixed;left:0;right:0;
-      bottom:calc(var(--kb-bottom-raw, 0px) + var(--kb-clearance));
-      max-height:calc(var(--vv-height, 100%) - var(--kb-clearance) - 8px);
+      top:var(--vv-top, 0px);
+      bottom:calc(var(--vv-bottom-gap, 0px) + var(--kb-clearance));
       z-index:9;background:var(--bg);
       display:flex;flex-direction:column;
       margin:0;padding:8px 14px;
-      border-top:1px solid var(--rule);
-      box-shadow:0 -16px 30px -14px rgba(0,0,0,.55);
+      overflow:hidden;
     }
     body.kb-open #stageTop{flex:0 0 auto;}
     body.kb-open #stageTop .progress-line{margin-bottom:8px;}
     body.kb-open #liveScroll{
-      flex:0 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      display:flex;flex-direction:column;
       border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:8px;
     }
+    /* bottom-align cue+diff so the diff hugs the box; a long cue overflows at the
+       TOP of live-scroll and scrolls there — never showing page content above */
+    body.kb-open #liveInner{margin-top:auto;}
     body.kb-open #liveScroll::-webkit-scrollbar{width:6px;}
     body.kb-open #liveScroll::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
     body.kb-open #typeDock{flex:0 0 auto;margin:0;}
@@ -1450,12 +1447,12 @@ const vv = window.visualViewport;
 const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
 function syncViewportVars(){
   if(!vv) return;
-  document.documentElement.style.setProperty('--vv-height', vv.height + 'px');
-  // distance from the layout-viewport bottom up to the keyboard's top edge — the
-  // dock is pinned `bottom` to this (plus the accessory-bar clearance), so it
-  // always rides the keyboard with no measured height to come out stale
-  const bottomRaw = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
-  document.documentElement.style.setProperty('--kb-bottom-raw', bottomRaw + 'px');
+  // Pin the frame to the visible area by BOTH edges (top + bottom), so the browser
+  // derives the height live and there's no measured height that can go stale.
+  document.documentElement.style.setProperty('--vv-top', vv.offsetTop + 'px');
+  // gap from the layout-viewport bottom up to the keyboard's top edge
+  const bottomGap = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  document.documentElement.style.setProperty('--vv-bottom-gap', bottomGap + 'px');
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
 }
 function keepDiffInView(){
@@ -1593,6 +1590,9 @@ document.getElementById('btnReveal').addEventListener('click', () => {
   state.revealPending = !state.revealPending;
   applyRevealState();
 });
+// keep focus in the typing box (don't dismiss the keyboard) when tapping this
+document.getElementById('btnReveal').addEventListener('mousedown', (e) => e.preventDefault());
+document.getElementById('btnReveal').addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
 
 function applyBoxMode(){
   const diffScroll = state.diffMode === 'scroll';
@@ -1626,11 +1626,16 @@ function toggleBoxMode(which){
 }
 document.querySelectorAll('[data-corner-toggle]').forEach(b => {
   b.addEventListener('click', () => toggleBoxMode(b.getAttribute('data-corner-toggle')));
+  b.addEventListener('mousedown', (e) => e.preventDefault());
+  b.addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
 });
 document.getElementById('btnBoxHide').addEventListener('click', () => {
   state.boxHidden = !state.boxHidden;
   applyBoxMode();
 });
+// keep focus in the typing box (don't dismiss the keyboard) when tapping this
+document.getElementById('btnBoxHide').addEventListener('mousedown', (e) => e.preventDefault());
+document.getElementById('btnBoxHide').addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
 function finishSession(){
   // Count whatever is currently typed (just like Next does) before summarizing,
   // so an in-progress block isn't treated as unattempted/skipped.
