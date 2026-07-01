@@ -1586,13 +1586,25 @@ function applyRevealState(){
   btn.classList.toggle('active', state.revealPending);
   renderDiff(typeInput.value, state.currentIsFinal);
 }
-document.getElementById('btnReveal').addEventListener('click', () => {
+// These diff-head / box controls must keep working AND, on touch, not dismiss the
+// keyboard. Calling preventDefault on touchstart cancels the click on iOS (that's
+// what broke these buttons), so instead we note whether the typing box was focused
+// when the control was pressed and re-focus it after the action runs — the click
+// stays intact and the keyboard stays up. mousedown preventDefault additionally
+// avoids a focus flit on desktop; it does NOT cancel the click.
+function guardKeyboard(btn, handler){
+  let keep = false;
+  btn.addEventListener('pointerdown', () => { keep = (document.activeElement === typeInput); }, {passive:true});
+  btn.addEventListener('mousedown', (e) => { if(keep) e.preventDefault(); });
+  btn.addEventListener('click', () => {
+    handler();
+    if(keep) typeInput.focus();   // keep/restore the keyboard on touch devices
+  });
+}
+guardKeyboard(document.getElementById('btnReveal'), () => {
   state.revealPending = !state.revealPending;
   applyRevealState();
 });
-// keep focus in the typing box (don't dismiss the keyboard) when tapping this
-document.getElementById('btnReveal').addEventListener('mousedown', (e) => e.preventDefault());
-document.getElementById('btnReveal').addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
 
 function applyBoxMode(){
   const diffScroll = state.diffMode === 'scroll';
@@ -1625,17 +1637,12 @@ function toggleBoxMode(which){
   followScroll(typeInput.value);
 }
 document.querySelectorAll('[data-corner-toggle]').forEach(b => {
-  b.addEventListener('click', () => toggleBoxMode(b.getAttribute('data-corner-toggle')));
-  b.addEventListener('mousedown', (e) => e.preventDefault());
-  b.addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
+  guardKeyboard(b, () => toggleBoxMode(b.getAttribute('data-corner-toggle')));
 });
-document.getElementById('btnBoxHide').addEventListener('click', () => {
+guardKeyboard(document.getElementById('btnBoxHide'), () => {
   state.boxHidden = !state.boxHidden;
   applyBoxMode();
 });
-// keep focus in the typing box (don't dismiss the keyboard) when tapping this
-document.getElementById('btnBoxHide').addEventListener('mousedown', (e) => e.preventDefault());
-document.getElementById('btnBoxHide').addEventListener('touchstart', (e) => e.preventDefault(), {passive:false});
 function finishSession(){
   // Count whatever is currently typed (just like Next does) before summarizing,
   // so an in-progress block isn't treated as unattempted/skipped.
