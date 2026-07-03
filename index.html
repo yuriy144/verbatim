@@ -1,7 +1,7 @@
-<!doctype html>
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
+  Version 4.2.0
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -15,7 +15,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-visual">
 <title>Verbatim — memorization typing trainer</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2328253b'/%3E%3Ctext x='34' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='42' font-weight='600' fill='%23d8d3c4'%3EV%3Ctspan fill='%23cba160' font-style='italic'%3E.%3C/tspan%3E%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" id="metaTheme" content="#1a1822">
+<meta name="app-version" content="4.2.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Verbatim">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>
+/* Decide app-vs-web mode before anything paints, so the stripped website never
+   flashes app-only controls. Installed app (standalone / home-screen) = full;
+   the hosted page = stripped. Overrides for testing: ?app=1 forces the full
+   app anywhere, ?web=1 forces the stripped website anywhere; plain localhost
+   defaults to the full app so everything can be exercised before deploying. */
+(function(){
+  try{
+    var q = new URLSearchParams(location.search);
+    var app;
+    if(q.has('app')) app = true;
+    else if(q.has('web')) app = false;
+    else app = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ||
+               (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+               (window.navigator && navigator.standalone === true);
+    document.documentElement.classList.add(app ? 'app-mode' : 'web-mode');
+  }catch(e){
+    document.documentElement.classList.add('web-mode');
+  }
+  /* Theme: the user's explicit choice (persisted) beats the system preference,
+     so reloading — e.g. tapping the title — never flips someone back to dark.
+     Stored as a string, ready for more themes later. Applied here, before
+     first paint, so there's no flash of the wrong theme either. */
+  try{
+    var stored = localStorage.getItem('verbatim-theme');
+    var theme = stored || ((window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  }catch(e){
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+</script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2328253b'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='42' font-weight='600' fill='%23d8d3c4'%3EV%3Ctspan fill='%23cba160' font-style='italic'%3E.%3C/tspan%3E%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#1a1822;
@@ -71,8 +111,15 @@
   }
   .wrap{max-width:880px;margin:0 auto;}
   header.top{margin-bottom:28px;position:relative;}
+  .header-actions{position:absolute;top:0;right:0;display:flex;gap:8px;align-items:center;}
+  .header-btn{
+    height:38px;padding:0 16px;border-radius:19px;
+    background:var(--panel);border:1px solid var(--rule);color:var(--gold);
+    font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .header-btn:hover{border-color:var(--gold);}
   .theme-toggle{
-    position:absolute;top:0;right:0;
     width:38px;height:38px;border-radius:50%;
     background:var(--panel);border:1px solid var(--rule);color:var(--gold);
     font-size:17px;line-height:1;cursor:pointer;transition:border-color .15s,color .15s,background .15s;
@@ -83,7 +130,7 @@
     font-size:30px;margin:0 0 4px;font-weight:600;letter-spacing:.01em;color:var(--ink);
     display:flex;align-items:baseline;gap:10px;
   }
-  h1 .mark{color:var(--gold);font-style:italic;}
+  h1 .mark{color:var(--gold);font-style:italic;margin-left:.16em;}
   h1 a#brandLink{
     color:inherit;text-decoration:none;cursor:pointer;
     display:inline-flex;align-items:baseline;
@@ -362,6 +409,123 @@
   }
   footer a:hover{color:var(--ink);}
 
+  /* ---------- app vs web mode ----------
+     The hosted page at verbatim.run is the stripped "web" version: no library.
+     The installed app (Add to Home Screen / Install) is the full version.
+     Elements marked .app-only exist only in the installed app; .web-only only
+     on the website. The mode is decided in JS and set as a class on <html>. */
+  html.web-mode .app-only{display:none !important;}
+  html.app-mode .web-only{display:none !important;}
+
+  /* ---------- library drawer (installed app only) ----------
+     The library is a shelf you open, not another text panel: it slides in from
+     the right over the page, keeping the setup screen purely about the text. */
+  .drawer-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .drawer-backdrop.open{opacity:1;pointer-events:auto;}
+  .lib-drawer{
+    position:fixed;top:0;right:0;bottom:0;width:min(420px, 94vw);z-index:40;
+    background:var(--panel);border-left:1px solid var(--rule);
+    box-shadow:-18px 0 48px rgba(0,0,0,.35);
+    display:flex;flex-direction:column;
+    padding:20px 20px 16px;
+    transform:translateX(103%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .lib-drawer.open{transform:none;}
+  .drawer-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
+  .drawer-head h2{
+    font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);
+    color:var(--gold);margin:0;font-weight:600;flex:0 0 auto;
+  }
+  .drawer-sub{font-family:var(--mono);font-size:10.5px;color:var(--dim-2);flex:1;}
+  .lib-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 12px;}
+  .lib-tools input[type="search"]{
+    flex:1;min-width:130px;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    color:var(--ink);font-family:var(--serif);font-size:13.5px;padding:7px 10px;
+  }
+  .lib-tools input[type="search"]:focus{outline:none;border-color:var(--gold);}
+  .lib-list{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:2px;}
+  .lib-list::-webkit-scrollbar{width:6px;}
+  .lib-list::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+  .lib-item{
+    background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;padding:11px 13px;
+    transition:border-color .15s;
+  }
+  .lib-item:hover{border-color:color-mix(in srgb, var(--gold) 45%, var(--rule));}
+  .lib-item .t{font-size:15px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lock-chip{
+    display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--gold);border:1px solid color-mix(in srgb, var(--gold) 55%, var(--rule));
+    border-radius:2px;padding:1px 5px;margin-right:7px;vertical-align:2px;
+  }
+  .lib-item .meta{font-family:var(--mono);font-size:10.5px;color:var(--dim-2);margin-top:3px;}
+  .lib-item .lib-actions{display:flex;gap:6px;margin-top:9px;}
+  .lib-empty{color:var(--dim-2);font-size:12px;font-family:var(--mono);padding:8px 2px;line-height:1.7;}
+  .drawer-status{margin:10px 0 0;line-height:1.5;}
+  .drawer-foot{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    border-top:1px solid var(--rule);padding-top:12px;margin-top:12px;
+  }
+
+  /* ---------- dialogs ---------- */
+  dialog.dlg{
+    background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:3px;
+    padding:20px 22px;width:min(480px, calc(100vw - 36px));
+  }
+  dialog.dlg::backdrop{background:rgba(0,0,0,.55);}
+  .dlg h2{
+    font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);
+    color:var(--gold);margin:0 0 14px;font-weight:600;
+  }
+  .dlg .field{margin:0 0 12px;}
+  .dlg label{
+    display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--dim-2);margin-bottom:5px;
+  }
+  .dlg .field.check label{
+    display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;
+    font-family:var(--serif);font-size:14px;color:var(--ink);cursor:pointer;margin-bottom:0;
+  }
+  .dlg input[type="text"],.dlg input[type="password"],.dlg select{
+    width:100%;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    color:var(--ink);font-family:var(--serif);font-size:14.5px;padding:9px 11px;
+  }
+  .dlg input:focus,.dlg select:focus{outline:none;border-color:var(--gold);}
+  .dlg .hint{line-height:1.55;display:block;margin-top:6px;}
+  .dlg .btnrow{margin-top:6px;}
+  .dlg textarea{font-size:11.5px;line-height:1.5;word-break:break-all;}
+  .enc-warning{
+    display:block;margin-top:8px;padding:9px 11px;border-radius:3px;line-height:1.55;
+    font-family:var(--mono);font-size:11px;color:var(--case-err);
+    background:color-mix(in srgb, var(--case-err) 8%, var(--bg-2));
+    border:1px solid color-mix(in srgb, var(--case-err) 35%, var(--rule));
+  }
+
+  /* ---------- share banner · toast · drag-drop ---------- */
+  .share-banner{margin-bottom:20px;}
+  .share-banner .banner-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);z-index:60;
+    background:var(--panel);border:1px solid var(--gold);color:var(--ink);
+    font-family:var(--mono);font-size:11.5px;line-height:1.5;padding:9px 16px;border-radius:3px;
+    opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+    max-width:calc(100vw - 40px);text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%);}
+  .drop-overlay{
+    position:fixed;inset:12px;z-index:70;display:none;align-items:center;justify-content:center;
+    border:2px dashed var(--gold);border-radius:6px;
+    background:color-mix(in srgb, var(--bg) 82%, transparent);
+    font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);
+    pointer-events:none;text-align:center;padding:20px;
+  }
+  body.dropping .drop-overlay{display:flex;}
+  @media (prefers-reduced-motion: reduce){
+    .lib-drawer,.drawer-backdrop,.toast{transition:none;}
+  }
+
   /* ---------- responsive: tablets & phones ---------- */
   @media (max-width: 720px){
     body{padding:20px 14px 48px;}
@@ -476,7 +640,10 @@
 <div class="wrap">
 
   <header class="top">
-    <button id="btnTheme" class="theme-toggle" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
+    <div class="header-actions">
+      <button id="btnLibraryDrawer" class="header-btn app-only" title="Open your on-device library">Library</button>
+      <button id="btnTheme" class="theme-toggle" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
+    </div>
     <p class="eyebrow">memorization &amp; typing-accuracy trainer</p>
     <h1><a href="." id="brandLink" title="Reload Verbatim — clear everything and start fresh">Verbatim<span class="mark">.</span></a></h1>
     <p class="subtitle">Paste a text, split it into blocks, and type each one against the original.
@@ -487,6 +654,8 @@
 
   <!-- ================= SETUP ================= -->
   <section id="setup">
+    <div id="shareBanner" class="cue-box share-banner" aria-live="polite"></div>
+
     <div class="panel">
       <h2>01 · Reference text</h2>
       <textarea id="sourceText" rows="8" placeholder="Paste the passage, monologue, lyric, or score text you want to memorize…"></textarea>
@@ -517,6 +686,9 @@
       <textarea id="chunkText" class="mono" rows="8" placeholder="Split your text on the left first, or type/paste lines directly here. A line may use  cue → answer  to show a prompt you recall against."></textarea>
       <div class="btnrow">
         <button id="btnBegin" class="primary">Begin practice →</button>
+        <button id="btnSaveLib" class="app-only" title="Save these blocks to the on-device library">Save to library…</button>
+        <button id="btnShare" title="Share these blocks as a link or a share card — the text never touches a server">Share…</button>
+        <button id="btnOpenShareFile" title="Open a Verbatim share card (.png) or share file someone sent you">Open a share…</button>
         <span class="hint" id="chunkCount">0 lines</span>
         <span class="time-limit-field">
           <label for="timeLimit">time limit</label>
@@ -524,6 +696,7 @@
           <span class="hint">min (optional)</span>
         </span>
       </div>
+      <div class="hint web-only" style="margin-top:10px;">Install Verbatim to your device to unlock a private on-device library for the passages you're memorizing. <button id="btnInstallHelp" class="micro-btn" style="margin-left:6px;">How do I install it?</button></div>
     </div>
   </section>
 
@@ -632,9 +805,178 @@
     </div>
   </section>
 
+  <!-- ================= LIBRARY DRAWER (installed app only) ================= -->
+  <div id="drawerBackdrop" class="drawer-backdrop app-only"></div>
+  <aside id="libDrawer" class="lib-drawer app-only" aria-hidden="true" aria-label="Library">
+    <div class="drawer-head">
+      <h2>Library</h2>
+      <span class="drawer-sub">on this device only</span>
+      <button id="btnDrawerClose" class="micro-btn" title="Close the library">Close ✕</button>
+    </div>
+    <div class="lib-tools">
+      <input type="search" id="libSearch" placeholder="Search titles &amp; tags…" autocomplete="off">
+      <button id="btnLibUnlock" class="micro-btn" title="Reveal entries saved under a password">Unlock…</button>
+      <button id="btnLibLock" class="micro-btn hidden" title="Hide all unlocked entries again">Lock</button>
+    </div>
+    <div id="libList" class="lib-list"></div>
+    <div class="hint drawer-status" id="libStatus"></div>
+    <div class="drawer-foot">
+      <button id="btnLibExport" class="micro-btn" title="Download the whole library as a backup file">Export backup…</button>
+      <button id="btnLibImport" class="micro-btn" title="Merge a backup file into this library">Import backup</button>
+      <button id="btnSyncFile" class="micro-btn hidden" title="Keep the library in a file you own — put it in a folder your own sync service watches">Sync file…</button>
+      <span class="hint" id="syncStatus"></span>
+    </div>
+  </aside>
+
+  <!-- ================= DIALOGS ================= -->
+  <dialog id="dlgSave" class="dlg">
+    <h2 id="saveDlgTitle">Save to library</h2>
+    <div class="field">
+      <label for="saveTitle">Title</label>
+      <input type="text" id="saveTitle" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="saveTags">Tags <span style="text-transform:none;letter-spacing:0;">(comma-separated, optional)</span></label>
+      <input type="text" id="saveTags" autocomplete="off" placeholder="e.g. psalms, week 3">
+    </div>
+    <div class="field check">
+      <label><input type="checkbox" id="saveEnc"> Encrypt this entry (hidden until unlocked)</label>
+    </div>
+    <div class="field" id="savePwRow" style="display:none">
+      <label for="savePw">Password</label>
+      <input type="password" id="savePw" autocomplete="new-password">
+      <span class="hint" id="savePwNote"></span>
+      <span class="enc-warning">If you forget this password, this entry cannot be recovered. There is no reset, no recovery e-mail, and no server copy — that is the point of the encryption.</span>
+    </div>
+    <div class="btnrow">
+      <button id="btnDoSave" class="primary">Save</button>
+      <button id="btnCancelSave">Cancel</button>
+      <span class="hint" id="saveStatus"></span>
+    </div>
+  </dialog>
+
+  <dialog id="dlgUnlock" class="dlg">
+    <h2>Unlock library</h2>
+    <p class="hint" style="margin:0 0 12px;">Entries saved under this password will appear in the list. Nothing shows which passwords exist — a wrong password simply reveals nothing.</p>
+    <div class="field">
+      <label for="unlockPw">Password</label>
+      <input type="password" id="unlockPw" autocomplete="current-password">
+    </div>
+    <div class="btnrow">
+      <button id="btnDoUnlock" class="primary">Unlock</button>
+      <button id="btnCancelUnlock">Cancel</button>
+      <span class="hint" id="unlockStatus"></span>
+    </div>
+  </dialog>
+
+  <dialog id="dlgShare" class="dlg">
+    <h2>Share these blocks</h2>
+    <div class="field">
+      <label for="shareTitle">Title</label>
+      <input type="text" id="shareTitle" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="shareExpiry">Soft expiry</label>
+      <select id="shareExpiry">
+        <option value="0">None</option>
+        <option value="1">1 day</option>
+        <option value="7">7 days</option>
+        <option value="30">30 days</option>
+      </select>
+      <span class="hint">The text rides inside the link or card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).</span>
+    </div>
+    <div class="btnrow" style="margin-top:2px;margin-bottom:12px;">
+      <button id="btnShareLink" class="primary">Copy link</button>
+      <button id="btnShareCard">Download share card</button>
+      <button id="btnCloseShare">Close</button>
+    </div>
+    <div class="field" style="margin-bottom:6px;">
+      <textarea id="shareOut" class="mono" rows="3" readonly placeholder="Your link will appear here"></textarea>
+    </div>
+    <div class="hint" id="shareStatus"></div>
+  </dialog>
+
+  <dialog id="dlgExport" class="dlg">
+    <h2>Export backup</h2>
+    <div class="field check" style="margin-bottom:8px;">
+      <label><input type="radio" name="exportKind" id="exportPlain" checked> Readable file — titles and unencrypted passages are readable; entries you encrypted stay individually encrypted inside it</label>
+    </div>
+    <div class="field check">
+      <label><input type="radio" name="exportKind" id="exportEnc"> Encrypted file — the entire backup is locked behind one password</label>
+    </div>
+    <div class="field" id="exportPwRow" style="display:none">
+      <label for="exportPw">Backup password</label>
+      <input type="password" id="exportPw" autocomplete="new-password">
+      <span class="enc-warning">If you forget this password, the backup cannot be recovered. There is no reset, no recovery e-mail, and no server copy — that is the point of the encryption.</span>
+    </div>
+    <div class="btnrow">
+      <button id="btnDoExport" class="primary">Export</button>
+      <button id="btnCancelExport">Cancel</button>
+      <span class="hint" id="exportStatus"></span>
+    </div>
+  </dialog>
+
+  <dialog id="dlgImportPw" class="dlg">
+    <h2>Encrypted backup</h2>
+    <p class="hint" style="margin:0 0 12px;">This backup file is locked. Enter the password it was exported with.</p>
+    <div class="field">
+      <label for="importPw">Backup password</label>
+      <input type="password" id="importPw" autocomplete="current-password">
+    </div>
+    <div class="btnrow">
+      <button id="btnDoImportPw" class="primary">Unlock backup</button>
+      <button id="btnCancelImportPw">Cancel</button>
+      <span class="hint" id="importPwStatus"></span>
+    </div>
+  </dialog>
+
+  <dialog id="dlgSync" class="dlg">
+    <h2>Library sync file</h2>
+    <p class="hint" style="margin:0 0 12px;">Keep the library in a single file <em>you</em> own. Point it at a folder your own sync service already watches — iCloud Drive, Dropbox, OneDrive, Syncthing — and your devices stay in step, while Verbatim still talks to no server. Verbatim saves to the file automatically after every change, and merges from it on startup. The file doubles as a readable backup; entries you encrypted stay encrypted inside it.</p>
+    <div class="btnrow" style="margin-bottom:10px;">
+      <button id="btnSyncReconnect" class="primary hidden">Reconnect</button>
+      <button id="btnSyncCreate" class="primary">Create new file…</button>
+      <button id="btnSyncOpen">Use existing file…</button>
+      <button id="btnSyncDisconnect" class="hidden">Disconnect</button>
+      <button id="btnSyncClose">Close</button>
+    </div>
+    <div class="hint" id="syncDlgStatus"></div>
+  </dialog>
+
+  <dialog id="dlgInstall" class="dlg">
+    <h2>Install Verbatim on this device</h2>
+    <p class="hint" style="margin:0 0 12px;">Installing adds Verbatim to your device like a normal app — its own icon, its own window, fully offline — and unlocks the private on-device library. Nothing goes through an app store, and nothing changes about privacy: it's this same page, kept on your device.</p>
+    <div class="btnrow hidden" id="installNowRow" style="margin-bottom:12px;">
+      <button id="btnInstallNow" class="primary">Install now</button>
+      <span class="hint">Your browser supports one-click install.</span>
+    </div>
+    <div class="hint" style="line-height:1.7;">
+      <b style="color:var(--gold);">Chrome / Edge / Brave (desktop)</b><br>
+      Look at the right end of the address bar for an install icon (a screen with a down-arrow in Chrome, ⊕ in Edge) and click it — or open the browser menu ⋮ and choose “Cast, save and share → Install page as app…” (Chrome) / “Apps → Install this site as an app” (Edge). Verbatim then opens from your dock, taskbar, or launcher in its own window, with the Library available.<br><br>
+      <b style="color:var(--gold);">Safari (Mac)</b><br>
+      With Verbatim open, choose File → “Add to Dock…”. It appears in your Dock as an app.<br><br>
+      <b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>
+      Tap the Share button, then “Add to Home Screen”. Open Verbatim from the new icon.<br><br>
+      <b style="color:var(--gold);">Android (Chrome)</b><br>
+      Open the menu ⋮ and tap “Install app” (or “Add to Home screen”).<br><br>
+      <b style="color:var(--gold);">Firefox (desktop)</b><br>
+      Firefox doesn't install web apps on desktop. Use one of the browsers above for the installed app — the website still works here for practice and sharing.<br><br>
+      <span style="color:var(--dim-2);">After installing, open Verbatim from its own icon — that's where the Library lives.</span>
+    </div>
+    <div class="btnrow">
+      <button id="btnCloseInstall">Close</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div class="drop-overlay">Drop a Verbatim share card or backup file to open it</div>
+
+  <input type="file" id="importBackupFile" accept=".json,application/json" class="hidden">
+  <input type="file" id="openShareFileInput" accept=".png,image/png,.json,application/json" class="hidden">
+
   <footer>
     <p>
-      Verbatim runs entirely in your browser — nothing is collected, stored, or sent anywhere - closing this tab clears the session.
+      Verbatim runs entirely in your browser — nothing is collected or sent anywhere, ever. Closing this tab clears the practice session. The optional library is stored only on this device, and share links carry their text in the part of the address that never reaches any server.
     </p>
     <p>
       You can
@@ -646,10 +988,16 @@
       <a href="https://ko-fi.com/y144cafe" target="_blank" rel="noopener noreferrer">buy me a coffee on Ko-fi</a>
       — entirely optional, always appreciated.
     </p>
+    <p id="footerVersion"></p>
   </footer>
 </div>
 
 <script>
+/* Single source of truth for the app version at runtime; also declared in the
+   header comment and the app-version meta above, and mirrored by sw.js's
+   CACHE_VERSION — bump all four together when releasing. */
+const APP_VERSION = '4.2.0';
+
 /* ====================== state ====================== */
 const state = {
   chunks: [],
@@ -842,8 +1190,7 @@ function splitQA(text){
 const CUE_SEP = ' → ';
 function parseChunkLines(raw){
   return raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(line => {
-    const idx = line.indexOf(CUE_SEP.trim()); // tolerate stray spacing around the arrow
-    const arrowPos = line.indexOf('→');
+    const arrowPos = line.indexOf('→'); // tolerate stray spacing around the arrow
     if(arrowPos !== -1){
       return { prompt: line.slice(0, arrowPos).trim(), answer: line.slice(arrowPos + 1).trim() };
     }
@@ -1122,7 +1469,14 @@ function computeDiff(target, typed, isFinal){
     }
   });
 
-  const accuracy = target.length ? Math.round((correctCount/target.length)*1000)/10 : 0;
+  // Accuracy: correct characters minus a penalty for EXTRA typed characters,
+  // over the target length. Extra material is a real recall error — reciting
+  // the line perfectly and then adding 30% more text is 70% verbatim, not
+  // 100%. Clamped at 0 so garbage can't go negative. (Omissions and wrong
+  // characters already reduce correctCount, so they need no extra term.)
+  const accuracy = target.length
+    ? Math.max(0, Math.round(((correctCount - extraCount) / target.length) * 1000) / 10)
+    : 0;
   return {cells, correctCount, caseErr, punctErr, subErr, extraCount, omittedCount, targetLen: target.length, accuracy};
 }
 
@@ -1220,23 +1574,15 @@ function formatDuration(ms){
 }
 function noteActivity(){
   // Called on every keystroke. If the gap since the last keystroke exceeded the
-  // AFK threshold, the whole gap is logged as away-from-keyboard time.
+  // AFK threshold, the whole gap is logged as away-from-keyboard time. A
+  // trailing idle stretch (idle, then Finish without typing) is folded in by
+  // stopTimer(), so every long gap lands in afkMs exactly once.
   const now = Date.now();
   if(state.lastInputTime != null){
     const gap = now - state.lastInputTime;
     if(gap > AFK_THRESHOLD_MS) state.afkMs += gap;
   }
   state.lastInputTime = now;
-}
-function currentAfkMs(){
-  // Include an in-progress idle stretch (if the user is AFK right now) so the
-  // live display and a mid-idle finish both reflect it.
-  let afk = state.afkMs;
-  if(state.lastInputTime != null && state.endTime == null){
-    const gap = Date.now() - state.lastInputTime;
-    if(gap > AFK_THRESHOLD_MS) afk += gap;
-  }
-  return afk;
 }
 function renderClockDisplay(){
   // Pure display update — never triggers side effects, so calling it from both
@@ -1282,7 +1628,17 @@ function startTimer(){
   renderClockDisplay();
 }
 function stopTimer(){
-  if(state.endTime == null) state.endTime = Date.now();
+  if(state.endTime == null){
+    state.endTime = Date.now();
+    // Fold in a trailing idle stretch: ending the session after a long gap
+    // since the last keystroke means that gap was AFK, not active work.
+    // lastInputTime moves up to endTime so resuming can't count it twice.
+    if(state.lastInputTime != null){
+      const gap = state.endTime - state.lastInputTime;
+      if(gap > AFK_THRESHOLD_MS) state.afkMs += gap;
+      state.lastInputTime = state.endTime;
+    }
+  }
   if(state.timerInterval != null){
     clearInterval(state.timerInterval);
     state.timerInterval = null;
@@ -1700,7 +2056,9 @@ document.addEventListener('keydown', (e) => {
 function updateRunningAccuracy(){
   const scored = state.results.filter(r => r && r !== 'skip');
   if(scored.length === 0){ runningAcc.innerHTML = 'running accuracy: <b>—</b>'; return; }
-  const correct = scored.reduce((a,r)=>a+r.correctCount,0);
+  // same penalized-per-line math as computeDiff, so the running number always
+  // agrees with the per-line scores (extra typing counts against, clamped at 0)
+  const correct = scored.reduce((a,r)=>a+Math.max(0, r.correctCount - r.extraCount),0);
   const total = scored.reduce((a,r)=>a+r.targetLen,0);
   const pct = total ? Math.round((correct/total)*1000)/10 : 0;
   runningAcc.innerHTML = 'running accuracy: <b>' + pct + '%</b>';
@@ -1708,7 +2066,8 @@ function updateRunningAccuracy(){
 
 function computeSessionStats(){
   const scored = state.results.filter(r => r && r !== 'skip');
-  const correct = scored.reduce((a,r)=>a+r.correctCount,0);
+  // penalized per line exactly like computeDiff / the running display
+  const correct = scored.reduce((a,r)=>a+Math.max(0, r.correctCount - r.extraCount),0);
   const total = scored.reduce((a,r)=>a+r.targetLen,0);
   const overall = total ? Math.round((correct/total)*1000)/10 : 0;
   const caseErr = scored.reduce((a,r)=>a+r.caseErr,0);
@@ -2129,28 +2488,1286 @@ function roundRect(ctx, x, y, w, h, r){
 }
 
 // ---- theme toggle (light / dark) ----
+// The theme itself is applied before first paint by the <head> script; here we
+// just sync the button/meta and persist the user's explicit choice, so reloads
+// (including tapping the title) keep whatever the user picked.
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('btnTheme');
   // icon shows what you'll switch TO: moon while in light, sun while in dark
   btn.textContent = theme === 'light' ? '☾' : '☀';
   btn.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+  // keep the installed-app window chrome (PWA theme-color) in step with the theme
+  const mt = document.getElementById('metaTheme');
+  if(mt) mt.setAttribute('content', theme === 'light' ? '#f4f1ea' : '#1a1822');
 }
-let currentTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+let currentTheme = document.documentElement.getAttribute('data-theme') ||
+  ((window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
 applyTheme(currentTheme);
 document.getElementById('btnTheme').addEventListener('click', () => {
   currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   applyTheme(currentTheme);
+  try { localStorage.setItem('verbatim-theme', currentTheme); } catch(_){}
 });
 
 // ---- brand title: reload to a clean blank slate ----
 // Bind to the whole <h1> (not just the inner <a>) so the entire title line is a
 // reliable tap target on mobile, where a thin inline link is easy to miss.
 (function(){
-  const reload = (e) => { e.preventDefault(); location.reload(); };
+  // Drop any #s1=/#s2= share fragment on reload, so "start fresh" really is a
+  // blank slate rather than re-opening a shared passage.
+  const reload = (e) => { e.preventDefault(); location.replace(location.href.split('#')[0]); };
   const h1 = document.querySelector('header.top h1');
   if(h1) h1.addEventListener('click', reload);
 })();
+
+/* ============================================================================
+   PWA · LIBRARY · SHARING — everything below is local-only, by design.
+   The server stores nothing, ever: the library lives in this browser's
+   IndexedDB (installed app only); share links carry their text in the URL
+   fragment (after #), which browsers never send to any server; share cards
+   are PNG images with the same encoded payload embedded inside them.
+   ============================================================================ */
+
+/* ---------- app vs web mode ----------
+   Decided in the <head> before first paint (see the small script there);
+   here we just read the result. The hosted website is the stripped version:
+   no library, no saving. The installed app is the full version. */
+const APP_MODE = document.documentElement.classList.contains('app-mode');
+
+/* ---------- service worker: installable + offline (both modes) ---------- */
+if('serviceWorker' in navigator &&
+   (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker registration failed:', err));
+  });
+}
+
+/* ---------- tiny shared utilities ---------- */
+const byId = (id) => document.getElementById(id);
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+function bufToB64u(buf){
+  // base64url (no padding) for ArrayBuffer or Uint8Array — URL- and JSON-safe.
+  const b = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = '';
+  for(let i = 0; i < b.length; i += 0x8000){
+    s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  }
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64uToBuf(str){
+  let s = String(str).replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length % 4) s += '=';
+  const bin = atob(s);
+  const b = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+  return b;
+}
+function uuid(){
+  return (crypto && crypto.randomUUID) ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random()*16|0; return (c==='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+}
+function downloadBlob(blob, filename){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* toast: one quiet status line for actions triggered anywhere on the page */
+let toastTimer = null;
+function notify(msg){
+  const t = byId('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
+}
+
+/* ---------- share codec: text ⇆ URL fragment / share card ----------
+   Payload: {v:1, t:title, m:splitMode, c:chunkText, x?:expiryEpochMs}
+   Fragment: #s2=<base64url(deflate-raw(JSON))>  (compressed, preferred)
+             #s1=<base64url(JSON)>               (fallback for old browsers)
+   The fragment is never sent over the network — that's the whole trick.
+   Share cards embed the same "s2=…" string inside a PNG, so the card is
+   encoded exactly like the link, not plain text. */
+const canDeflate = (typeof CompressionStream !== 'undefined');
+const canInflate = (typeof DecompressionStream !== 'undefined');
+
+async function pipeBytes(bytes, Ctor, mode){
+  const stream = new Blob([bytes]).stream().pipeThrough(new Ctor(mode));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function encodeSharePayload(payload){
+  const bytes = te.encode(JSON.stringify(payload));
+  if(canDeflate){
+    try { return 's2=' + bufToB64u(await pipeBytes(bytes, CompressionStream, 'deflate-raw')); }
+    catch(_){ /* fall through to uncompressed */ }
+  }
+  return 's1=' + bufToB64u(bytes);
+}
+async function decodeShareFragment(hash){
+  const m = /^#?(s[12])=([A-Za-z0-9_\-]+)$/.exec(hash || '');
+  if(!m) return null;
+  let bytes = b64uToBuf(m[2]);
+  if(m[1] === 's2'){
+    if(!canInflate) throw new Error('compressed link, no DecompressionStream');
+    bytes = await pipeBytes(bytes, DecompressionStream, 'deflate-raw');
+  }
+  const payload = JSON.parse(td.decode(bytes));
+  if(payload.v !== 1 || typeof payload.c !== 'string' || !payload.c.trim()) throw new Error('unrecognized payload');
+  return payload;
+}
+const payloadExpired = (p) => !!(p && p.x && Date.now() > p.x);
+
+/* ---------- duplicate protection ----------
+   Two independent guards so an accidentally re-opened card or re-imported
+   backup never piles up copies:
+   1. Every share payload carries a stable share id (i) minted when the share
+      is created; anything saved from it remembers that id (shareId), so the
+      same card saved twice is caught even if the title was edited.
+   2. Exact content match (same blocks + same title) catches everything else,
+      including old shares from before ids existed.
+   isDupOf is pure so it can be unit-tested; it compares one existing entry's
+   readable data against the candidate. Locked (still-encrypted) entries can't
+   be compared — that's inherent to them being unreadable. */
+function isDupOf(existingData, fields, shareId){
+  if(!existingData) return false;
+  if(shareId && existingData.shareId === shareId) return true;
+  return existingData.chunkText === fields.chunkText && existingData.title === fields.title;
+}
+function findDuplicate(fields, shareId){
+  for(const rec of lib.entries){
+    const d = rec.enc ? lib.revealed.get(rec.id) : rec;
+    if(isDupOf(d, fields, shareId)) return d;
+  }
+  return null;
+}
+
+/* ---------- PNG share cards: payload inside an image ----------
+   The card is a real PNG anyone can view (sender's creature, title, dates).
+   The encoded payload rides in a standard PNG tEXt metadata chunk — the same
+   compressed base64 as the link, NOT plain text. Verbatim reads it back on
+   drop/open. Caveat baked into the UI copy: messengers recompress "photos"
+   and strip metadata, so cards must be sent as files/documents. */
+const PNG_KEYWORD = 'verbatim';
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function pngInsertText(pngBytes, keyword, text){
+  // Build a tEXt chunk (keyword \0 text — ASCII payload only, which ours is)
+  // and splice it in just before IEND.
+  const kw = te.encode(keyword), tx = te.encode(text);
+  const data = new Uint8Array(kw.length + 1 + tx.length);
+  data.set(kw, 0); data[kw.length] = 0; data.set(tx, kw.length + 1);
+  const type = te.encode('tEXt');
+  const chunk = new Uint8Array(12 + data.length);
+  const dv = new DataView(chunk.buffer);
+  dv.setUint32(0, data.length);
+  chunk.set(type, 4);
+  chunk.set(data, 8);
+  const crcInput = new Uint8Array(4 + data.length);
+  crcInput.set(type, 0); crcInput.set(data, 4);
+  dv.setUint32(8 + data.length, crc32(crcInput));
+  // walk chunks to find IEND (fallback: append at end)
+  const view = new DataView(pngBytes.buffer, pngBytes.byteOffset, pngBytes.byteLength);
+  let off = 8, iendOff = pngBytes.length;
+  while(off + 12 <= pngBytes.length){
+    const len = view.getUint32(off);
+    const t = String.fromCharCode(pngBytes[off+4], pngBytes[off+5], pngBytes[off+6], pngBytes[off+7]);
+    if(t === 'IEND'){ iendOff = off; break; }
+    if(len > pngBytes.length) break; // malformed — bail to append
+    off += 12 + len;
+  }
+  const out = new Uint8Array(pngBytes.length + chunk.length);
+  out.set(pngBytes.subarray(0, iendOff), 0);
+  out.set(chunk, iendOff);
+  out.set(pngBytes.subarray(iendOff), iendOff + chunk.length);
+  return out;
+}
+function pngExtractText(bytes, keyword){
+  if(bytes.length < 16 || bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4E || bytes[3] !== 0x47) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let off = 8;
+  while(off + 12 <= bytes.length){
+    const len = view.getUint32(off);
+    if(len > bytes.length) return null; // malformed
+    const t = String.fromCharCode(bytes[off+4], bytes[off+5], bytes[off+6], bytes[off+7]);
+    if(t === 'tEXt'){
+      const data = bytes.subarray(off + 8, off + 8 + len);
+      const nul = data.indexOf(0);
+      if(nul > 0 && td.decode(data.subarray(0, nul)) === keyword){
+        return td.decode(data.subarray(nul + 1));
+      }
+    }
+    if(t === 'IEND') break;
+    off += 12 + len;
+  }
+  return null;
+}
+
+/* ---------- sender identity: a quiet, recognizable mark ----------
+   A per-device random seed (created on first share, kept in localStorage)
+   deterministically picks a two-character code — a letter followed by a digit
+   (never a real word, no ambiguous glyphs), e.g. "K7". Recipients learn to
+   recognize a sender's mark without the sender revealing anything real, and
+   the card stays looking like nothing more than a small image. */
+const ID_LETTERS = 'ABCDEFGHJKMNPQRSTUVWXYZ'; // no I, L, O (ambiguous)
+const ID_DIGITS = '23456789';                 // no 0, 1 (ambiguous)
+function identityFromSeed(seed){
+  seed = Math.abs(seed | 0);
+  return {
+    code: ID_LETTERS[seed % ID_LETTERS.length] +
+          ID_DIGITS[Math.floor(seed / ID_LETTERS.length) % ID_DIGITS.length],
+    seed,
+  };
+}
+function getSenderIdentity(){
+  const KEY = 'verbatim-share-identity';
+  try {
+    let seed = parseInt(localStorage.getItem(KEY), 10);
+    if(!Number.isFinite(seed)){
+      seed = Math.floor(Math.random() * 0x7FFFFFFF);
+      localStorage.setItem(KEY, String(seed));
+    }
+    return identityFromSeed(seed);
+  } catch(_){
+    return identityFromSeed(Math.floor(Math.random() * 0x7FFFFFFF));
+  }
+}
+function wrapTitleLines(ctx, text, maxW, maxLines){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for(const w of words){
+    const probe = line ? line + ' ' + w : w;
+    if(ctx.measureText(probe).width <= maxW || !line){ line = probe; }
+    else { lines.push(line); line = w; if(lines.length === maxLines) break; }
+  }
+  if(lines.length < maxLines && line) lines.push(line);
+  if(lines.length === maxLines && line && lines[maxLines-1] !== line){
+    let last = lines[maxLines-1];
+    while(last && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1);
+    lines[maxLines-1] = last + '…';
+  }
+  return lines;
+}
+
+/* ---------- crypto: real encryption at rest (Web Crypto, no libraries) ----------
+   PBKDF2(SHA-256, 310k) derives an AES-256-GCM key from the password. Encrypted
+   records store ONLY {id, enc, salt, iv, blob} — no plaintext title, no tags, no
+   dates, and no marker of which password they belong to. Unlocking try-decrypts
+   against each distinct salt group; AES-GCM's built-in authentication means a
+   wrong password simply fails to open anything — indistinguishable from there
+   being no hidden entries at all. Different passwords create separate hidden
+   sets, so multiple hidden libraries can coexist without revealing each other. */
+const cryptoOK = !!(window.crypto && crypto.subtle);
+const PBKDF2_ITERS = 310000;
+
+async function deriveKey(password, saltBytes){
+  const material = await crypto.subtle.importKey('raw', te.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt: saltBytes, iterations: PBKDF2_ITERS, hash:'SHA-256' },
+    material, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+async function encryptJson(obj, key){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, te.encode(JSON.stringify(obj)));
+  return { iv: bufToB64u(iv), blob: bufToB64u(ct) };
+}
+async function decryptJson(rec, key){
+  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64uToBuf(rec.iv) }, key, b64uToBuf(rec.blob));
+  return JSON.parse(td.decode(pt));
+}
+
+/* ---------- library: IndexedDB, installed app only ----------
+   Plain record:     {id, enc:0, title, tags[], splitMode, source, chunkText,
+                      createdAt, updatedAt}
+   Encrypted record: {id, enc:1, salt, iv, blob}   (blob = the plain fields) */
+const lib = {
+  db: null,
+  ok: false,
+  entries: [],           // raw records exactly as stored
+  revealed: new Map(),   // id -> decrypted fields, for unlocked enc records
+  keys: new Map(),       // saltB64 -> CryptoKey, for this session only
+  saveCtx: null,         // {salt, key} — most recently unlocked/created password
+};
+
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    const rq = indexedDB.open('verbatim-db', 2);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if(!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath:'id' });
+      // v2: small key-value store for app metadata (e.g. the sync-file handle —
+      // FileSystemFileHandle objects are structured-cloneable, so they persist here)
+      if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+    };
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+function metaGet(key){
+  return new Promise((resolve, reject) => {
+    const rq = lib.db.transaction('meta','readonly').objectStore('meta').get(key);
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+function metaPut(key, value){
+  return new Promise((resolve, reject) => {
+    const tx = lib.db.transaction('meta','readwrite');
+    tx.objectStore('meta').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function metaDelete(key){
+  return new Promise((resolve, reject) => {
+    const tx = lib.db.transaction('meta','readwrite');
+    tx.objectStore('meta').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function idbGetAll(){
+  return new Promise((resolve, reject) => {
+    const rq = lib.db.transaction('entries','readonly').objectStore('entries').getAll();
+    rq.onsuccess = () => resolve(rq.result || []);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+function idbPut(rec){
+  return new Promise((resolve, reject) => {
+    const tx = lib.db.transaction('entries','readwrite');
+    tx.objectStore('entries').put(rec);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function idbDelete(id){
+  return new Promise((resolve, reject) => {
+    const tx = lib.db.transaction('entries','readwrite');
+    tx.objectStore('entries').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function libStatus(msg){ const el = byId('libStatus'); if(el) el.textContent = msg || ''; }
+
+/* ---------- library drawer ---------- */
+function openDrawer(){
+  if(!APP_MODE) return;
+  byId('libDrawer').classList.add('open');
+  byId('libDrawer').setAttribute('aria-hidden','false');
+  byId('drawerBackdrop').classList.add('open');
+  byId('libSearch').focus();
+}
+function closeDrawer(){
+  byId('libDrawer').classList.remove('open');
+  byId('libDrawer').setAttribute('aria-hidden','true');
+  byId('drawerBackdrop').classList.remove('open');
+}
+if(APP_MODE){
+  byId('btnLibraryDrawer').addEventListener('click', openDrawer);
+  byId('btnDrawerClose').addEventListener('click', closeDrawer);
+  byId('drawerBackdrop').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && byId('libDrawer').classList.contains('open')) closeDrawer();
+  });
+}
+
+function visibleLibItems(){
+  // Locked encrypted records are simply absent from this list — to anyone
+  // browsing, the unencrypted entries look like everything there is.
+  const q = byId('libSearch').value.trim().toLowerCase();
+  const items = [];
+  for(const rec of lib.entries){
+    if(rec.enc){
+      const dec = lib.revealed.get(rec.id);
+      if(!dec) continue;
+      items.push({ id: rec.id, enc: true, title: dec.title || 'Untitled', tags: dec.tags || [], updatedAt: dec.updatedAt || 0 });
+    } else {
+      items.push({ id: rec.id, enc: false, title: rec.title || 'Untitled', tags: rec.tags || [], updatedAt: rec.updatedAt || 0 });
+    }
+  }
+  const filtered = q ? items.filter(it => (it.title + ' ' + it.tags.join(' ')).toLowerCase().includes(q)) : items;
+  return filtered.sort((a,b) => b.updatedAt - a.updatedAt);
+}
+
+function refreshLibList(){
+  const list = byId('libList');
+  if(!lib.ok){ list.innerHTML = ''; return; }
+  const items = visibleLibItems();
+  if(items.length === 0){
+    const searching = byId('libSearch').value.trim().length > 0;
+    list.innerHTML = '<div class="lib-empty">' +
+      (searching ? 'No entries match that search.'
+                 : 'Nothing on the shelf yet.<br>Build practice blocks, then “Save to library…”.') +
+      '</div>';
+    return;
+  }
+  list.innerHTML = items.map(it => {
+    const date = it.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : '';
+    const tags = it.tags.length ? escapeProse(it.tags.join(' · ')) : '';
+    const meta = [tags, date].filter(Boolean).join(' · ');
+    return '<div class="lib-item" data-id="' + it.id + '">' +
+      '<div class="t">' + (it.enc ? '<span class="lock-chip" title="Encrypted entry">locked</span>' : '') + escapeProse(it.title) + '</div>' +
+      (meta ? '<div class="meta">' + meta + '</div>' : '') +
+      '<div class="lib-actions">' +
+        '<button class="micro-btn" data-act="load">Load</button>' +
+        '<button class="micro-btn" data-act="edit">Edit</button>' +
+        '<button class="micro-btn" data-act="del">Delete</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function loadEntryIntoSetup(data){
+  // If a practice session is on screen, confirm before replacing it.
+  const practiceOpen = !byId('practice').classList.contains('hidden');
+  const summaryOpen = !byId('summary').classList.contains('hidden');
+  if(practiceOpen || summaryOpen){
+    if(!confirm('Leave the current session and load “' + (data.title || 'Untitled') + '”?')) return;
+    byId('practice').classList.add('hidden');
+    byId('summary').classList.add('hidden');
+    byId('setup').classList.remove('hidden');
+    document.body.classList.remove('kb-open');
+    stopTimer();
+    state.startTime = null;
+    state.endTime = null;
+  }
+  sourceText.value = data.source || '';
+  chunkText.value = data.chunkText || '';
+  if(MODE_BTNS[data.splitMode]) setActiveMode(data.splitMode);
+  updateChunkCount();
+  closeDrawer();
+  notify('Loaded “' + (data.title || 'Untitled') + '” — review the blocks and begin.');
+}
+
+byId('libList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if(!btn) return;
+  const id = btn.closest('.lib-item').dataset.id;
+  const rec = lib.entries.find(r => r.id === id);
+  if(!rec) return;
+  const data = rec.enc ? lib.revealed.get(id) : rec;
+  if(!data) return;
+  if(btn.dataset.act === 'load'){
+    loadEntryIntoSetup(data);
+  } else if(btn.dataset.act === 'edit'){
+    openSaveDialog(
+      { title: data.title, tags: data.tags || [], source: data.source, chunkText: data.chunkText, splitMode: data.splitMode, shareId: data.shareId },
+      { id, rec, data }
+    );
+  } else if(btn.dataset.act === 'del'){
+    if(!confirm('Delete “' + (data.title || 'Untitled') + '” from this device? This cannot be undone.')) return;
+    try {
+      await idbDelete(id);
+      lib.entries = lib.entries.filter(r => r.id !== id);
+      lib.revealed.delete(id);
+      refreshLibList();
+      scheduleSyncWrite();
+      notify('Deleted.');
+    } catch(err){ console.error(err); notify('Delete failed — try again.'); }
+  }
+});
+byId('libSearch').addEventListener('input', refreshLibList);
+
+/* ---------- save / edit dialog ---------- */
+let saveTarget = null;  // {title, tags?, source, chunkText, splitMode, shareId?}
+let editTarget = null;  // {id, rec, data} when editing an existing entry
+
+function autoTitle(chunks){
+  const first = (chunks || '').split(/\r?\n/).find(l => l.trim()) || 'Untitled';
+  return first.replace(/\s*→\s*/, ' — ').slice(0, 48);
+}
+function openSaveDialog(prefill, editing){
+  saveTarget = prefill;
+  editTarget = editing || null;
+  const alreadyEnc = !!(editing && editing.rec.enc);
+  byId('saveDlgTitle').textContent = editing ? 'Edit entry' : 'Save to library';
+  byId('btnDoSave').textContent = editing ? 'Save changes' : 'Save';
+  byId('saveTitle').value = prefill.title || autoTitle(prefill.chunkText);
+  byId('saveTags').value = (prefill.tags || []).join(', ');
+  byId('saveEnc').checked = alreadyEnc;
+  byId('saveEnc').disabled = alreadyEnc || !cryptoOK;
+  byId('savePw').value = '';
+  byId('saveStatus').textContent = alreadyEnc ? 'This entry stays encrypted under its existing password.' : '';
+  syncSaveEncUi();
+  byId('dlgSave').showModal();
+  byId('saveTitle').focus();
+}
+function syncSaveEncUi(){
+  const enc = byId('saveEnc').checked;
+  const alreadyEnc = !!(editTarget && editTarget.rec.enc);
+  byId('savePwRow').style.display = (enc && !alreadyEnc) ? '' : 'none';
+  byId('savePwNote').textContent = (enc && !alreadyEnc)
+    ? (lib.saveCtx
+        ? 'Leave blank to use the password you last unlocked with, or type a different one to start a separate hidden set.'
+        : 'Choose the password this entry will hide behind.')
+    : '';
+}
+async function doSave(){
+  if(!APP_MODE || !saveTarget) return;
+  const st = byId('saveStatus');
+  const title = byId('saveTitle').value.trim() || 'Untitled';
+  const tags = byId('saveTags').value.split(',').map(s => s.trim()).filter(Boolean);
+  const now = Date.now();
+  const fields = {
+    title, tags,
+    splitMode: MODE_BTNS[saveTarget.splitMode] ? saveTarget.splitMode : 'lines',
+    source: saveTarget.source || '',
+    chunkText: saveTarget.chunkText || '',
+    createdAt: editTarget ? (editTarget.data.createdAt || now) : now,
+    updatedAt: now,
+  };
+  const shareId = editTarget ? editTarget.data.shareId : saveTarget.shareId;
+  if(shareId) fields.shareId = shareId;
+  // duplicate guard — new saves only; the same card or passage saved twice
+  // lands on the existing entry instead of piling up copies
+  if(!editTarget){
+    const dup = findDuplicate(fields, shareId);
+    if(dup){
+      byId('dlgSave').close();
+      notify('Already in your library as “' + (dup.title || 'Untitled') + '” — nothing was added.');
+      return;
+    }
+  }
+  const wantEnc = byId('saveEnc').checked;
+  const wasEnc = !!(editTarget && editTarget.rec.enc);
+  let rec;
+  try {
+    if(wantEnc){
+      if(!cryptoOK){ st.textContent = 'Encryption is unavailable in this browser context.'; return; }
+      let ctx = null;
+      if(wasEnc){
+        // an already-encrypted entry stays in its existing password group
+        const salt = editTarget.rec.salt;
+        const key = lib.keys.get(salt);
+        if(!key){ st.textContent = 'Unlock the library first, then edit this entry.'; return; }
+        ctx = { salt, key };
+      } else {
+        const pw = byId('savePw').value;
+        if(pw){
+          st.textContent = 'Deriving key…';
+          const salt = crypto.getRandomValues(new Uint8Array(16));
+          const key = await deriveKey(pw, salt);
+          ctx = { salt: bufToB64u(salt), key };
+          lib.keys.set(ctx.salt, key);
+          lib.saveCtx = ctx;
+        } else if(lib.saveCtx){
+          ctx = lib.saveCtx;
+        } else {
+          st.textContent = 'Enter a password (or unlock the library first).';
+          return;
+        }
+      }
+      const { iv, blob } = await encryptJson(fields, ctx.key);
+      rec = { id: editTarget ? editTarget.id : uuid(), enc: 1, salt: ctx.salt, iv, blob };
+      lib.revealed.set(rec.id, fields);
+    } else {
+      rec = Object.assign({ id: editTarget ? editTarget.id : uuid(), enc: 0 }, fields);
+    }
+    await idbPut(rec);
+    const at = lib.entries.findIndex(r => r.id === rec.id);
+    if(at >= 0) lib.entries[at] = rec; else lib.entries.push(rec);
+    byId('savePw').value = '';
+    byId('dlgSave').close();
+    refreshLibList();
+    syncLockButtons();
+    scheduleSyncWrite();
+    notify(editTarget
+      ? ('Updated “' + title + '”' + (rec.enc ? ' (encrypted)' : '') + '.')
+      : ('Saved “' + title + '”' + (rec.enc ? ' (encrypted)' : '') + ' — on this device only.'));
+    editTarget = null;
+  } catch(err){
+    console.error(err);
+    st.textContent = 'Save failed — please try again.';
+  }
+}
+byId('btnSaveLib').addEventListener('click', () => {
+  if(!APP_MODE) return;
+  if(!lib.ok){ notify('The library isn\u2019t available in this browser right now.'); return; }
+  if(parseChunkLines(chunkText.value).length === 0){ chunkText.focus(); notify('Nothing to save yet — add practice blocks first.'); return; }
+  openSaveDialog({ title: '', source: sourceText.value, chunkText: chunkText.value, splitMode: state.splitMode });
+});
+byId('saveEnc').addEventListener('change', syncSaveEncUi);
+byId('btnDoSave').addEventListener('click', doSave);
+byId('btnCancelSave').addEventListener('click', () => byId('dlgSave').close());
+byId('savePw').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doSave(); } });
+byId('saveTitle').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doSave(); } });
+
+/* ---------- unlock / lock ---------- */
+async function doUnlock(){
+  const st = byId('unlockStatus');
+  const pw = byId('unlockPw').value;
+  if(!pw){ st.textContent = 'Enter a password.'; return; }
+  if(!cryptoOK){ st.textContent = 'Encryption is unavailable in this browser context.'; return; }
+  st.textContent = 'Deriving key…';
+  const encRecs = lib.entries.filter(r => r.enc);
+  const salts = [...new Set(encRecs.map(r => r.salt))];
+  let revealedNow = 0;
+  try {
+    for(const saltB64 of salts){
+      if(lib.keys.has(saltB64)) continue; // this group is already open
+      const key = await deriveKey(pw, b64uToBuf(saltB64));
+      const group = encRecs.filter(r => r.salt === saltB64);
+      let opened;
+      try { opened = await decryptJson(group[0], key); }
+      catch(_){ continue; } // wrong password for this group — reveals nothing
+      lib.keys.set(saltB64, key);
+      lib.saveCtx = { salt: saltB64, key };
+      lib.revealed.set(group[0].id, opened); revealedNow++;
+      for(const r of group.slice(1)){
+        try { lib.revealed.set(r.id, await decryptJson(r, key)); revealedNow++; }
+        catch(_){ /* corrupted record — stays hidden */ }
+      }
+    }
+  } catch(err){
+    console.error(err);
+    st.textContent = 'Something went wrong while unlocking.';
+    return;
+  }
+  byId('unlockPw').value = '';
+  st.textContent = '';
+  byId('dlgUnlock').close();
+  refreshLibList();
+  syncLockButtons();
+  // Neutral on purpose: a wrong password and "no hidden entries" read the same.
+  libStatus(revealedNow > 0
+    ? ('Unlocked ' + revealedNow + (revealedNow === 1 ? ' entry.' : ' entries.'))
+    : 'No entries answered to that password.');
+}
+function doLock(){
+  lib.keys.clear();
+  lib.revealed.clear();
+  lib.saveCtx = null;
+  refreshLibList();
+  syncLockButtons();
+  libStatus('Locked.');
+}
+function syncLockButtons(){
+  byId('btnLibLock').classList.toggle('hidden', lib.keys.size === 0);
+}
+byId('btnLibUnlock').addEventListener('click', () => {
+  byId('unlockStatus').textContent = '';
+  byId('dlgUnlock').showModal();
+  byId('unlockPw').focus();
+});
+byId('btnDoUnlock').addEventListener('click', doUnlock);
+byId('btnCancelUnlock').addEventListener('click', () => byId('dlgUnlock').close());
+byId('unlockPw').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doUnlock(); } });
+byId('btnLibLock').addEventListener('click', doLock);
+
+/* ---------- backup: export (readable or fully encrypted) ---------- */
+function openExportDialog(){
+  if(!lib.ok) return;
+  if(lib.entries.length === 0){ libStatus('Nothing to back up yet.'); return; }
+  byId('exportPlain').checked = true;
+  byId('exportEnc').checked = false;
+  byId('exportPw').value = '';
+  byId('exportStatus').textContent = '';
+  syncExportUi();
+  byId('dlgExport').showModal();
+}
+function syncExportUi(){
+  byId('exportPwRow').style.display = byId('exportEnc').checked ? '' : 'none';
+}
+async function doExport(){
+  const st = byId('exportStatus');
+  const stamp = exportTimestampSlug();
+  try {
+    let fileObj;
+    if(byId('exportEnc').checked){
+      if(!cryptoOK){ st.textContent = 'Encryption is unavailable in this browser context.'; return; }
+      const pw = byId('exportPw').value;
+      if(!pw){ st.textContent = 'Enter a backup password.'; return; }
+      st.textContent = 'Encrypting…';
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await deriveKey(pw, salt);
+      const { iv, blob } = await encryptJson({ entries: lib.entries }, key);
+      fileObj = { verbatim_backup: 2, enc: 1, exported: new Date().toISOString(), salt: bufToB64u(salt), iv, blob };
+    } else {
+      fileObj = { verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries };
+    }
+    downloadBlob(new Blob([JSON.stringify(fileObj)], { type:'application/json' }),
+                 'Verbatim_Library_' + stamp + '.json');
+    byId('exportPw').value = '';
+    byId('dlgExport').close();
+    notify('Backup downloaded — keep it somewhere safe.');
+  } catch(err){
+    console.error(err);
+    st.textContent = 'Export failed — please try again.';
+  }
+}
+byId('btnLibExport').addEventListener('click', openExportDialog);
+byId('exportPlain').addEventListener('change', syncExportUi);
+byId('exportEnc').addEventListener('change', syncExportUi);
+byId('btnDoExport').addEventListener('click', doExport);
+byId('btnCancelExport').addEventListener('click', () => byId('dlgExport').close());
+byId('exportPw').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doExport(); } });
+
+/* ---------- backup: import (readable or encrypted envelope) ---------- */
+let pendingEncBackup = null;
+
+async function mergeEntries(entries){
+  let added = 0, skipped = 0;
+  for(const rec of entries){
+    const validShape = rec && typeof rec.id === 'string' && (
+      rec.enc ? (typeof rec.salt === 'string' && typeof rec.iv === 'string' && typeof rec.blob === 'string')
+              : (typeof rec.chunkText === 'string')
+    );
+    if(!validShape){ skipped++; continue; }
+    if(lib.entries.some(r => r.id === rec.id)){ skipped++; continue; }
+    // content-level duplicate guard for readable records: the same passage
+    // saved independently on two devices (different ids) still merges to one
+    if(!rec.enc && findDuplicate(rec, rec.shareId)){ skipped++; continue; }
+    await idbPut(rec);
+    lib.entries.push(rec);
+    added++;
+    // If this record's password group is already unlocked, reveal it right away.
+    if(rec.enc && lib.keys.has(rec.salt)){
+      try { lib.revealed.set(rec.id, await decryptJson(rec, lib.keys.get(rec.salt))); } catch(_){}
+    }
+  }
+  refreshLibList();
+  return { added, skipped };
+}
+async function importBackupData(data){
+  if(data.verbatim_backup === 2 && data.enc === 1){
+    pendingEncBackup = data;
+    byId('importPw').value = '';
+    byId('importPwStatus').textContent = '';
+    byId('dlgImportPw').showModal();
+    byId('importPw').focus();
+    return;
+  }
+  const entries = Array.isArray(data.entries) ? data.entries : null;
+  const readable = data.verbatim_backup === 1 || (data.verbatim_backup === 2 && data.enc === 0);
+  if(readable && entries){
+    const { added, skipped } = await mergeEntries(entries);
+    scheduleSyncWrite();
+    notify('Backup imported — ' + added + ' added, ' + skipped + ' skipped (duplicates or unreadable).');
+    return;
+  }
+  throw new Error('not a backup');
+}
+async function doImportPw(){
+  const st = byId('importPwStatus');
+  if(!pendingEncBackup) { byId('dlgImportPw').close(); return; }
+  const pw = byId('importPw').value;
+  if(!pw){ st.textContent = 'Enter the backup password.'; return; }
+  st.textContent = 'Deriving key…';
+  try {
+    const key = await deriveKey(pw, b64uToBuf(pendingEncBackup.salt));
+    const inner = await decryptJson({ iv: pendingEncBackup.iv, blob: pendingEncBackup.blob }, key);
+    if(!inner || !Array.isArray(inner.entries)) throw new Error('bad envelope');
+    byId('importPw').value = '';
+    byId('dlgImportPw').close();
+    pendingEncBackup = null;
+    const { added, skipped } = await mergeEntries(inner.entries);
+    scheduleSyncWrite();
+    notify('Backup imported — ' + added + ' added, ' + skipped + ' skipped (duplicates or unreadable).');
+  } catch(err){
+    st.textContent = 'That password didn\u2019t open this backup.';
+  }
+}
+byId('btnLibImport').addEventListener('click', () => byId('importBackupFile').click());
+byId('importBackupFile').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if(f) openIncomingFile(f);
+  e.target.value = '';
+});
+byId('btnDoImportPw').addEventListener('click', doImportPw);
+byId('btnCancelImportPw').addEventListener('click', () => { pendingEncBackup = null; byId('dlgImportPw').close(); });
+byId('importPw').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doImportPw(); } });
+
+/* ---------- sharing: link (URL fragment) and PNG share card ---------- */
+function openShareDialog(){
+  const blocks = parseChunkLines(chunkText.value);
+  if(blocks.length === 0){ chunkText.focus(); notify('Nothing to share yet — add practice blocks first.'); return; }
+  byId('shareTitle').value = autoTitle(chunkText.value);
+  byId('shareExpiry').value = '0';
+  byId('shareOut').value = '';
+  byId('shareStatus').textContent = blocks.length + (blocks.length === 1 ? ' block' : ' blocks') + ' ready to share.';
+  byId('dlgShare').showModal();
+}
+function shareBasePayload(){
+  const p = { v: 1, i: uuid(), t: byId('shareTitle').value.trim().slice(0, 80), m: state.splitMode, c: chunkText.value };
+  const days = parseFloat(byId('shareExpiry').value);
+  if(isFinite(days) && days > 0) p.x = Date.now() + days * 86400000;
+  return p;
+}
+async function doShareLink(){
+  const st = byId('shareStatus');
+  try {
+    const payload = shareBasePayload();
+    const frag = await encodeSharePayload(payload);
+    const url = location.href.split('#')[0].split('?')[0] + '#' + frag;
+    byId('shareOut').value = url;
+    let note = url.length + ' characters' + (payload.x ? (' · expires ' + new Date(payload.x).toLocaleDateString()) : '') + '.';
+    if(url.length > 2000) note += ' Links this long get truncated by some chat apps — the share card is the safer carrier.';
+    try {
+      await navigator.clipboard.writeText(url);
+      note = 'Copied to clipboard — ' + note;
+    } catch(_){
+      note = 'Select and copy the link below — ' + note;
+      byId('shareOut').focus();
+      byId('shareOut').select();
+    }
+    st.textContent = note;
+  } catch(err){
+    console.error(err);
+    st.textContent = 'Could not build the link in this browser.';
+  }
+}
+async function buildShareCardPng(payload, fragText){
+  // Deliberately unremarkable: a small latte-cream card that reads as "just an
+  // image". Four colors total; no timestamp, no block count, no mode, no
+  // wordmark — a small V. and a quiet title. The encoded payload rides in a
+  // PNG tEXt chunk exactly like before.
+  const W = 480, H = 240, scale = 2;
+  const bg = '#f4f1ea', ink = '#3a3733', gold = '#9a6b1f', dim = '#8a8374';
+  const MONO = 'Menlo, Consolas, monospace';
+  const SERIF = 'Georgia, "Palatino Linotype", Palatino, serif';
+  const id = getSenderIdentity();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W * scale; canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.textBaseline = 'alphabetic';
+
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = dim; ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+  ctx.globalAlpha = 1;
+
+  // V. mark, small, top-left
+  ctx.font = '600 30px ' + SERIF;
+  ctx.fillStyle = ink;
+  ctx.fillText('V', 30, 58);
+  const vw = ctx.measureText('V').width;
+  ctx.font = 'italic 600 30px ' + SERIF;
+  ctx.fillStyle = gold;
+  ctx.fillText('.', 30 + vw + 3, 58);
+
+  // title: small, low-contrast, at most two lines
+  ctx.font = '15px ' + SERIF;
+  ctx.fillStyle = dim;
+  const lines = wrapTitleLines(ctx, payload.t || 'Untitled', W - 60, 2);
+  let ty = 118;
+  for(const line of lines){ ctx.fillText(line, 30, ty); ty += 22; }
+
+  // optional courtesy expiry, tiny
+  if(payload.x){
+    ctx.font = '10px ' + MONO;
+    ctx.fillStyle = dim;
+    ctx.fillText('before ' + new Date(payload.x).toLocaleDateString(), 30, H - 26);
+  }
+
+  // sender's two-character mark, bottom-right
+  ctx.font = '11px ' + MONO;
+  ctx.fillStyle = gold;
+  ctx.textAlign = 'right';
+  ctx.fillText(id.code, W - 30, H - 26);
+  ctx.textAlign = 'left';
+
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+  if(!blob) throw new Error('canvas toBlob failed');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const out = pngInsertText(bytes, PNG_KEYWORD, fragText);
+  return { blob: new Blob([out], { type: 'image/png' }), identity: id };
+}
+async function doShareCard(){
+  const st = byId('shareStatus');
+  try {
+    st.textContent = 'Drawing the card…';
+    const payload = shareBasePayload();
+    const frag = await encodeSharePayload(payload);
+    const { blob, identity } = await buildShareCardPng(payload, frag);
+    downloadBlob(blob, 'Verbatim_Share_' + identity.code + '_' + exportTimestampSlug() + '.png');
+    st.textContent = 'Share card downloaded — send it as a FILE / document, not as a photo (messengers recompress photos, which strips the passage hidden inside).';
+  } catch(err){
+    console.error(err);
+    st.textContent = 'Could not create the card in this browser.';
+  }
+}
+byId('btnShare').addEventListener('click', openShareDialog);
+byId('btnShareLink').addEventListener('click', doShareLink);
+byId('btnShareCard').addEventListener('click', doShareCard);
+byId('btnCloseShare').addEventListener('click', () => byId('dlgShare').close());
+
+/* ---------- receiving: link, card, file, drag & drop ---------- */
+function showShareBanner(payload, expired){
+  const b = byId('shareBanner');
+  const hide = () => { b.classList.remove('show'); b.innerHTML = ''; };
+  if(expired){
+    b.innerHTML = '<span class="cue-label">shared passage</span>' +
+      'This share has expired' + (payload.t ? ' — “' + escapeProse(payload.t) + '”' : '') +
+      '. Its courtesy deadline (' + new Date(payload.x).toLocaleDateString() + ') has passed; ask the sender for a fresh one.' +
+      '<span class="banner-actions"><button class="micro-btn" id="bnDismiss">Dismiss</button></span>';
+    b.classList.add('show');
+    byId('bnDismiss').addEventListener('click', hide);
+    return;
+  }
+  const n = parseChunkLines(payload.c).length;
+  b.innerHTML = '<span class="cue-label">shared passage</span>' +
+    '“' + escapeProse(payload.t || 'Untitled') + '” — ' + n + (n === 1 ? ' block' : ' blocks') +
+    (payload.x ? ' · available until ' + new Date(payload.x).toLocaleDateString() : '') + '.' +
+    '<span class="banner-actions">' +
+      '<button class="micro-btn" id="bnPractice">Practice now</button>' +
+      (APP_MODE ? '<button class="micro-btn" id="bnSave">Save to library…</button>' : '') +
+      '<button class="micro-btn" id="bnDismiss">Dismiss</button>' +
+    '</span>';
+  b.classList.add('show');
+  byId('bnPractice').addEventListener('click', () => {
+    chunkText.value = payload.c;
+    if(MODE_BTNS[payload.m]) setActiveMode(payload.m);
+    updateChunkCount();
+    hide();
+    chunkText.focus();
+  });
+  if(APP_MODE){
+    byId('bnSave').addEventListener('click', () => {
+      if(!lib.ok){ notify('The library isn\u2019t available in this browser right now.'); return; }
+      // banner stays visible so cancelling the dialog doesn't lose the share
+      openSaveDialog({ title: payload.t || '', source: '', chunkText: payload.c, splitMode: payload.m, shareId: payload.i });
+    });
+  }
+  byId('bnDismiss').addEventListener('click', hide);
+}
+function showShareError(){
+  const b = byId('shareBanner');
+  b.innerHTML = '<span class="cue-label">shared passage</span>' +
+    'This link couldn\u2019t be read — it may have been truncated by the app it was pasted into. ' +
+    'Ask the sender to try again, or to send a share card instead (Share… → Download share card).' +
+    '<span class="banner-actions"><button class="micro-btn" id="bnDismiss">Dismiss</button></span>';
+  b.classList.add('show');
+  byId('bnDismiss').addEventListener('click', () => { b.classList.remove('show'); b.innerHTML = ''; });
+}
+async function handleIncomingHash(){
+  if(!/^#s[12]=/.test(location.hash)) return;
+  const rawHash = location.hash;
+  // Tidy the address bar right away — the payload lives on in memory below, and
+  // the giant fragment disappears from view, history, and accidental re-shares.
+  history.replaceState(null, '', location.pathname + location.search);
+  try {
+    const payload = await decodeShareFragment(rawHash);
+    if(!payload) return;
+    if(!MODE_BTNS[payload.m]) payload.m = 'lines';
+    showShareBanner(payload, payloadExpired(payload));
+  } catch(err){
+    console.error(err);
+    showShareError();
+  }
+}
+async function presentSharePayload(payload){
+  if(!MODE_BTNS[payload.m]) payload.m = 'lines';
+  showShareBanner(payload, payloadExpired(payload));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function openIncomingFile(file){
+  // One entry point for the picker, the drawer's Import, and drag & drop:
+  // routes PNG share cards, legacy JSON shares, and library backups.
+  try {
+    const isPng = file.type === 'image/png' || /\.png$/i.test(file.name || '');
+    if(isPng){
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const fragText = pngExtractText(bytes, PNG_KEYWORD);
+      if(!fragText){ notify('No Verbatim passage found inside that image — if it travelled through a messenger as a photo, the data was stripped; ask for it as a file.'); return; }
+      const payload = await decodeShareFragment(fragText);
+      if(!payload) throw new Error('bad card payload');
+      await presentSharePayload(payload);
+      return;
+    }
+    const data = JSON.parse(await file.text());
+    if(data && data.verbatim_share === 1 && data.payload && typeof data.payload.c === 'string'){
+      await presentSharePayload(data.payload); // older share files keep opening
+      return;
+    }
+    if(data && (data.verbatim_backup === 1 || data.verbatim_backup === 2)){
+      if(!APP_MODE){ notify('Backups restore into the installed app\u2019s library — install Verbatim to import this.'); return; }
+      if(!lib.ok){ notify('The library isn\u2019t available in this browser right now.'); return; }
+      await importBackupData(data);
+      return;
+    }
+    notify('That file isn\u2019t a Verbatim share or backup.');
+  } catch(err){
+    console.error(err);
+    notify('Couldn\u2019t read that file.');
+  }
+}
+byId('btnOpenShareFile').addEventListener('click', () => byId('openShareFileInput').click());
+byId('openShareFileInput').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if(f) openIncomingFile(f);
+  e.target.value = '';
+});
+
+/* drag & drop anywhere on the page */
+(function(){
+  let depth = 0;
+  const hasFiles = (e) => e.dataTransfer && Array.prototype.includes.call(e.dataTransfer.types || [], 'Files');
+  window.addEventListener('dragenter', (e) => {
+    if(!hasFiles(e)) return;
+    depth++;
+    document.body.classList.add('dropping');
+  });
+  window.addEventListener('dragleave', () => {
+    depth = Math.max(0, depth - 1);
+    if(depth === 0) document.body.classList.remove('dropping');
+  });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    depth = 0;
+    document.body.classList.remove('dropping');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) openIncomingFile(f);
+  });
+})();
+
+/* ---------- sync file: the library in a file YOU own ----------
+   File System Access API (Chromium desktop browsers). The library is mirrored
+   into one JSON file the user picks. Put that file in a folder your own sync
+   service already watches (iCloud Drive, Dropbox, OneDrive, Syncthing…) and
+   your devices converge — still no server anywhere in Verbatim itself.
+   Verbatim writes to the file (debounced) after every change and merges from
+   it on startup; the duplicate guards in mergeEntries keep repeated merges
+   clean. The file is the same format as a readable backup, so it can also be
+   imported normally anywhere. Entries you encrypted stay encrypted inside it.
+   The file handle persists in IndexedDB; if the browser wants a fresh
+   permission after a restart, the drawer offers Reconnect. */
+const syncSupported = APP_MODE &&
+  typeof window.showSaveFilePicker === 'function' &&
+  typeof window.showOpenFilePicker === 'function';
+const sync = { handle: null, connected: false, needsPermission: false, timer: null, writing: false };
+
+function syncStatusUi(){
+  const st = byId('syncStatus');
+  if(!st) return;
+  if(!syncSupported){ st.textContent = ''; return; }
+  if(sync.connected) st.textContent = 'Sync: ' + ((sync.handle && sync.handle.name) || 'connected') + ' ✓';
+  else if(sync.needsPermission) st.textContent = 'Sync file needs reconnecting';
+  else st.textContent = '';
+}
+function syncDlgUi(){
+  byId('btnSyncReconnect').classList.toggle('hidden', !sync.needsPermission);
+  byId('btnSyncDisconnect').classList.toggle('hidden', !(sync.connected || sync.needsPermission));
+  byId('syncDlgStatus').textContent = sync.connected
+    ? 'Connected to “' + ((sync.handle && sync.handle.name) || 'file') + '” — the library is saved into it automatically after every change.'
+    : sync.needsPermission
+      ? 'A sync file is remembered, but the browser needs your permission again after restarting — click Reconnect.'
+      : 'Not connected. Create a file in your synced folder, or open the one your other device already uses.';
+}
+async function ensurePermission(handle, ask){
+  try {
+    let p = await handle.queryPermission({ mode: 'readwrite' });
+    if(p === 'granted') return true;
+    if(p === 'prompt' && ask){
+      p = await handle.requestPermission({ mode: 'readwrite' });
+      return p === 'granted';
+    }
+  } catch(err){ console.warn(err); }
+  return false;
+}
+async function writeLibraryToFile(){
+  if(!sync.connected || !sync.handle || sync.writing) return;
+  sync.writing = true;
+  try {
+    const w = await sync.handle.createWritable();
+    await w.write(JSON.stringify({ verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries }));
+    await w.close();
+    syncStatusUi();
+  } catch(err){
+    console.error(err);
+    notify('Couldn\u2019t write to the sync file — check that it still exists and is writable.');
+  } finally {
+    sync.writing = false;
+  }
+}
+function scheduleSyncWrite(){
+  if(!sync.connected) return;
+  clearTimeout(sync.timer);
+  sync.timer = setTimeout(writeLibraryToFile, 800);
+}
+async function readSyncFileAndMerge(){
+  try {
+    const file = await sync.handle.getFile();
+    const text = (await file.text()).trim();
+    if(text){
+      const data = JSON.parse(text);
+      if(data && data.enc === 1){
+        notify('That file is an encrypted backup — a live sync file must be a readable export.');
+        return false;
+      }
+      const entries = Array.isArray(data && data.entries) ? data.entries : null;
+      if(entries){
+        const { added } = await mergeEntries(entries);
+        if(added > 0) notify('Merged ' + added + (added === 1 ? ' entry' : ' entries') + ' from the sync file.');
+      }
+    }
+    return true;
+  } catch(err){
+    console.error(err);
+    notify('Couldn\u2019t read the sync file.');
+    return false;
+  }
+}
+async function connectSyncHandle(handle, persist){
+  if(!(await ensurePermission(handle, true))){
+    notify('Permission to use that file was not granted.');
+    syncDlgUi();
+    return;
+  }
+  sync.handle = handle;
+  sync.connected = true;
+  sync.needsPermission = false;
+  if(persist){
+    try { await metaPut('syncHandle', handle); } catch(err){ console.warn(err); }
+  }
+  const ok = await readSyncFileAndMerge();
+  if(ok) await writeLibraryToFile(); // write the merged whole back
+  syncStatusUi();
+  syncDlgUi();
+}
+async function doSyncCreate(){
+  try {
+    const handle = await showSaveFilePicker({
+      suggestedName: 'Verbatim_Library.json',
+      types: [{ description: 'Verbatim library', accept: { 'application/json': ['.json'] } }],
+    });
+    await connectSyncHandle(handle, true);
+  } catch(err){
+    if(err && err.name !== 'AbortError'){ console.error(err); notify('Couldn\u2019t create the sync file.'); }
+  }
+}
+async function doSyncOpen(){
+  try {
+    const picked = await showOpenFilePicker({
+      multiple: false,
+      types: [{ description: 'Verbatim library', accept: { 'application/json': ['.json'] } }],
+    });
+    if(picked && picked[0]) await connectSyncHandle(picked[0], true);
+  } catch(err){
+    if(err && err.name !== 'AbortError'){ console.error(err); notify('Couldn\u2019t open that file.'); }
+  }
+}
+async function doSyncDisconnect(){
+  sync.handle = null;
+  sync.connected = false;
+  sync.needsPermission = false;
+  try { await metaDelete('syncHandle'); } catch(_){}
+  syncStatusUi();
+  syncDlgUi();
+  notify('Sync file disconnected — the library stays in this browser; the file keeps its last saved copy.');
+}
+async function initSync(){
+  if(!syncSupported || !lib.ok){ syncStatusUi(); return; }
+  byId('btnSyncFile').classList.remove('hidden');
+  try {
+    const handle = await metaGet('syncHandle');
+    if(handle){
+      sync.handle = handle;
+      if(await ensurePermission(handle, false)){ // no gesture available at startup
+        sync.connected = true;
+        const ok = await readSyncFileAndMerge();
+        if(ok) await writeLibraryToFile();
+      } else {
+        sync.needsPermission = true;
+      }
+    }
+  } catch(err){ console.warn(err); }
+  syncStatusUi();
+  syncDlgUi();
+}
+byId('btnSyncClose').addEventListener('click', () => byId('dlgSync').close());
+if(syncSupported){
+  byId('btnSyncFile').addEventListener('click', () => { syncDlgUi(); byId('dlgSync').showModal(); });
+  byId('btnSyncCreate').addEventListener('click', doSyncCreate);
+  byId('btnSyncOpen').addEventListener('click', doSyncOpen);
+  byId('btnSyncReconnect').addEventListener('click', async () => { if(sync.handle) await connectSyncHandle(sync.handle, false); });
+  byId('btnSyncDisconnect').addEventListener('click', doSyncDisconnect);
+}
+
+/* ---------- install help (website version) ---------- */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Chromium fires this when the site is installable: stash it so the help
+  // dialog can offer a real one-click "Install now".
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const row = byId('installNowRow');
+  if(row) row.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  notify('Installed! Open Verbatim from its own icon — that\u2019s where the Library lives.');
+});
+byId('btnInstallHelp').addEventListener('click', () => byId('dlgInstall').showModal());
+byId('btnCloseInstall').addEventListener('click', () => byId('dlgInstall').close());
+byId('btnInstallNow').addEventListener('click', async () => {
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  try { await deferredInstallPrompt.userChoice; } catch(_){}
+  deferredInstallPrompt = null;
+  byId('installNowRow').classList.add('hidden');
+});
+
+/* ---------- init ---------- */
+async function initLibrary(){
+  if(!APP_MODE) return; // the website is the stripped version: no library at all
+  if(!('indexedDB' in window)){
+    libStatus('This browser can\u2019t store a library (no IndexedDB) — practice and sharing still work.');
+    return;
+  }
+  try {
+    lib.db = await idbOpen();
+    lib.entries = await idbGetAll();
+    lib.ok = true;
+    refreshLibList();
+    libStatus(lib.entries.filter(r => !r.enc).length === 0
+      ? 'Everything you save here stays on this device only — nothing syncs, nothing uploads.'
+      : 'On this device only — export a backup now and then.');
+    initSync();
+  } catch(err){
+    console.error(err);
+    libStatus('Couldn\u2019t open the on-device library (private browsing can block it). Practice and sharing still work.');
+  }
+}
+if(!cryptoOK){
+  byId('saveEnc').disabled = true;
+  byId('btnLibUnlock').disabled = true;
+  byId('exportEnc').disabled = true;
+}
+initLibrary();
+handleIncomingHash();
+// Also catch a share link pasted into the address bar of an already-open tab.
+window.addEventListener('hashchange', handleIncomingHash);
+
+byId('footerVersion').textContent = 'Verbatim v' + APP_VERSION;
 
 updateChunkCount();
 </script>
