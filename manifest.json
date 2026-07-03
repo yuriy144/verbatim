@@ -1,0 +1,17 @@
+{
+  "name": "Verbatim — memorization typing trainer",
+  "short_name": "Verbatim",
+  "description": "A local-only, word-for-word memorization trainer. Everything runs and stays on your device — nothing is collected, stored, or sent anywhere.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1822",
+  "theme_color": "#1a1822",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
