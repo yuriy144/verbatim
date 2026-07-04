@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
-  Version 4.2.0
+  Version 4.3.0
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="4.2.0">
+<meta name="app-version" content="4.3.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -641,10 +641,11 @@
 
   <header class="top">
     <div class="header-actions">
-      <button id="btnLibraryDrawer" class="header-btn app-only" title="Open your on-device library">Library</button>
+      <button id="btnLang" class="header-btn" title="Language / 语言 / Idioma">EN</button>
+      <button id="btnLibraryDrawer" class="header-btn app-only" data-i18n="library" title="Open your on-device library">Library</button>
       <button id="btnTheme" class="theme-toggle" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
     </div>
-    <p class="eyebrow">memorization &amp; typing-accuracy trainer</p>
+    <p class="eyebrow" data-i18n="tag">memorization &amp; typing-accuracy trainer</p>
     <h1><a href="." id="brandLink" title="Reload Verbatim — clear everything and start fresh">Verbatim<span class="mark">.</span></a></h1>
     <p class="subtitle">Paste a text, split it into blocks, and type each one against the original.
     Every character is checked exactly as written — case, punctuation, and all. Upcoming text stays hidden behind dots until you choose to reveal it, so you can actually test recall.</p>
@@ -657,14 +658,14 @@
     <div id="shareBanner" class="cue-box share-banner" aria-live="polite"></div>
 
     <div class="panel">
-      <h2>01 · Reference text</h2>
+      <h2 data-i18n="refText">01 · Reference text</h2>
       <textarea id="sourceText" rows="8" placeholder="Paste the passage, monologue, lyric, or score text you want to memorize…"></textarea>
       <div class="split-modes-row">
         <div class="split-modes">
-          <button id="modeLine" class="active">Split into lines</button>
-          <button id="modeSentence">Split into sentences</button>
-          <button id="modeVerse">Verse (cue → recall)</button>
-          <button id="modeQA">Q &amp; A</button>
+          <button id="modeLine" class="active" data-i18n="modeLines">Split into lines</button>
+          <button id="modeSentence" data-i18n="modeSent">Split into sentences</button>
+          <button id="modeVerse" data-i18n="modeVerse">Verse (cue → recall)</button>
+          <button id="modeQA" data-i18n="modeQA">Q &amp; A</button>
         </div>
         <span class="info-icon" id="formatInfo" tabindex="0" aria-label="Formatting tips">i
           <span class="info-pop info-pop-wide" id="formatPop">
@@ -682,21 +683,21 @@
     </div>
 
     <div class="panel">
-      <h2>02 · Practice blocks (one per line — edit freely)</h2>
+      <h2 data-i18n="blocksHdr">02 · Practice blocks (one per line — edit freely)</h2>
       <textarea id="chunkText" class="mono" rows="8" placeholder="Split your text on the left first, or type/paste lines directly here. A line may use  cue → answer  to show a prompt you recall against."></textarea>
       <div class="btnrow">
-        <button id="btnBegin" class="primary">Begin practice →</button>
-        <button id="btnSaveLib" class="app-only" title="Save these blocks to the on-device library">Save to library…</button>
-        <button id="btnShare" title="Share these blocks as a link or a share card — the text never touches a server">Share…</button>
-        <button id="btnOpenShareFile" title="Open a Verbatim share card (.png) or share file someone sent you">Open a share…</button>
+        <button id="btnBegin" class="primary" data-i18n="begin">Begin practice →</button>
+        <button id="btnSaveLib" class="app-only" data-i18n="saveLib" title="Save these blocks to the on-device library">Save to library…</button>
+        <button id="btnShare" data-i18n="share" title="Share these blocks as a link or a share card — the text never touches a server">Share…</button>
+        <button id="btnOpenShareFile" data-i18n="openShare" title="Open a Verbatim share card (.png) or share file someone sent you">Open a share…</button>
         <span class="hint" id="chunkCount">0 lines</span>
         <span class="time-limit-field">
-          <label for="timeLimit">time limit</label>
+          <label for="timeLimit" data-i18n="timeLimit">time limit</label>
           <input type="text" id="timeLimit" inputmode="numeric" placeholder="none" autocomplete="off">
-          <span class="hint">min (optional)</span>
+          <span class="hint" data-i18n="minOpt">min (optional)</span>
         </span>
       </div>
-      <div class="hint web-only" style="margin-top:10px;">Install Verbatim to your device to unlock a private on-device library for the passages you're memorizing. <button id="btnInstallHelp" class="micro-btn" style="margin-left:6px;">How do I install it?</button></div>
+      <div class="hint web-only" style="margin-top:10px;">Install Verbatim to your device to unlock a private on-device library for the passages you're memorizing. <button id="btnInstallHelp" class="micro-btn" data-i18n="howInstall" style="margin-left:6px;">How do I install it?</button></div>
     </div>
   </section>
 
@@ -707,7 +708,7 @@
       <div class="stage">
         <div class="stage-top" id="stageTop">
           <div class="progress-line">
-            <span>Block <b id="curIndex">1</b> of <span id="totalCount">0</span></span>
+            <span><span data-i18n="lblBlock">Block</span> <b id="curIndex">1</b> <span data-i18n="lblOf">of</span> <span id="totalCount">0</span></span>
             <span id="elapsedClock" class="elapsed">⏱ 0:00</span>
             <span class="progress-right">
               <span id="runningAcc">running accuracy: <b>—</b></span>
@@ -733,7 +734,7 @@
           <div class="live-inner" id="liveInner">
             <div class="cue-box" id="cueBox"></div>
             <div class="diff-head">
-              <span class="diff-label">your typing vs. the original</span>
+              <span class="diff-label" data-i18n="diffLabel">your typing vs. the original</span>
               <span class="diff-head-actions">
                 <button id="btnReveal" class="micro-btn" title="Hide or show the upcoming text (Ctrl+Alt+H)">show text ▾</button>
                 <button id="btnBoxHide" class="micro-btn" title="Hide or show the comparison box (Ctrl+Alt+B)">hide ▴</button>
@@ -756,20 +757,20 @@
           </div>
         </div>
         <div class="btnrow">
-          <button id="btnRetry" title="Clear and retry this block (Ctrl+Alt+R)">Retry</button>
-          <button id="btnPrev" title="Previous block (Ctrl+Alt+P)">← Previous</button>
-          <button id="btnNext" title="Score this block and advance (Enter, or Ctrl+Alt+N)">Next →</button>
-          <button id="btnSkip" title="Skip this block without scoring (Ctrl+Alt+S)">Skip</button>
-          <button id="btnFinish" title="Finish &amp; see session summary (Ctrl+Alt+Enter)">Finish</button>
+          <button id="btnRetry" data-i18n="retry" title="Clear and retry this block (Ctrl+Alt+R)">Retry</button>
+          <button id="btnPrev" data-i18n="prev" title="Previous block (Ctrl+Alt+P)">← Previous</button>
+          <button id="btnNext" data-i18n="next" title="Score this block and advance (Enter, or Ctrl+Alt+N)">Next →</button>
+          <button id="btnSkip" data-i18n="skipB" title="Skip this block without scoring (Ctrl+Alt+S)">Skip</button>
+          <button id="btnFinish" data-i18n="finish" title="Finish &amp; see session summary (Ctrl+Alt+Enter)">Finish</button>
         </div>
         <div class="legend">
-          <span><i style="background:var(--correct)"></i>correct</span>
-          <span><i style="background:var(--case-err)"></i>case mismatch</span>
-          <span><i style="background:var(--punct-err)"></i>punctuation mismatch</span>
-          <span><i style="background:var(--sub-err)"></i>wrong character</span>
-          <span><i style="background:var(--missing)"></i>missing</span>
-          <span><i style="background:var(--extra)"></i>extra (crossed out)</span>
-          <span><i style="background:var(--dim-2)"></i>not yet typed</span>
+          <span><i style="background:var(--correct)"></i><span data-i18n="legCorrect">correct</span></span>
+          <span><i style="background:var(--case-err)"></i><span data-i18n="legCase">case mismatch</span></span>
+          <span><i style="background:var(--punct-err)"></i><span data-i18n="legPunct">punctuation mismatch</span></span>
+          <span><i style="background:var(--sub-err)"></i><span data-i18n="legWrong">wrong character</span></span>
+          <span><i style="background:var(--missing)"></i><span data-i18n="legMissing">missing</span></span>
+          <span><i style="background:var(--extra)"></i><span data-i18n="legExtra">extra (crossed out)</span></span>
+          <span><i style="background:var(--dim-2)"></i><span data-i18n="legPending">not yet typed</span></span>
         </div>
       </div>
     </div>
@@ -779,7 +780,7 @@
   <section id="summary" class="hidden">
     <div class="panel">
       <div id="summaryCapture">
-        <h2>Session summary</h2>
+        <h2 data-i18n="sumTitle">Session summary</h2>
         <div class="stat-grid" id="statGrid"></div>
         <table>
           <thead><tr><th>#</th><th>Line</th><th>Accuracy</th><th>Case</th><th>Punct.</th><th>Other</th></tr></thead>
@@ -797,10 +798,10 @@
         </div>
       </div>
       <div class="btnrow">
-        <button id="btnRestart" class="primary">Start a new session</button>
-        <button id="btnBackToPractice">← Back to practice</button>
-        <button id="btnExportPng">Download PNG</button>
-        <button id="btnCopyPng">Copy PNG</button>
+        <button id="btnRestart" class="primary" data-i18n="restart">Start a new session</button>
+        <button id="btnBackToPractice" data-i18n="backPractice">← Back to practice</button>
+        <button id="btnExportPng" data-i18n="dlPng">Download PNG</button>
+        <button id="btnCopyPng" data-i18n="cpPng">Copy PNG</button>
       </div>
     </div>
   </section>
@@ -809,21 +810,21 @@
   <div id="drawerBackdrop" class="drawer-backdrop app-only"></div>
   <aside id="libDrawer" class="lib-drawer app-only" aria-hidden="true" aria-label="Library">
     <div class="drawer-head">
-      <h2>Library</h2>
-      <span class="drawer-sub">on this device only</span>
-      <button id="btnDrawerClose" class="micro-btn" title="Close the library">Close ✕</button>
+      <h2 data-i18n="library">Library</h2>
+      <span class="drawer-sub" data-i18n="onDevice">on this device only</span>
+      <button id="btnDrawerClose" class="micro-btn" data-i18n="closeX" title="Close the library">Close ✕</button>
     </div>
     <div class="lib-tools">
-      <input type="search" id="libSearch" placeholder="Search titles &amp; tags…" autocomplete="off">
-      <button id="btnLibUnlock" class="micro-btn" title="Reveal entries saved under a password">Unlock…</button>
-      <button id="btnLibLock" class="micro-btn hidden" title="Hide all unlocked entries again">Lock</button>
+      <input type="search" id="libSearch" data-i18n-ph="searchPh" placeholder="Search titles &amp; tags…" autocomplete="off">
+      <button id="btnLibUnlock" class="micro-btn" data-i18n="unlock" title="Reveal entries saved under a password">Unlock…</button>
+      <button id="btnLibLock" class="micro-btn hidden" data-i18n="lock" title="Hide all unlocked entries again">Lock</button>
     </div>
     <div id="libList" class="lib-list"></div>
     <div class="hint drawer-status" id="libStatus"></div>
     <div class="drawer-foot">
-      <button id="btnLibExport" class="micro-btn" title="Download the whole library as a backup file">Export backup…</button>
-      <button id="btnLibImport" class="micro-btn" title="Merge a backup file into this library">Import backup</button>
-      <button id="btnSyncFile" class="micro-btn hidden" title="Keep the library in a file you own — put it in a folder your own sync service watches">Sync file…</button>
+      <button id="btnLibExport" class="micro-btn" data-i18n="exportBk" title="Download the whole library as a backup file">Export backup…</button>
+      <button id="btnLibImport" class="micro-btn" data-i18n="importBk" title="Merge a backup file into this library">Import backup</button>
+      <button id="btnSyncFile" class="micro-btn hidden" data-i18n="syncFile" title="Keep the library in a file you own — put it in a folder your own sync service watches">Sync file…</button>
       <span class="hint" id="syncStatus"></span>
     </div>
   </aside>
@@ -832,7 +833,7 @@
   <dialog id="dlgSave" class="dlg">
     <h2 id="saveDlgTitle">Save to library</h2>
     <div class="field">
-      <label for="saveTitle">Title</label>
+      <label for="saveTitle" data-i18n="fTitle">Title</label>
       <input type="text" id="saveTitle" autocomplete="off">
     </div>
     <div class="field">
@@ -840,55 +841,55 @@
       <input type="text" id="saveTags" autocomplete="off" placeholder="e.g. psalms, week 3">
     </div>
     <div class="field check">
-      <label><input type="checkbox" id="saveEnc"> Encrypt this entry (hidden until unlocked)</label>
+      <label><input type="checkbox" id="saveEnc"> <span data-i18n="fEnc">Encrypt this entry (hidden until unlocked)</span></label>
     </div>
     <div class="field" id="savePwRow" style="display:none">
-      <label for="savePw">Password</label>
+      <label for="savePw" data-i18n="fPw">Password</label>
       <input type="password" id="savePw" autocomplete="new-password">
       <span class="hint" id="savePwNote"></span>
       <span class="enc-warning">If you forget this password, this entry cannot be recovered. There is no reset, no recovery e-mail, and no server copy — that is the point of the encryption.</span>
     </div>
     <div class="btnrow">
       <button id="btnDoSave" class="primary">Save</button>
-      <button id="btnCancelSave">Cancel</button>
+      <button id="btnCancelSave" data-i18n="cancel">Cancel</button>
       <span class="hint" id="saveStatus"></span>
     </div>
   </dialog>
 
   <dialog id="dlgUnlock" class="dlg">
-    <h2>Unlock library</h2>
+    <h2 data-i18n="dlgUnlockT">Unlock library</h2>
     <p class="hint" style="margin:0 0 12px;">Entries saved under this password will appear in the list. Nothing shows which passwords exist — a wrong password simply reveals nothing.</p>
     <div class="field">
-      <label for="unlockPw">Password</label>
+      <label for="unlockPw" data-i18n="fPw">Password</label>
       <input type="password" id="unlockPw" autocomplete="current-password">
     </div>
     <div class="btnrow">
-      <button id="btnDoUnlock" class="primary">Unlock</button>
-      <button id="btnCancelUnlock">Cancel</button>
+      <button id="btnDoUnlock" class="primary" data-i18n="unlockGo">Unlock</button>
+      <button id="btnCancelUnlock" data-i18n="cancel">Cancel</button>
       <span class="hint" id="unlockStatus"></span>
     </div>
   </dialog>
 
   <dialog id="dlgShare" class="dlg">
-    <h2>Share these blocks</h2>
+    <h2 data-i18n="dlgShareT">Share these blocks</h2>
     <div class="field">
-      <label for="shareTitle">Title</label>
+      <label for="shareTitle" data-i18n="fTitle">Title</label>
       <input type="text" id="shareTitle" autocomplete="off">
     </div>
     <div class="field">
-      <label for="shareExpiry">Soft expiry</label>
+      <label for="shareExpiry" data-i18n="expiry">Soft expiry</label>
       <select id="shareExpiry">
-        <option value="0">None</option>
-        <option value="1">1 day</option>
-        <option value="7">7 days</option>
-        <option value="30">30 days</option>
+        <option value="0" data-i18n="expNone">None</option>
+        <option value="1" data-i18n="exp1">1 day</option>
+        <option value="7" data-i18n="exp7">7 days</option>
+        <option value="30" data-i18n="exp30">30 days</option>
       </select>
       <span class="hint">The text rides inside the link or card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).</span>
     </div>
     <div class="btnrow" style="margin-top:2px;margin-bottom:12px;">
-      <button id="btnShareLink" class="primary">Copy link</button>
-      <button id="btnShareCard">Download share card</button>
-      <button id="btnCloseShare">Close</button>
+      <button id="btnShareLink" class="primary" data-i18n="copyLink">Copy link</button>
+      <button id="btnShareCard" data-i18n="dlCard">Download share card</button>
+      <button id="btnCloseShare" data-i18n="close">Close</button>
     </div>
     <div class="field" style="margin-bottom:6px;">
       <textarea id="shareOut" class="mono" rows="3" readonly placeholder="Your link will appear here"></textarea>
@@ -964,8 +965,16 @@
       <span style="color:var(--dim-2);">After installing, open Verbatim from its own icon — that's where the Library lives.</span>
     </div>
     <div class="btnrow">
+      <button id="btnInstallCheck">Run install check</button>
       <button id="btnCloseInstall">Close</button>
     </div>
+    <div class="hint" id="installCheckOut" style="white-space:pre-wrap;line-height:1.7;"></div>
+  </dialog>
+
+  <dialog id="dlgLang" class="dlg">
+    <h2>Language · 语言 · Idioma · Sprache</h2>
+    <div id="langList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+    <div class="btnrow"><button id="btnCloseLang" data-i18n="close">Close</button></div>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -996,7 +1005,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '4.2.0';
+const APP_VERSION = '4.3.0';
 
 /* ====================== state ====================== */
 const state = {
@@ -1540,7 +1549,7 @@ modeQA.addEventListener('click', () => {
 chunkText.addEventListener('input', updateChunkCount);
 function updateChunkCount(){
   const n = parseChunkLines(chunkText.value).length;
-  chunkCount.textContent = n + (n===1 ? ' block' : ' blocks');
+  chunkCount.textContent = n + ' ' + (n===1 ? t('blockOne') : t('blockMany'));
 }
 
 document.getElementById('btnBegin').addEventListener('click', () => {
@@ -1938,7 +1947,7 @@ document.getElementById('btnSkip').addEventListener('click', () => {
 function applyRevealState(){
   const btn = document.getElementById('btnReveal');
   // micro-btn in the diff-head, mirroring the hide/show box button beside it
-  btn.textContent = state.revealPending ? 'hide text ▴' : 'show text ▾';
+  btn.textContent = state.revealPending ? (t('hideText') + ' ▴') : (t('showText') + ' ▾');
   btn.classList.toggle('active', state.revealPending);
   renderDiff(typeInput.value, state.currentIsFinal);
 }
@@ -2055,13 +2064,13 @@ document.addEventListener('keydown', (e) => {
 
 function updateRunningAccuracy(){
   const scored = state.results.filter(r => r && r !== 'skip');
-  if(scored.length === 0){ runningAcc.innerHTML = 'running accuracy: <b>—</b>'; return; }
+  if(scored.length === 0){ runningAcc.innerHTML = escapeProse(t('runAcc')) + ' <b>—</b>'; return; }
   // same penalized-per-line math as computeDiff, so the running number always
   // agrees with the per-line scores (extra typing counts against, clamped at 0)
   const correct = scored.reduce((a,r)=>a+Math.max(0, r.correctCount - r.extraCount),0);
   const total = scored.reduce((a,r)=>a+r.targetLen,0);
   const pct = total ? Math.round((correct/total)*1000)/10 : 0;
-  runningAcc.innerHTML = 'running accuracy: <b>' + pct + '%</b>';
+  runningAcc.innerHTML = escapeProse(t('runAcc')) + ' <b>' + pct + '%</b>';
 }
 
 function computeSessionStats(){
@@ -2208,9 +2217,20 @@ document.getElementById('btnCopyPng').addEventListener('click', async () => {
     if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
       throw new Error('Clipboard image API unavailable in this browser');
     }
-    const canvas = await renderSummaryCanvas();
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+    // Safari (macOS/iPadOS, incl. home-screen apps) only allows the clipboard
+    // write if the ClipboardItem is constructed with a PROMISE synchronously
+    // inside the user gesture — awaiting the canvas first spends the gesture
+    // and Safari then rejects with NotAllowedError. So: promise-style first
+    // (Safari + new Chromium), awaited-blob style as fallback (older Chromium,
+    // which didn't accept promises in ClipboardItem).
+    const makeBlob = () => renderSummaryCanvas().then(canvas =>
+      new Promise(res => canvas.toBlob(res, 'image/png')));
+    try {
+      await navigator.clipboard.write([ new ClipboardItem({ 'image/png': makeBlob() }) ]);
+    } catch(_){
+      const blob = await makeBlob();
+      await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+    }
     btn.textContent = 'Copied ✓';
   } catch(err){
     console.error(err);
@@ -2731,11 +2751,13 @@ function pngExtractText(bytes, keyword){
    the card stays looking like nothing more than a small image. */
 const ID_LETTERS = 'ABCDEFGHJKMNPQRSTUVWXYZ'; // no I, L, O (ambiguous)
 const ID_DIGITS = '23456789';                 // no 0, 1 (ambiguous)
+const ID_CREATURES = ['🦊','🦉','🐢','🐦','🦔','🐇','🐋','🐝','🌿','🪷','🍁','🍀','🌵','🌸','🌰','🍄'];
 function identityFromSeed(seed){
   seed = Math.abs(seed | 0);
   return {
     code: ID_LETTERS[seed % ID_LETTERS.length] +
           ID_DIGITS[Math.floor(seed / ID_LETTERS.length) % ID_DIGITS.length],
+    creature: ID_CREATURES[Math.floor(seed / (ID_LETTERS.length * ID_DIGITS.length)) % ID_CREATURES.length],
     seed,
   };
 }
@@ -2934,9 +2956,9 @@ function refreshLibList(){
       '<div class="t">' + (it.enc ? '<span class="lock-chip" title="Encrypted entry">locked</span>' : '') + escapeProse(it.title) + '</div>' +
       (meta ? '<div class="meta">' + meta + '</div>' : '') +
       '<div class="lib-actions">' +
-        '<button class="micro-btn" data-act="load">Load</button>' +
-        '<button class="micro-btn" data-act="edit">Edit</button>' +
-        '<button class="micro-btn" data-act="del">Delete</button>' +
+        '<button class="micro-btn" data-act="load">' + escapeProse(t('load')) + '</button>' +
+        '<button class="micro-btn" data-act="edit">' + escapeProse(t('edit')) + '</button>' +
+        '<button class="micro-btn" data-act="del">' + escapeProse(t('del')) + '</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -3005,8 +3027,8 @@ function openSaveDialog(prefill, editing){
   saveTarget = prefill;
   editTarget = editing || null;
   const alreadyEnc = !!(editing && editing.rec.enc);
-  byId('saveDlgTitle').textContent = editing ? 'Edit entry' : 'Save to library';
-  byId('btnDoSave').textContent = editing ? 'Save changes' : 'Save';
+  byId('saveDlgTitle').textContent = editing ? t('dlgEditT') : t('dlgSaveT');
+  byId('btnDoSave').textContent = editing ? t('saveChanges') : t('save');
   byId('saveTitle').value = prefill.title || autoTitle(prefill.chunkText);
   byId('saveTags').value = (prefill.tags || []).join(', ');
   byId('saveEnc').checked = alreadyEnc;
@@ -3342,11 +3364,14 @@ async function doShareLink(){
   }
 }
 async function buildShareCardPng(payload, fragText){
-  // Deliberately unremarkable: a small latte-cream card that reads as "just an
-  // image". Four colors total; no timestamp, no block count, no mode, no
-  // wordmark — a small V. and a quiet title. The encoded payload rides in a
-  // PNG tEXt chunk exactly like before.
-  const W = 480, H = 240, scale = 2;
+  // Deliberately unremarkable: a small square latte-cream card that reads as
+  // "just an image". Four colors; no timestamp, block count, mode, or wordmark.
+  // The creature is drawn MONOCHROME: the emoji is rendered to an offscreen
+  // canvas, then re-filled through source-in compositing, leaving only its
+  // silhouette in the card's dim tone — subdued on every platform, regardless
+  // of how colorful the system's emoji font is. The encoded payload rides in
+  // a PNG tEXt chunk exactly as before.
+  const W = 360, H = 360, scale = 2;
   const bg = '#f4f1ea', ink = '#3a3733', gold = '#9a6b1f', dim = '#8a8374';
   const MONO = 'Menlo, Consolas, monospace';
   const SERIF = 'Georgia, "Palatino Linotype", Palatino, serif';
@@ -3365,33 +3390,50 @@ async function buildShareCardPng(payload, fragText){
   ctx.globalAlpha = 1;
 
   // V. mark, small, top-left
-  ctx.font = '600 30px ' + SERIF;
+  ctx.font = '600 26px ' + SERIF;
   ctx.fillStyle = ink;
-  ctx.fillText('V', 30, 58);
+  ctx.fillText('V', 26, 48);
   const vw = ctx.measureText('V').width;
-  ctx.font = 'italic 600 30px ' + SERIF;
+  ctx.font = 'italic 600 26px ' + SERIF;
   ctx.fillStyle = gold;
-  ctx.fillText('.', 30 + vw + 3, 58);
+  ctx.fillText('.', 26 + vw + 3, 48);
 
-  // title: small, low-contrast, at most two lines
-  ctx.font = '15px ' + SERIF;
+  // monochrome creature silhouette, centered
+  const sil = document.createElement('canvas');
+  const SS = 140 * scale;
+  sil.width = SS; sil.height = SS;
+  const sctx = sil.getContext('2d');
+  sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
+  sctx.font = (110 * scale) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif';
+  sctx.fillText(id.creature, SS / 2, SS / 2 + 6 * scale);
+  sctx.globalCompositeOperation = 'source-in';   // keep the shape, replace the colors
+  sctx.fillStyle = dim;
+  sctx.fillRect(0, 0, SS, SS);
+  ctx.globalAlpha = 0.8;
+  ctx.drawImage(sil, (W - 140) / 2, 66, 140, 140);
+  ctx.globalAlpha = 1;
+
+  // title: small, low-contrast, centered, at most two lines
+  ctx.font = '14px ' + SERIF;
   ctx.fillStyle = dim;
-  const lines = wrapTitleLines(ctx, payload.t || 'Untitled', W - 60, 2);
-  let ty = 118;
-  for(const line of lines){ ctx.fillText(line, 30, ty); ty += 22; }
+  ctx.textAlign = 'center';
+  const lines = wrapTitleLines(ctx, payload.t || 'Untitled', W - 56, 2);
+  let ty = 246;
+  for(const line of lines){ ctx.fillText(line, W / 2, ty); ty += 20; }
+  ctx.textAlign = 'left';
 
-  // optional courtesy expiry, tiny
+  // optional courtesy expiry, tiny, bottom-left
   if(payload.x){
     ctx.font = '10px ' + MONO;
     ctx.fillStyle = dim;
-    ctx.fillText('before ' + new Date(payload.x).toLocaleDateString(), 30, H - 26);
+    ctx.fillText('before ' + new Date(payload.x).toLocaleDateString(), 26, H - 24);
   }
 
   // sender's two-character mark, bottom-right
   ctx.font = '11px ' + MONO;
   ctx.fillStyle = gold;
   ctx.textAlign = 'right';
-  ctx.fillText(id.code, W - 30, H - 26);
+  ctx.fillText(id.code, W - 26, H - 24);
   ctx.textAlign = 'left';
 
   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -3424,7 +3466,7 @@ function showShareBanner(payload, expired){
   const b = byId('shareBanner');
   const hide = () => { b.classList.remove('show'); b.innerHTML = ''; };
   if(expired){
-    b.innerHTML = '<span class="cue-label">shared passage</span>' +
+    b.innerHTML = '<span class="cue-label">' + escapeProse(t('sharedPassage')) + '</span>' +
       'This share has expired' + (payload.t ? ' — “' + escapeProse(payload.t) + '”' : '') +
       '. Its courtesy deadline (' + new Date(payload.x).toLocaleDateString() + ') has passed; ask the sender for a fresh one.' +
       '<span class="banner-actions"><button class="micro-btn" id="bnDismiss">Dismiss</button></span>';
@@ -3433,13 +3475,13 @@ function showShareBanner(payload, expired){
     return;
   }
   const n = parseChunkLines(payload.c).length;
-  b.innerHTML = '<span class="cue-label">shared passage</span>' +
+  b.innerHTML = '<span class="cue-label">' + escapeProse(t('sharedPassage')) + '</span>' +
     '“' + escapeProse(payload.t || 'Untitled') + '” — ' + n + (n === 1 ? ' block' : ' blocks') +
     (payload.x ? ' · available until ' + new Date(payload.x).toLocaleDateString() : '') + '.' +
     '<span class="banner-actions">' +
-      '<button class="micro-btn" id="bnPractice">Practice now</button>' +
-      (APP_MODE ? '<button class="micro-btn" id="bnSave">Save to library…</button>' : '') +
-      '<button class="micro-btn" id="bnDismiss">Dismiss</button>' +
+      '<button class="micro-btn" id="bnPractice">' + escapeProse(t('practiceNow')) + '</button>' +
+      (APP_MODE ? '<button class="micro-btn" id="bnSave">' + escapeProse(t('saveLib')) + '</button>' : '') +
+      '<button class="micro-btn" id="bnDismiss">' + escapeProse(t('dismiss')) + '</button>' +
     '</span>';
   b.classList.add('show');
   byId('bnPractice').addEventListener('click', () => {
@@ -3568,7 +3610,13 @@ const sync = { handle: null, connected: false, needsPermission: false, timer: nu
 function syncStatusUi(){
   const st = byId('syncStatus');
   if(!st) return;
-  if(!syncSupported){ st.textContent = ''; return; }
+  if(!syncSupported){
+    // Not a bug — the File System Access API only exists in Chromium desktop
+    // browsers. Everywhere else (Safari, iPhone/iPad, Firefox), Export/Import
+    // is the honest path, so say so instead of looking mysteriously absent.
+    st.textContent = 'Live sync file: needs a Chromium desktop browser (Chrome/Edge/Brave). On this device, use Export/Import — the files are identical.';
+    return;
+  }
   if(sync.connected) st.textContent = 'Sync: ' + ((sync.handle && sync.handle.name) || 'connected') + ' ✓';
   else if(sync.needsPermission) st.textContent = 'Sync file needs reconnecting';
   else st.textContent = '';
@@ -3715,9 +3763,9 @@ if(syncSupported){
 /* ---------- install help (website version) ---------- */
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Chromium fires this when the site is installable: stash it so the help
-  // dialog can offer a real one-click "Install now".
-  e.preventDefault();
+  // Do NOT preventDefault here: on some Chromium versions that suppresses the
+  // browser's own install icon/menu entry. We only stash the event so the help
+  // dialog can additionally offer a one-click "Install now".
   deferredInstallPrompt = e;
   const row = byId('installNowRow');
   if(row) row.classList.remove('hidden');
@@ -3735,6 +3783,473 @@ byId('btnInstallNow').addEventListener('click', async () => {
   deferredInstallPrompt = null;
   byId('installNowRow').classList.add('hidden');
 });
+
+/* Installability self-check: when a browser shows no install option, this
+   names the failing requirement instead of leaving you guessing. */
+async function runInstallCheck(){
+  const out = byId('installCheckOut');
+  const lines = [];
+  const ok = (t) => lines.push('\u2713 ' + t);
+  const bad = (t) => lines.push('\u2717 ' + t);
+  out.textContent = 'Checking\u2026';
+
+  if(location.protocol === 'file:'){
+    bad('Opened as a local file (file://) — browsers never offer install for local files. Serve it: python3 -m http.server 8000 \u2192 http://localhost:8000, or use the live site.');
+    out.textContent = lines.join('\n');
+    return;
+  }
+  (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))
+    ? ok('Secure context (' + location.protocol + '//' + location.hostname + ')')
+    : bad('Not a secure context — install requires HTTPS (or localhost).');
+
+  try {
+    const r = await fetch('manifest.json', { cache: 'no-store' });
+    if(!r.ok) throw new Error(r.status);
+    const man = await r.json();
+    ok('manifest.json loads (' + (man.name || 'unnamed') + ')');
+  } catch(e){ bad('manifest.json failed to load — is it uploaded next to index.html? (' + e.message + ')'); }
+
+  for(const icon of ['icons/icon-192.png','icons/icon-512.png']){
+    try {
+      const r = await fetch(icon, { cache: 'no-store' });
+      r.ok ? ok(icon + ' reachable') : bad(icon + ' missing (' + r.status + ') — upload the icons folder.');
+    } catch(e){ bad(icon + ' failed to load — upload the icons folder.'); }
+  }
+
+  if('serviceWorker' in navigator){
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      reg && (reg.active || reg.installing || reg.waiting)
+        ? ok('Service worker registered (' + (reg.active ? 'active' : 'installing') + ')')
+        : bad('No service worker registered yet — is sw.js uploaded? Reload once and re-check.');
+    } catch(e){ bad('Service worker check failed: ' + e.message); }
+  } else {
+    bad('This browser has no service worker support.');
+  }
+
+  lines.push(deferredInstallPrompt
+    ? '\u2713 Browser signalled installability — "Install now" above works.'
+    : '\u2139 No install signal from this browser (yet). Firefox and Mullvad never install PWAs on desktop; Chrome may need a reload after everything above passes, and its menu path (\u22ee \u2192 Cast, save and share \u2192 Install page as app\u2026) works even without the address-bar icon.');
+  out.textContent = lines.join('\n');
+}
+byId('btnInstallCheck').addEventListener('click', runInstallCheck);
+
+/* ---------- languages ----------
+   The core UI in 20 locales. Design: every string has a key; t(key) resolves
+   current language → its base language (e.g. fr-CA → fr) → English. Regional
+   variants therefore only carry the words that genuinely differ. Strings not
+   yet translated fall back to English rather than breaking — coverage can
+   deepen without ever shipping a broken UI. The choice persists as
+   'verbatim-lang'; first visit auto-detects from the browser's language. */
+const LANGS = {
+  'en':    { label:'English (US)', short:'EN', d:{
+    tag:'memorization & typing-accuracy trainer',
+    refText:'01 · Reference text', blocksHdr:'02 · Practice blocks (one per line — edit freely)',
+    modeLines:'Split into lines', modeSent:'Split into sentences', modeVerse:'Verse (cue → recall)', modeQA:'Q & A',
+    begin:'Begin practice →', saveLib:'Save to library…', share:'Share…', openShare:'Open a share…',
+    timeLimit:'time limit', minOpt:'min (optional)',
+    blockOne:'block', blockMany:'blocks', lblBlock:'Block', lblOf:'of', runAcc:'running accuracy:',
+    diffLabel:'your typing vs. the original', showText:'show text', hideText:'hide text',
+    retry:'Retry', prev:'← Previous', next:'Next →', skipB:'Skip', finish:'Finish',
+    legCorrect:'correct', legCase:'case mismatch', legPunct:'punctuation mismatch', legWrong:'wrong character',
+    legMissing:'missing', legExtra:'extra (crossed out)', legPending:'not yet typed',
+    sumTitle:'Session summary', restart:'Start a new session', backPractice:'← Back to practice',
+    dlPng:'Download PNG', cpPng:'Copy PNG',
+    library:'Library', onDevice:'on this device only', searchPh:'Search titles & tags…',
+    unlock:'Unlock…', lock:'Lock', exportBk:'Export backup…', importBk:'Import backup', syncFile:'Sync file…', closeX:'Close ✕',
+    load:'Load', edit:'Edit', del:'Delete',
+    dlgSaveT:'Save to library', dlgEditT:'Edit entry', fTitle:'Title', fEnc:'Encrypt this entry (hidden until unlocked)',
+    fPw:'Password', save:'Save', saveChanges:'Save changes', cancel:'Cancel',
+    dlgUnlockT:'Unlock library', unlockGo:'Unlock',
+    dlgShareT:'Share these blocks', expiry:'Soft expiry', expNone:'None', exp1:'1 day', exp7:'7 days', exp30:'30 days',
+    copyLink:'Copy link', dlCard:'Download share card', close:'Close',
+    sharedPassage:'shared passage', practiceNow:'Practice now', dismiss:'Dismiss',
+    howInstall:'How do I install it?',
+  }},
+  'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
+  'zh-Hans': { label:'简体中文', short:'中文', d:{
+    tag:'背诵与打字准确度训练',
+    refText:'01 · 原文', blocksHdr:'02 · 练习块（每行一块，可自由编辑）',
+    modeLines:'按行拆分', modeSent:'按句拆分', modeVerse:'经节（提示 → 回忆）', modeQA:'问答',
+    begin:'开始练习 →', saveLib:'保存到书库…', share:'分享…', openShare:'打开分享…',
+    timeLimit:'时间限制', minOpt:'分钟（可选）',
+    blockOne:'块', blockMany:'块', lblBlock:'第', lblOf:'块，共', runAcc:'当前准确率：',
+    diffLabel:'您的输入与原文对照', showText:'显示原文', hideText:'隐藏原文',
+    retry:'重试', prev:'← 上一块', next:'下一块 →', skipB:'跳过', finish:'完成',
+    legCorrect:'正确', legCase:'大小写错误', legPunct:'标点错误', legWrong:'错误字符',
+    legMissing:'缺失', legExtra:'多余（划掉）', legPending:'尚未输入',
+    sumTitle:'练习总结', restart:'开始新练习', backPractice:'← 返回练习',
+    dlPng:'下载 PNG', cpPng:'复制 PNG',
+    library:'书库', onDevice:'仅存于本设备', searchPh:'搜索标题和标签…',
+    unlock:'解锁…', lock:'锁定', exportBk:'导出备份…', importBk:'导入备份', syncFile:'同步文件…', closeX:'关闭 ✕',
+    load:'载入', edit:'编辑', del:'删除',
+    dlgSaveT:'保存到书库', dlgEditT:'编辑条目', fTitle:'标题', fEnc:'加密此条目（解锁前隐藏）',
+    fPw:'密码', save:'保存', saveChanges:'保存修改', cancel:'取消',
+    dlgUnlockT:'解锁书库', unlockGo:'解锁',
+    dlgShareT:'分享这些练习块', expiry:'软性有效期', expNone:'无', exp1:'1 天', exp7:'7 天', exp30:'30 天',
+    copyLink:'复制链接', dlCard:'下载分享卡片', close:'关闭',
+    sharedPassage:'收到的段落', practiceNow:'立即练习', dismiss:'关闭',
+    howInstall:'如何安装？',
+  }},
+  'yue': { label:'廣東話', short:'粵', d:{
+    tag:'背誦同打字準確度訓練',
+    refText:'01 · 原文', blocksHdr:'02 · 練習段（每行一段，可以自由改）',
+    modeLines:'按行拆開', modeSent:'按句拆開', modeVerse:'經節（提示 → 回憶）', modeQA:'問答',
+    begin:'開始練習 →', saveLib:'儲存到書庫…', share:'分享…', openShare:'打開分享…',
+    timeLimit:'時間限制', minOpt:'分鐘（可選）',
+    blockOne:'段', blockMany:'段', lblBlock:'第', lblOf:'段，共', runAcc:'目前準確率：',
+    diffLabel:'你打嘅字同原文對照', showText:'顯示原文', hideText:'隱藏原文',
+    retry:'再嚟', prev:'← 上一段', next:'下一段 →', skipB:'跳過', finish:'完成',
+    legCorrect:'正確', legCase:'大細楷錯', legPunct:'標點錯', legWrong:'打錯字',
+    legMissing:'漏咗', legExtra:'多咗（劃線）', legPending:'未打',
+    sumTitle:'練習總結', restart:'開始新練習', backPractice:'← 返去練習',
+    dlPng:'下載 PNG', cpPng:'複製 PNG',
+    library:'書庫', onDevice:'只存喺呢部裝置', searchPh:'搜尋標題同標籤…',
+    unlock:'解鎖…', lock:'鎖上', exportBk:'匯出備份…', importBk:'匯入備份', syncFile:'同步檔案…', closeX:'閂 ✕',
+    load:'載入', edit:'編輯', del:'刪除',
+    dlgSaveT:'儲存到書庫', dlgEditT:'編輯條目', fTitle:'標題', fEnc:'加密呢個條目（解鎖前隱藏）',
+    fPw:'密碼', save:'儲存', saveChanges:'儲存修改', cancel:'取消',
+    dlgUnlockT:'解鎖書庫', unlockGo:'解鎖',
+    dlgShareT:'分享呢啲練習段', expiry:'軟性限期', expNone:'冇', exp1:'1 日', exp7:'7 日', exp30:'30 日',
+    copyLink:'複製連結', dlCard:'下載分享卡', close:'閂',
+    sharedPassage:'收到嘅段落', practiceNow:'即刻練習', dismiss:'閂咗佢',
+    howInstall:'點樣安裝？',
+  }},
+  'fr': { label:'Français', short:'FR', d:{
+    tag:'entraîneur de mémorisation et de précision',
+    refText:'01 · Texte de référence', blocksHdr:'02 · Blocs d\u2019entraînement (un par ligne — modifiables)',
+    modeLines:'Découper en lignes', modeSent:'Découper en phrases', modeVerse:'Verset (indice → rappel)', modeQA:'Questions-réponses',
+    begin:'Commencer →', saveLib:'Enregistrer dans la bibliothèque…', share:'Partager…', openShare:'Ouvrir un partage…',
+    timeLimit:'limite de temps', minOpt:'min (facultatif)',
+    blockOne:'bloc', blockMany:'blocs', lblBlock:'Bloc', lblOf:'sur', runAcc:'précision en cours :',
+    diffLabel:'votre saisie face à l\u2019original', showText:'afficher le texte', hideText:'masquer le texte',
+    retry:'Réessayer', prev:'← Précédent', next:'Suivant →', skipB:'Passer', finish:'Terminer',
+    legCorrect:'correct', legCase:'erreur de casse', legPunct:'erreur de ponctuation', legWrong:'caractère erroné',
+    legMissing:'manquant', legExtra:'en trop (barré)', legPending:'pas encore saisi',
+    sumTitle:'Bilan de la séance', restart:'Nouvelle séance', backPractice:'← Retour à l\u2019entraînement',
+    dlPng:'Télécharger le PNG', cpPng:'Copier le PNG',
+    library:'Bibliothèque', onDevice:'sur cet appareil uniquement', searchPh:'Rechercher titres et étiquettes…',
+    unlock:'Déverrouiller…', lock:'Verrouiller', exportBk:'Exporter une sauvegarde…', importBk:'Importer une sauvegarde', syncFile:'Fichier de synchro…', closeX:'Fermer ✕',
+    load:'Charger', edit:'Modifier', del:'Supprimer',
+    dlgSaveT:'Enregistrer dans la bibliothèque', dlgEditT:'Modifier l\u2019entrée', fTitle:'Titre', fEnc:'Chiffrer cette entrée (masquée jusqu\u2019au déverrouillage)',
+    fPw:'Mot de passe', save:'Enregistrer', saveChanges:'Enregistrer les modifications', cancel:'Annuler',
+    dlgUnlockT:'Déverrouiller la bibliothèque', unlockGo:'Déverrouiller',
+    dlgShareT:'Partager ces blocs', expiry:'Expiration indicative', expNone:'Aucune', exp1:'1 jour', exp7:'7 jours', exp30:'30 jours',
+    copyLink:'Copier le lien', dlCard:'Télécharger la carte', close:'Fermer',
+    sharedPassage:'passage partagé', practiceNow:'S\u2019entraîner maintenant', dismiss:'Ignorer',
+    howInstall:'Comment l\u2019installer ?',
+  }},
+  'fr-CA': { label:'Français (Canada)', short:'FR·CA', base:'fr', d:{
+    fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
+  }},
+  'de': { label:'Deutsch', short:'DE', d:{
+    tag:'Trainer für Auswendiglernen & Tippgenauigkeit',
+    refText:'01 · Referenztext', blocksHdr:'02 · Übungsblöcke (einer pro Zeile — frei bearbeitbar)',
+    modeLines:'In Zeilen teilen', modeSent:'In Sätze teilen', modeVerse:'Vers (Hinweis → Abruf)', modeQA:'Frage & Antwort',
+    begin:'Übung beginnen →', saveLib:'In Bibliothek speichern…', share:'Teilen…', openShare:'Geteiltes öffnen…',
+    timeLimit:'Zeitlimit', minOpt:'Min. (optional)',
+    blockOne:'Block', blockMany:'Blöcke', lblBlock:'Block', lblOf:'von', runAcc:'laufende Genauigkeit:',
+    diffLabel:'Ihre Eingabe im Vergleich zum Original', showText:'Text zeigen', hideText:'Text verbergen',
+    retry:'Wiederholen', prev:'← Zurück', next:'Weiter →', skipB:'Überspringen', finish:'Beenden',
+    legCorrect:'richtig', legCase:'Groß-/Kleinschreibung', legPunct:'Zeichensetzung', legWrong:'falsches Zeichen',
+    legMissing:'fehlend', legExtra:'überzählig (durchgestrichen)', legPending:'noch nicht getippt',
+    sumTitle:'Sitzungsübersicht', restart:'Neue Sitzung starten', backPractice:'← Zurück zur Übung',
+    dlPng:'PNG herunterladen', cpPng:'PNG kopieren',
+    library:'Bibliothek', onDevice:'nur auf diesem Gerät', searchPh:'Titel und Schlagwörter suchen…',
+    unlock:'Entsperren…', lock:'Sperren', exportBk:'Sicherung exportieren…', importBk:'Sicherung importieren', syncFile:'Sync-Datei…', closeX:'Schließen ✕',
+    load:'Laden', edit:'Bearbeiten', del:'Löschen',
+    dlgSaveT:'In Bibliothek speichern', dlgEditT:'Eintrag bearbeiten', fTitle:'Titel', fEnc:'Diesen Eintrag verschlüsseln (bis zum Entsperren verborgen)',
+    fPw:'Passwort', save:'Speichern', saveChanges:'Änderungen speichern', cancel:'Abbrechen',
+    dlgUnlockT:'Bibliothek entsperren', unlockGo:'Entsperren',
+    dlgShareT:'Diese Blöcke teilen', expiry:'Unverbindliches Ablaufdatum', expNone:'Keins', exp1:'1 Tag', exp7:'7 Tage', exp30:'30 Tage',
+    copyLink:'Link kopieren', dlCard:'Teilkarte herunterladen', close:'Schließen',
+    sharedPassage:'geteilte Passage', practiceNow:'Jetzt üben', dismiss:'Ausblenden',
+    howInstall:'Wie installiere ich es?',
+  }},
+  'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
+  'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    tag:'कंठस्थ करने और टंकण-शुद्धता का अभ्यास',
+    refText:'01 · मूल पाठ', blocksHdr:'02 · अभ्यास खंड (प्रति पंक्ति एक — स्वतंत्र रूप से संपादित करें)',
+    modeLines:'पंक्तियों में बाँटें', modeSent:'वाक्यों में बाँटें', modeVerse:'श्लोक (संकेत → स्मरण)', modeQA:'प्रश्नोत्तर',
+    begin:'अभ्यास शुरू करें →', saveLib:'पुस्तकालय में सहेजें…', share:'साझा करें…', openShare:'साझा खोलें…',
+    timeLimit:'समय सीमा', minOpt:'मिनट (वैकल्पिक)',
+    blockOne:'खंड', blockMany:'खंड', lblBlock:'खंड', lblOf:'में से', runAcc:'वर्तमान शुद्धता:',
+    diffLabel:'आपका टंकण बनाम मूल पाठ', showText:'पाठ दिखाएँ', hideText:'पाठ छिपाएँ',
+    retry:'फिर से', prev:'← पिछला', next:'अगला →', skipB:'छोड़ें', finish:'समाप्त',
+    legCorrect:'सही', legCase:'बड़े-छोटे अक्षर की त्रुटि', legPunct:'विराम-चिह्न त्रुटि', legWrong:'गलत अक्षर',
+    legMissing:'छूटा हुआ', legExtra:'अतिरिक्त (काटा हुआ)', legPending:'अभी टाइप नहीं हुआ',
+    sumTitle:'सत्र सारांश', restart:'नया सत्र शुरू करें', backPractice:'← अभ्यास पर लौटें',
+    dlPng:'PNG डाउनलोड करें', cpPng:'PNG कॉपी करें',
+    library:'पुस्तकालय', onDevice:'केवल इसी डिवाइस पर', searchPh:'शीर्षक और टैग खोजें…',
+    unlock:'अनलॉक…', lock:'लॉक करें', exportBk:'बैकअप निर्यात करें…', importBk:'बैकअप आयात करें', syncFile:'सिंक फ़ाइल…', closeX:'बंद करें ✕',
+    load:'खोलें', edit:'संपादित करें', del:'हटाएँ',
+    dlgSaveT:'पुस्तकालय में सहेजें', dlgEditT:'प्रविष्टि संपादित करें', fTitle:'शीर्षक', fEnc:'इस प्रविष्टि को एन्क्रिप्ट करें (अनलॉक होने तक छिपी)',
+    fPw:'पासवर्ड', save:'सहेजें', saveChanges:'परिवर्तन सहेजें', cancel:'रद्द करें',
+    dlgUnlockT:'पुस्तकालय अनलॉक करें', unlockGo:'अनलॉक करें',
+    dlgShareT:'ये खंड साझा करें', expiry:'सांकेतिक समाप्ति', expNone:'कोई नहीं', exp1:'1 दिन', exp7:'7 दिन', exp30:'30 दिन',
+    copyLink:'लिंक कॉपी करें', dlCard:'साझा कार्ड डाउनलोड करें', close:'बंद करें',
+    sharedPassage:'साझा अंश', practiceNow:'अभी अभ्यास करें', dismiss:'हटाएँ',
+    howInstall:'इसे कैसे इंस्टॉल करें?',
+  }},
+  'it': { label:'Italiano', short:'IT', d:{
+    tag:'allenatore di memorizzazione e precisione',
+    refText:'01 · Testo di riferimento', blocksHdr:'02 · Blocchi di pratica (uno per riga — modificabili)',
+    modeLines:'Dividi in righe', modeSent:'Dividi in frasi', modeVerse:'Versetto (spunto → richiamo)', modeQA:'Domande e risposte',
+    begin:'Inizia la pratica →', saveLib:'Salva nella libreria…', share:'Condividi…', openShare:'Apri una condivisione…',
+    timeLimit:'limite di tempo', minOpt:'min (facoltativo)',
+    blockOne:'blocco', blockMany:'blocchi', lblBlock:'Blocco', lblOf:'di', runAcc:'precisione attuale:',
+    diffLabel:'la tua digitazione rispetto all\u2019originale', showText:'mostra testo', hideText:'nascondi testo',
+    retry:'Riprova', prev:'← Precedente', next:'Successivo →', skipB:'Salta', finish:'Termina',
+    legCorrect:'corretto', legCase:'maiuscole/minuscole', legPunct:'punteggiatura', legWrong:'carattere errato',
+    legMissing:'mancante', legExtra:'in più (barrato)', legPending:'non ancora digitato',
+    sumTitle:'Riepilogo sessione', restart:'Nuova sessione', backPractice:'← Torna alla pratica',
+    dlPng:'Scarica PNG', cpPng:'Copia PNG',
+    library:'Libreria', onDevice:'solo su questo dispositivo', searchPh:'Cerca titoli ed etichette…',
+    unlock:'Sblocca…', lock:'Blocca', exportBk:'Esporta backup…', importBk:'Importa backup', syncFile:'File di sincronizzazione…', closeX:'Chiudi ✕',
+    load:'Carica', edit:'Modifica', del:'Elimina',
+    dlgSaveT:'Salva nella libreria', dlgEditT:'Modifica voce', fTitle:'Titolo', fEnc:'Cifra questa voce (nascosta finché non sbloccata)',
+    fPw:'Password', save:'Salva', saveChanges:'Salva modifiche', cancel:'Annulla',
+    dlgUnlockT:'Sblocca la libreria', unlockGo:'Sblocca',
+    dlgShareT:'Condividi questi blocchi', expiry:'Scadenza indicativa', expNone:'Nessuna', exp1:'1 giorno', exp7:'7 giorni', exp30:'30 giorni',
+    copyLink:'Copia link', dlCard:'Scarica la scheda', close:'Chiudi',
+    sharedPassage:'passo condiviso', practiceNow:'Esercitati ora', dismiss:'Ignora',
+    howInstall:'Come lo installo?',
+  }},
+  'ja': { label:'日本語', short:'日本語', d:{
+    tag:'暗記とタイピング精度のトレーナー',
+    refText:'01 · 原文', blocksHdr:'02 · 練習ブロック（1行に1つ・自由に編集可）',
+    modeLines:'行で分割', modeSent:'文で分割', modeVerse:'節（ヒント → 想起）', modeQA:'一問一答',
+    begin:'練習を始める →', saveLib:'ライブラリに保存…', share:'共有…', openShare:'共有を開く…',
+    timeLimit:'制限時間', minOpt:'分（任意）',
+    blockOne:'ブロック', blockMany:'ブロック', lblBlock:'ブロック', lblOf:'/', runAcc:'現在の正確度：',
+    diffLabel:'入力と原文の比較', showText:'原文を表示', hideText:'原文を隠す',
+    retry:'やり直す', prev:'← 前へ', next:'次へ →', skipB:'スキップ', finish:'終了',
+    legCorrect:'正解', legCase:'大文字小文字の誤り', legPunct:'句読点の誤り', legWrong:'誤字',
+    legMissing:'欠落', legExtra:'余分（取り消し線）', legPending:'未入力',
+    sumTitle:'セッションのまとめ', restart:'新しいセッション', backPractice:'← 練習に戻る',
+    dlPng:'PNG をダウンロード', cpPng:'PNG をコピー',
+    library:'ライブラリ', onDevice:'この端末のみに保存', searchPh:'タイトル・タグを検索…',
+    unlock:'ロック解除…', lock:'ロック', exportBk:'バックアップを書き出す…', importBk:'バックアップを読み込む', syncFile:'同期ファイル…', closeX:'閉じる ✕',
+    load:'読み込む', edit:'編集', del:'削除',
+    dlgSaveT:'ライブラリに保存', dlgEditT:'項目を編集', fTitle:'タイトル', fEnc:'この項目を暗号化（解除するまで非表示）',
+    fPw:'パスワード', save:'保存', saveChanges:'変更を保存', cancel:'キャンセル',
+    dlgUnlockT:'ライブラリのロック解除', unlockGo:'解除',
+    dlgShareT:'このブロックを共有', expiry:'目安の有効期限', expNone:'なし', exp1:'1日', exp7:'7日', exp30:'30日',
+    copyLink:'リンクをコピー', dlCard:'共有カードを保存', close:'閉じる',
+    sharedPassage:'共有された文章', practiceNow:'今すぐ練習', dismiss:'閉じる',
+    howInstall:'インストール方法は？',
+  }},
+  'ko': { label:'한국어', short:'한국어', d:{
+    tag:'암기·타이핑 정확도 훈련기',
+    refText:'01 · 원문', blocksHdr:'02 · 연습 블록 (한 줄에 하나 — 자유롭게 편집)',
+    modeLines:'줄 단위로 나누기', modeSent:'문장 단위로 나누기', modeVerse:'절 (힌트 → 회상)', modeQA:'문답',
+    begin:'연습 시작 →', saveLib:'서재에 저장…', share:'공유…', openShare:'공유 열기…',
+    timeLimit:'시간 제한', minOpt:'분 (선택)',
+    blockOne:'블록', blockMany:'블록', lblBlock:'블록', lblOf:'/', runAcc:'현재 정확도:',
+    diffLabel:'입력한 내용과 원문 비교', showText:'원문 보기', hideText:'원문 숨기기',
+    retry:'다시', prev:'← 이전', next:'다음 →', skipB:'건너뛰기', finish:'마치기',
+    legCorrect:'정확', legCase:'대소문자 오류', legPunct:'문장부호 오류', legWrong:'잘못된 글자',
+    legMissing:'누락', legExtra:'초과 (취소선)', legPending:'아직 입력 안 함',
+    sumTitle:'세션 요약', restart:'새 세션 시작', backPractice:'← 연습으로 돌아가기',
+    dlPng:'PNG 다운로드', cpPng:'PNG 복사',
+    library:'서재', onDevice:'이 기기에만 저장', searchPh:'제목·태그 검색…',
+    unlock:'잠금 해제…', lock:'잠그기', exportBk:'백업 내보내기…', importBk:'백업 가져오기', syncFile:'동기화 파일…', closeX:'닫기 ✕',
+    load:'불러오기', edit:'편집', del:'삭제',
+    dlgSaveT:'서재에 저장', dlgEditT:'항목 편집', fTitle:'제목', fEnc:'이 항목 암호화 (해제 전까지 숨김)',
+    fPw:'비밀번호', save:'저장', saveChanges:'변경 사항 저장', cancel:'취소',
+    dlgUnlockT:'서재 잠금 해제', unlockGo:'해제',
+    dlgShareT:'이 블록 공유', expiry:'권고 만료', expNone:'없음', exp1:'1일', exp7:'7일', exp30:'30일',
+    copyLink:'링크 복사', dlCard:'공유 카드 다운로드', close:'닫기',
+    sharedPassage:'공유된 구절', practiceNow:'지금 연습', dismiss:'닫기',
+    howInstall:'설치 방법은?',
+  }},
+  'pt': { label:'Português', short:'PT', d:{
+    tag:'treinador de memorização e precisão',
+    refText:'01 · Texto de referência', blocksHdr:'02 · Blocos de prática (um por linha — edite à vontade)',
+    modeLines:'Dividir em linhas', modeSent:'Dividir em frases', modeVerse:'Versículo (pista → recordar)', modeQA:'Perguntas e respostas',
+    begin:'Começar a prática →', saveLib:'Guardar na biblioteca…', share:'Partilhar…', openShare:'Abrir uma partilha…',
+    timeLimit:'limite de tempo', minOpt:'min (opcional)',
+    blockOne:'bloco', blockMany:'blocos', lblBlock:'Bloco', lblOf:'de', runAcc:'precisão atual:',
+    diffLabel:'a sua escrita face ao original', showText:'mostrar texto', hideText:'ocultar texto',
+    retry:'Repetir', prev:'← Anterior', next:'Seguinte →', skipB:'Saltar', finish:'Terminar',
+    legCorrect:'correto', legCase:'maiúsculas/minúsculas', legPunct:'pontuação', legWrong:'carácter errado',
+    legMissing:'em falta', legExtra:'a mais (riscado)', legPending:'ainda não escrito',
+    sumTitle:'Resumo da sessão', restart:'Iniciar nova sessão', backPractice:'← Voltar à prática',
+    dlPng:'Transferir PNG', cpPng:'Copiar PNG',
+    library:'Biblioteca', onDevice:'apenas neste dispositivo', searchPh:'Pesquisar títulos e etiquetas…',
+    unlock:'Desbloquear…', lock:'Bloquear', exportBk:'Exportar cópia…', importBk:'Importar cópia', syncFile:'Ficheiro de sincronização…', closeX:'Fechar ✕',
+    load:'Carregar', edit:'Editar', del:'Eliminar',
+    dlgSaveT:'Guardar na biblioteca', dlgEditT:'Editar entrada', fTitle:'Título', fEnc:'Encriptar esta entrada (oculta até desbloquear)',
+    fPw:'Palavra-passe', save:'Guardar', saveChanges:'Guardar alterações', cancel:'Cancelar',
+    dlgUnlockT:'Desbloquear a biblioteca', unlockGo:'Desbloquear',
+    dlgShareT:'Partilhar estes blocos', expiry:'Validade indicativa', expNone:'Nenhuma', exp1:'1 dia', exp7:'7 dias', exp30:'30 dias',
+    copyLink:'Copiar ligação', dlCard:'Transferir cartão', close:'Fechar',
+    sharedPassage:'trecho partilhado', practiceNow:'Praticar agora', dismiss:'Dispensar',
+    howInstall:'Como instalar?',
+  }},
+  'pt-BR': { label:'Português (Brasil)', short:'PT·BR', base:'pt', d:{
+    saveLib:'Salvar na biblioteca…', share:'Compartilhar…', openShare:'Abrir um compartilhamento…',
+    next:'Próximo →', dlPng:'Baixar PNG',
+    exportBk:'Exportar backup…', importBk:'Importar backup', syncFile:'Arquivo de sincronização…',
+    del:'Excluir', dlgSaveT:'Salvar na biblioteca', fPw:'Senha',
+    save:'Salvar', saveChanges:'Salvar alterações',
+    dlgShareT:'Compartilhar estes blocos', copyLink:'Copiar link', dlCard:'Baixar cartão',
+    sharedPassage:'trecho compartilhado', legWrong:'caractere errado',
+  }},
+  'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
+  'ru': { label:'Русский', short:'RU', d:{
+    tag:'тренажёр запоминания и точности набора',
+    refText:'01 · Исходный текст', blocksHdr:'02 · Блоки для практики (по одному в строке — редактируйте свободно)',
+    modeLines:'Разбить по строкам', modeSent:'Разбить по предложениям', modeVerse:'Стих (подсказка → воспроизведение)', modeQA:'Вопрос–ответ',
+    begin:'Начать практику →', saveLib:'Сохранить в библиотеку…', share:'Поделиться…', openShare:'Открыть общий доступ…',
+    timeLimit:'лимит времени', minOpt:'мин (необязательно)',
+    blockOne:'блок', blockMany:'блоков', lblBlock:'Блок', lblOf:'из', runAcc:'текущая точность:',
+    diffLabel:'ваш набор в сравнении с оригиналом', showText:'показать текст', hideText:'скрыть текст',
+    retry:'Заново', prev:'← Назад', next:'Далее →', skipB:'Пропустить', finish:'Завершить',
+    legCorrect:'верно', legCase:'ошибка регистра', legPunct:'ошибка пунктуации', legWrong:'неверный символ',
+    legMissing:'пропущено', legExtra:'лишнее (зачёркнуто)', legPending:'ещё не набрано',
+    sumTitle:'Итоги сессии', restart:'Начать новую сессию', backPractice:'← Вернуться к практике',
+    dlPng:'Скачать PNG', cpPng:'Копировать PNG',
+    library:'Библиотека', onDevice:'только на этом устройстве', searchPh:'Поиск по названиям и меткам…',
+    unlock:'Разблокировать…', lock:'Заблокировать', exportBk:'Экспорт резервной копии…', importBk:'Импорт резервной копии', syncFile:'Файл синхронизации…', closeX:'Закрыть ✕',
+    load:'Загрузить', edit:'Изменить', del:'Удалить',
+    dlgSaveT:'Сохранить в библиотеку', dlgEditT:'Изменить запись', fTitle:'Название', fEnc:'Зашифровать эту запись (скрыта до разблокировки)',
+    fPw:'Пароль', save:'Сохранить', saveChanges:'Сохранить изменения', cancel:'Отмена',
+    dlgUnlockT:'Разблокировать библиотеку', unlockGo:'Разблокировать',
+    dlgShareT:'Поделиться этими блоками', expiry:'Условный срок действия', expNone:'Нет', exp1:'1 день', exp7:'7 дней', exp30:'30 дней',
+    copyLink:'Копировать ссылку', dlCard:'Скачать карточку', close:'Закрыть',
+    sharedPassage:'полученный отрывок', practiceNow:'Практиковаться сейчас', dismiss:'Скрыть',
+    howInstall:'Как установить?',
+  }},
+  'es': { label:'Español', short:'ES', d:{
+    tag:'entrenador de memorización y precisión',
+    refText:'01 · Texto de referencia', blocksHdr:'02 · Bloques de práctica (uno por línea — edítalos libremente)',
+    modeLines:'Dividir en líneas', modeSent:'Dividir en frases', modeVerse:'Versículo (pista → recuerdo)', modeQA:'Preguntas y respuestas',
+    begin:'Comenzar la práctica →', saveLib:'Guardar en la biblioteca…', share:'Compartir…', openShare:'Abrir un envío…',
+    timeLimit:'límite de tiempo', minOpt:'min (opcional)',
+    blockOne:'bloque', blockMany:'bloques', lblBlock:'Bloque', lblOf:'de', runAcc:'precisión actual:',
+    diffLabel:'tu escritura frente al original', showText:'mostrar texto', hideText:'ocultar texto',
+    retry:'Reintentar', prev:'← Anterior', next:'Siguiente →', skipB:'Omitir', finish:'Terminar',
+    legCorrect:'correcto', legCase:'mayúsculas/minúsculas', legPunct:'puntuación', legWrong:'carácter erróneo',
+    legMissing:'faltante', legExtra:'de más (tachado)', legPending:'aún sin escribir',
+    sumTitle:'Resumen de la sesión', restart:'Iniciar nueva sesión', backPractice:'← Volver a la práctica',
+    dlPng:'Descargar PNG', cpPng:'Copiar PNG',
+    library:'Biblioteca', onDevice:'solo en este dispositivo', searchPh:'Buscar títulos y etiquetas…',
+    unlock:'Desbloquear…', lock:'Bloquear', exportBk:'Exportar copia…', importBk:'Importar copia', syncFile:'Archivo de sincronización…', closeX:'Cerrar ✕',
+    load:'Cargar', edit:'Editar', del:'Eliminar',
+    dlgSaveT:'Guardar en la biblioteca', dlgEditT:'Editar entrada', fTitle:'Título', fEnc:'Cifrar esta entrada (oculta hasta desbloquear)',
+    fPw:'Contraseña', save:'Guardar', saveChanges:'Guardar cambios', cancel:'Cancelar',
+    dlgUnlockT:'Desbloquear la biblioteca', unlockGo:'Desbloquear',
+    dlgShareT:'Compartir estos bloques', expiry:'Caducidad indicativa', expNone:'Ninguna', exp1:'1 día', exp7:'7 días', exp30:'30 días',
+    copyLink:'Copiar enlace', dlCard:'Descargar tarjeta', close:'Cerrar',
+    sharedPassage:'pasaje compartido', practiceNow:'Practicar ahora', dismiss:'Descartar',
+    howInstall:'¿Cómo lo instalo?',
+  }},
+  'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
+  'tr': { label:'Türkçe', short:'TR', d:{
+    tag:'ezber ve yazım doğruluğu antrenörü',
+    refText:'01 · Kaynak metin', blocksHdr:'02 · Alıştırma blokları (her satıra bir tane — serbestçe düzenleyin)',
+    modeLines:'Satırlara böl', modeSent:'Cümlelere böl', modeVerse:'Ayet (ipucu → hatırlama)', modeQA:'Soru-cevap',
+    begin:'Alıştırmaya başla →', saveLib:'Kitaplığa kaydet…', share:'Paylaş…', openShare:'Paylaşım aç…',
+    timeLimit:'süre sınırı', minOpt:'dk (isteğe bağlı)',
+    blockOne:'blok', blockMany:'blok', lblBlock:'Blok', lblOf:'/', runAcc:'anlık doğruluk:',
+    diffLabel:'yazdıklarınız ile özgün metin', showText:'metni göster', hideText:'metni gizle',
+    retry:'Tekrar dene', prev:'← Önceki', next:'Sonraki →', skipB:'Atla', finish:'Bitir',
+    legCorrect:'doğru', legCase:'büyük/küçük harf hatası', legPunct:'noktalama hatası', legWrong:'yanlış karakter',
+    legMissing:'eksik', legExtra:'fazla (üstü çizili)', legPending:'henüz yazılmadı',
+    sumTitle:'Oturum özeti', restart:'Yeni oturum başlat', backPractice:'← Alıştırmaya dön',
+    dlPng:'PNG indir', cpPng:'PNG kopyala',
+    library:'Kitaplık', onDevice:'yalnızca bu cihazda', searchPh:'Başlık ve etiket ara…',
+    unlock:'Kilidi aç…', lock:'Kilitle', exportBk:'Yedek dışa aktar…', importBk:'Yedek içe aktar', syncFile:'Eşitleme dosyası…', closeX:'Kapat ✕',
+    load:'Yükle', edit:'Düzenle', del:'Sil',
+    dlgSaveT:'Kitaplığa kaydet', dlgEditT:'Kaydı düzenle', fTitle:'Başlık', fEnc:'Bu kaydı şifrele (kilit açılana dek gizli)',
+    fPw:'Parola', save:'Kaydet', saveChanges:'Değişiklikleri kaydet', cancel:'İptal',
+    dlgUnlockT:'Kitaplığın kilidini aç', unlockGo:'Kilidi aç',
+    dlgShareT:'Bu blokları paylaş', expiry:'Yaklaşık son kullanma', expNone:'Yok', exp1:'1 gün', exp7:'7 gün', exp30:'30 gün',
+    copyLink:'Bağlantıyı kopyala', dlCard:'Paylaşım kartını indir', close:'Kapat',
+    sharedPassage:'paylaşılan bölüm', practiceNow:'Şimdi çalış', dismiss:'Kapat',
+    howInstall:'Nasıl kurulur?',
+  }},
+  'uk': { label:'Українська', short:'UA', d:{
+    tag:'тренажер запам\u2019ятовування та точності набору',
+    refText:'01 · Вихідний текст', blocksHdr:'02 · Блоки для практики (по одному в рядку — редагуйте вільно)',
+    modeLines:'Розбити на рядки', modeSent:'Розбити на речення', modeVerse:'Вірш (підказка → відтворення)', modeQA:'Питання–відповідь',
+    begin:'Почати практику →', saveLib:'Зберегти до бібліотеки…', share:'Поділитися…', openShare:'Відкрити надіслане…',
+    timeLimit:'ліміт часу', minOpt:'хв (необов\u2019язково)',
+    blockOne:'блок', blockMany:'блоків', lblBlock:'Блок', lblOf:'із', runAcc:'поточна точність:',
+    diffLabel:'ваш набір у порівнянні з оригіналом', showText:'показати текст', hideText:'сховати текст',
+    retry:'Ще раз', prev:'← Назад', next:'Далі →', skipB:'Пропустити', finish:'Завершити',
+    legCorrect:'правильно', legCase:'помилка регістру', legPunct:'помилка пунктуації', legWrong:'неправильний символ',
+    legMissing:'пропущено', legExtra:'зайве (закреслено)', legPending:'ще не набрано',
+    sumTitle:'Підсумки сесії', restart:'Почати нову сесію', backPractice:'← Повернутися до практики',
+    dlPng:'Завантажити PNG', cpPng:'Копіювати PNG',
+    library:'Бібліотека', onDevice:'лише на цьому пристрої', searchPh:'Пошук назв і міток…',
+    unlock:'Розблокувати…', lock:'Заблокувати', exportBk:'Експорт резервної копії…', importBk:'Імпорт резервної копії', syncFile:'Файл синхронізації…', closeX:'Закрити ✕',
+    load:'Завантажити', edit:'Редагувати', del:'Видалити',
+    dlgSaveT:'Зберегти до бібліотеки', dlgEditT:'Редагувати запис', fTitle:'Назва', fEnc:'Зашифрувати цей запис (прихований до розблокування)',
+    fPw:'Пароль', save:'Зберегти', saveChanges:'Зберегти зміни', cancel:'Скасувати',
+    dlgUnlockT:'Розблокувати бібліотеку', unlockGo:'Розблокувати',
+    dlgShareT:'Поділитися цими блоками', expiry:'Орієнтовний термін дії', expNone:'Немає', exp1:'1 день', exp7:'7 днів', exp30:'30 днів',
+    copyLink:'Копіювати посилання', dlCard:'Завантажити картку', close:'Закрити',
+    sharedPassage:'надісланий уривок', practiceNow:'Практикуватися зараз', dismiss:'Сховати',
+    howInstall:'Як установити?',
+  }},
+};
+
+let curLang = 'en';
+function t(key){
+  const L = LANGS[curLang] || LANGS.en;
+  if(L.d && key in L.d) return L.d[key];
+  if(L.base && key in LANGS[L.base].d) return LANGS[L.base].d[key];
+  return LANGS.en.d[key] !== undefined ? LANGS.en.d[key] : key;
+}
+function detectLang(){
+  try {
+    const stored = localStorage.getItem('verbatim-lang');
+    if(stored && LANGS[stored]) return stored;
+    const cands = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'en'];
+    for(const c of cands){
+      if(LANGS[c]) return c;
+      const base = String(c).split('-')[0];
+      if(base === 'zh') return 'zh-Hans';
+      if(LANGS[base]) return base;
+      const hit = Object.keys(LANGS).find(k => k.split('-')[0] === base);
+      if(hit) return hit;
+    }
+  } catch(_){}
+  return 'en';
+}
+function applyLang(){
+  document.documentElement.setAttribute('lang', curLang);
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  const b = byId('btnLang');
+  if(b) b.textContent = (LANGS[curLang] || LANGS.en).short;
+  // dynamic labels that live in JS renderers
+  applyRevealState && document.getElementById('practice') && !document.getElementById('practice').classList.contains('hidden') && applyRevealState();
+  updateChunkCount();
+  if(lib.ok) refreshLibList();
+}
+function setLang(code){
+  if(!LANGS[code]) return;
+  curLang = code;
+  try { localStorage.setItem('verbatim-lang', code); } catch(_){}
+  applyLang();
+  byId('dlgLang').close();
+}
+function buildLangDialog(){
+  const list = byId('langList');
+  list.innerHTML = Object.keys(LANGS).map(code =>
+    '<button class="micro-btn lang-opt' + (code === curLang ? ' active' : '') + '" data-lang="' + code + '">' +
+    escapeProse(LANGS[code].label) + '</button>').join('');
+}
+byId('btnLang').addEventListener('click', () => { buildLangDialog(); byId('dlgLang').showModal(); });
+byId('btnCloseLang').addEventListener('click', () => byId('dlgLang').close());
+byId('langList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-lang]');
+  if(btn) setLang(btn.dataset.lang);
+});
+curLang = detectLang();
 
 /* ---------- init ---------- */
 async function initLibrary(){
@@ -3762,6 +4277,7 @@ if(!cryptoOK){
   byId('btnLibUnlock').disabled = true;
   byId('exportEnc').disabled = true;
 }
+applyLang();
 initLibrary();
 handleIncomingHash();
 // Also catch a share link pasted into the address bar of an already-open tab.
