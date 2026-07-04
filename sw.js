@@ -19,7 +19,7 @@
 */
 'use strict';
 
-const CACHE_VERSION = 'v4.3.0';
+const CACHE_VERSION = 'v4.5.0';
 const CACHE_NAME = 'verbatim-' + CACHE_VERSION;
 
 const PRECACHE = [
