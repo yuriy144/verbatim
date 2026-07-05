@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
-  Version 4.5.0
+  Version 4.5.2
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="4.5.0">
+<meta name="app-version" content="4.5.2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1014,7 +1014,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '4.5.0';
+const APP_VERSION = '4.5.2';
 
 /* ====================== state ====================== */
 const state = {
@@ -1162,8 +1162,14 @@ function splitQA(text){
   const qShortRe = /^\s*q\s*[:.]?\s*(\d+)\s*[.):]?\s*/i;
   const aFullRe = /^\s*answers?\b\s*[:.]?\s*(\d+)?\s*[.):]?\s*/i;
   const aShortRe = /^\s*a(?:ns)?\s*[:.]?\s*(\d+)\s*[.):]?\s*/i;
-  const matchQ = line => line.match(qFullRe) || line.match(qShortRe);
-  const matchA = line => line.match(aFullRe) || line.match(aShortRe);
+  // A line that is ONLY "A" or "Q" (optionally with a trailing :/.), nothing
+  // else, is unambiguously a bare marker — a real sentence starting with "A"
+  // always has more words after it. This lets people write the answer marker on
+  // its own line as a lone "A" with the answer beneath, without a number.
+  const qBareRe = /^\s*q\s*[:.]?\s*$/i;
+  const aBareRe = /^\s*a\s*[:.]?\s*$/i;
+  const matchQ = line => line.match(qFullRe) || line.match(qShortRe) || line.match(qBareRe);
+  const matchA = line => line.match(aFullRe) || line.match(aShortRe) || line.match(aBareRe);
 
   const sections = [];
   let cur = null;
@@ -1993,7 +1999,7 @@ function applyBoxMode(){
     b.title = scroll ? t('ttWrapScroll') : t('ttWrapWrap');
   });
   const hideBtn = document.getElementById('btnBoxHide');
-  hideBtn.textContent = state.boxHidden ? 'show ▾' : 'hide ▴';
+  hideBtn.textContent = state.boxHidden ? (t('boxShow') + ' ▾') : (t('boxHide') + ' ▴');
   hideBtn.classList.toggle('active', state.boxHidden);
   // the show/hide-text toggle only does something when the box is visible
   document.getElementById('btnReveal').style.display = state.boxHidden ? 'none' : '';
@@ -3892,6 +3898,8 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    boxShow:'show',
+    boxHide:'hide',
     msgLoaded1:'Loaded ',
     msgLoaded2:'— review the blocks and begin.',
     msgDup1:'Already in your library as ',
@@ -4088,6 +4096,8 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    boxShow:'显示',
+    boxHide:'隐藏',
     msgLoaded1:'已载入 ',
     msgLoaded2:'——查看练习块并开始。',
     msgDup1:'已在书库中，名为 ',
@@ -4283,6 +4293,8 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    boxShow:'顯示',
+    boxHide:'隱藏',
     msgLoaded1:'已載入 ',
     msgLoaded2:'——睇下練習段然後開始。',
     msgDup1:'已經喺書庫，名叫 ',
@@ -4478,6 +4490,8 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    boxShow:'afficher',
+    boxHide:'masquer',
     msgLoaded1:'Chargé ',
     msgLoaded2:'— vérifiez les blocs et commencez.',
     msgDup1:'Déjà dans votre bibliothèque sous ',
@@ -4676,6 +4690,8 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    boxShow:'zeigen',
+    boxHide:'verbergen',
     msgLoaded1:'Geladen ',
     msgLoaded2:'— prüfen Sie die Blöcke und beginnen Sie.',
     msgDup1:'Bereits in Ihrer Bibliothek als ',
@@ -4872,6 +4888,8 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    boxShow:'दिखाएँ',
+    boxHide:'छिपाएँ',
     msgLoaded1:'लोड किया ',
     msgLoaded2:'— खंडों की समीक्षा करें और शुरू करें।',
     msgDup1:'पहले से आपके पुस्तकालय में इस नाम से ',
@@ -5067,6 +5085,8 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    boxShow:'mostra',
+    boxHide:'nascondi',
     msgLoaded1:'Caricato ',
     msgLoaded2:'— controlla i blocchi e inizia.',
     msgDup1:'Già nella tua libreria come ',
@@ -5262,6 +5282,8 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    boxShow:'表示',
+    boxHide:'非表示',
     msgLoaded1:'読み込みました ',
     msgLoaded2:'——ブロックを確認して始めてください。',
     msgDup1:'すでにライブラリにあります：',
@@ -5457,6 +5479,8 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    boxShow:'보기',
+    boxHide:'숨기기',
     msgLoaded1:'불러왔습니다 ',
     msgLoaded2:'— 블록을 확인하고 시작하세요.',
     msgDup1:'이미 서재에 있습니다: ',
@@ -5652,6 +5676,8 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    boxShow:'mostrar',
+    boxHide:'ocultar',
     msgLoaded1:'Carregado ',
     msgLoaded2:'— reveja os blocos e comece.',
     msgDup1:'Já na sua biblioteca como ',
@@ -5847,6 +5873,8 @@ const LANGS = {
     howInstall:'Como instalar?',
   }},
   'pt-BR': { label:'Português (Brasil)', short:'PT·BR', base:'pt', d:{
+    boxShow:'mostrar',
+    boxHide:'ocultar',
     msgCardDl:'Cartão de compartilhamento baixado — envie-o como ARQUIVO / documento, não como foto (os mensageiros recomprimem fotos, o que remove o trecho oculto lá dentro).',
     msgNoPassage:'Nenhum trecho Verbatim encontrado nessa imagem — se passou por um mensageiro como foto, os dados foram removidos; peça-a como arquivo.',
     msgBackupsInstalled:'Os backups são restaurados na biblioteca do app instalado — instale o Verbatim para importar isto.',
@@ -5909,6 +5937,8 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    boxShow:'показать',
+    boxHide:'скрыть',
     msgLoaded1:'Загружено ',
     msgLoaded2:'— просмотрите блоки и начните.',
     msgDup1:'Уже в вашей библиотеке как ',
@@ -6104,6 +6134,8 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    boxShow:'mostrar',
+    boxHide:'ocultar',
     msgLoaded1:'Cargado ',
     msgLoaded2:'— revisa los bloques y comienza.',
     msgDup1:'Ya está en tu biblioteca como ',
@@ -6300,6 +6332,8 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    boxShow:'göster',
+    boxHide:'gizle',
     msgLoaded1:'Yüklendi ',
     msgLoaded2:'— blokları gözden geçirip başlayın.',
     msgDup1:'Zaten kitaplığınızda şu adla var: ',
@@ -6495,6 +6529,8 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    boxShow:'показати',
+    boxHide:'сховати',
     msgLoaded1:'Завантажено ',
     msgLoaded2:'— перегляньте блоки й почніть.',
     msgDup1:'Уже у вашій бібліотеці як ',
