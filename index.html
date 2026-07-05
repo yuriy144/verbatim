@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
-  Version 4.6.0
+  Version 4.6.1
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="4.6.0">
+<meta name="app-version" content="4.6.1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1014,7 +1014,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '4.6.0';
+const APP_VERSION = '4.6.1';
 
 /* ====================== state ====================== */
 const state = {
@@ -2198,6 +2198,11 @@ function exportTimestampSlug(){
   const p = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}.${p(d.getMinutes())}`;
 }
+function isoDate(d){
+  // Numeric, locale-independent YYYY-MM-DD (uses local calendar date).
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
 
 document.getElementById('btnExportPng').addEventListener('click', async () => {
   const btn = document.getElementById('btnExportPng');
@@ -2208,7 +2213,7 @@ document.getElementById('btnExportPng').addEventListener('click', async () => {
     await new Promise(res => canvas.toBlob(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `Verbatim_Study_${exportTimestampSlug()}.png`;
+      a.download = `Verbatim_Run_Completed_${exportTimestampSlug()}.png`;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       res();
@@ -2387,7 +2392,7 @@ async function renderSummaryCanvas(){
   ctx.fillText(t('sumTitle'), padX, yy);
   // timestamp, right-aligned on the same baseline as the title
   const ts = new Date();
-  const tsStr = ts.toLocaleDateString(undefined, {year:'numeric',month:'short',day:'numeric'}) +
+  const tsStr = isoDate(ts) +
                 ' · ' + ts.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit',hour12:false});
   ctx.fillStyle = C.dim2; ctx.font = `12px ${MONO}`; ctx.textAlign = 'right';
   ctx.fillText(tsStr, padX + contentW, yy - 2);
@@ -2500,7 +2505,7 @@ async function renderSummaryCanvas(){
   // legend
   yy += 4;
   ctx.font = `11px ${MONO}`;
-  const legend = [['correct',C.correct],['case',C.caseErr],['punct',C.punctErr],['wrong char',C.subErr],['missing',C.missing],['extra',C.extra]];
+  const legend = [[t('legCorrect'),C.correct],[t('legCaseShort'),C.caseErr],[t('legPunctShort'),C.punctErr],[t('legWrong'),C.subErr],[t('legMissing'),C.missing],[t('legExtra'),C.extra]];
   let lx = padX;
   for(const [label,col] of legend){
     ctx.fillStyle = col; roundRect(ctx, lx, yy-9, 9, 9, 2); ctx.fill();
@@ -3453,7 +3458,7 @@ async function buildShareCardPng(payload, fragText){
   if(payload.x){
     ctx.font = '10px ' + MONO;
     ctx.fillStyle = dim;
-    ctx.fillText('before ' + new Date(payload.x).toLocaleDateString(), 26, H - 24);
+    ctx.fillText(t('cardBefore') + ' ' + isoDate(new Date(payload.x)), 26, H - 24);
   }
 
   // sender's two-character mark, bottom-right
@@ -3899,6 +3904,7 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    cardBefore:'before',
     recallThis:'recall this',
     tmLeft:'left',
     tmOver:'over',
@@ -4116,6 +4122,7 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    cardBefore:'有效期至',
     recallThis:'回忆这段',
     tmLeft:'剩余',
     tmOver:'超时',
@@ -4332,6 +4339,7 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    cardBefore:'有效期至',
     recallThis:'回憶呢段',
     tmLeft:'剩返',
     tmOver:'超時',
@@ -4548,6 +4556,7 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    cardBefore:'avant le',
     recallThis:'restituez ceci',
     tmLeft:'restant',
     tmOver:'de dépassement',
@@ -4767,6 +4776,7 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    cardBefore:'vor dem',
     recallThis:'rufen Sie dies ab',
     tmLeft:'übrig',
     tmOver:'darüber',
@@ -4984,6 +4994,7 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    cardBefore:'इससे पहले',
     recallThis:'इसे याद करें',
     tmLeft:'शेष',
     tmOver:'अधिक',
@@ -5200,6 +5211,7 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    cardBefore:'prima del',
     recallThis:'richiama questo',
     tmLeft:'rimanenti',
     tmOver:'in più',
@@ -5416,6 +5428,7 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    cardBefore:'期限:',
     recallThis:'これを思い出す',
     tmLeft:'残り',
     tmOver:'超過',
@@ -5632,6 +5645,7 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    cardBefore:'기한:',
     recallThis:'이것을 회상하세요',
     tmLeft:'남음',
     tmOver:'초과',
@@ -5848,6 +5862,7 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    cardBefore:'antes de',
     recallThis:'recorde isto',
     tmLeft:'restante',
     tmOver:'a mais',
@@ -6064,6 +6079,7 @@ const LANGS = {
     howInstall:'Como instalar?',
   }},
   'pt-BR': { label:'Português (Brasil)', short:'PT·BR', base:'pt', d:{
+    cardBefore:'antes de',
     pwNoteKept:'Esta entrada permanece criptografada com sua senha atual.',
     icFileProto:'Aberto como arquivo local (file://) — os navegadores nunca oferecem instalação para arquivos locais. Sirva-o por HTTP ou use o site online.',
     icManifestBad:'manifest.json não carregou — está enviado ao lado de index.html?',
@@ -6135,6 +6151,7 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    cardBefore:'до',
     recallThis:'вспомните это',
     tmLeft:'осталось',
     tmOver:'сверх',
@@ -6351,6 +6368,7 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    cardBefore:'antes del',
     recallThis:'recuerda esto',
     tmLeft:'restante',
     tmOver:'de más',
@@ -6568,6 +6586,7 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    cardBefore:'şu tarihe kadar:',
     recallThis:'bunu hatırlayın',
     tmLeft:'kaldı',
     tmOver:'aşıldı',
@@ -6784,6 +6803,7 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    cardBefore:'до',
     recallThis:'пригадайте це',
     tmLeft:'залишилось',
     tmOver:'понад',
