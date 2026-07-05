@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
-  Version 4.6.1
+  Version 4.6.2
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="4.6.1">
+<meta name="app-version" content="4.6.2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1014,7 +1014,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '4.6.1';
+const APP_VERSION = '4.6.2';
 
 /* ====================== state ====================== */
 const state = {
@@ -2307,8 +2307,8 @@ async function renderSummaryCanvas(){
   // Precompute per-line diff cells
   const lines = state.chunks.map((c,i) => {
     const r = state.results[i];
-    if(r === 'skip') return {i, note:'skipped', cells:null, acc:null};
-    if(!r) return {i, note:'not attempted', cells:null, acc:null};
+    if(r === 'skip') return {i, note:t('skipped'), cells:null, acc:null};
+    if(!r) return {i, note:t('notAttempted'), cells:null, acc:null};
     return {i, cells: computeDiff(c, r.typed, true).cells, acc:r.accuracy};
   });
 
