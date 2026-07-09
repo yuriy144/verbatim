@@ -3502,15 +3502,20 @@ async function saveFolders(){
 function populateFolderSelect(){
   const sel = byId('saveFolder');
   if(!sel) return;
-  // can't move into self or descendants when editing
-  const blocked = new Set();
-  // (entries have no folder-tree-self issue; this is mainly for future folder editing)
+  // Only show folders that are visible (folderShouldShow excludes folders whose
+  // entries are all hidden-encrypted). Walks the tree depth-first so the
+  // indentation reflects the real hierarchy.
   const flat = [];
   const walk = (pid, depth) => {
-    for(const f of lib.folders){ if((f.parentId||null) === (pid||null)){ flat.push({f, depth}); walk(f.id, depth+1); } }
+    for(const f of lib.folders){
+      if((f.parentId||null) !== (pid||null)) continue;
+      if(!folderShouldShow(f.id)) continue; // hidden encrypted-only → invisible
+      flat.push({f, depth});
+      walk(f.id, depth+1);
+    }
   };
   walk(null, 0);
-  sel.innerHTML = '<option value="">— Library root —</option>' +
+  sel.innerHTML = '<option value="">— ' + escapeProse(t('libraryRoot')) + ' —</option>' +
     flat.map(({f,depth}) => '<option value="' + f.id + '">' + '·\u00a0'.repeat(depth) + escapeProse(f.name) + '</option>').join('');
 }
 function refreshLibTree(){
@@ -4484,6 +4489,9 @@ function scheduleSyncWrite(){
   sync.timer = setTimeout(writeLibraryToFile, 800);
 }
 async function readSyncFileAndMerge(){
+  // Kept for the import-backup flow. The sync-file flow now uses loadSyncFile
+  // (below), which REPLACES the library instead of merging — so each sync
+  // file is its own container, and switching files swaps the whole library.
   try {
     const file = await sync.handle.getFile();
     const text = (await file.text()).trim();
@@ -4507,11 +4515,72 @@ async function readSyncFileAndMerge(){
     return false;
   }
 }
+// Clear ALL library data (entries + folders) from IndexedDB and memory.
+// Used when swapping sync-file containers so the new file's contents replace
+// the old ones entirely.
+async function clearLibraryData(){
+  for(const e of lib.entries){ try{ await idbDelete(e.id); }catch(_){} }
+  lib.entries = [];
+  lib.folders = [];
+  lib.revealed.clear();
+  lib.keys.clear();
+  lib.saveCtx = null;
+  lib.selectedFolder = null;
+  try{ await metaPut('folders', []); }catch(_){}
+  refreshLibTree(); refreshLibList();
+  syncLockButtons();
+}
+// LOAD (not merge) a sync file's contents into the library. The current
+// library is cleared first, so the sync file is the sole source of truth.
+async function loadSyncFile(){
+  try {
+    const file = await sync.handle.getFile();
+    const text = (await file.text()).trim();
+    await clearLibraryData();
+    if(text){
+      const data = JSON.parse(text);
+      if(data && data.enc === 1){
+        notify(t('syncEncRefuse'));
+        return false;
+      }
+      const entries = Array.isArray(data && data.entries) ? data.entries : [];
+      let loaded = 0;
+      for(const rec of entries){
+        const validShape = rec && typeof rec.id === 'string' && (
+          rec.enc ? (typeof rec.salt === 'string' && typeof rec.iv === 'string' && typeof rec.blob === 'string')
+                  : (typeof rec.chunkText === 'string')
+        );
+        if(!validShape) continue;
+        await idbPut(rec);
+        lib.entries.push(rec);
+        loaded++;
+      }
+      if(data && Array.isArray(data.folders)){
+        lib.folders = data.folders.filter(f => f && typeof f.id === 'string');
+        await metaPut('folders', lib.folders);
+      }
+      refreshLibTree(); refreshLibList();
+      if(loaded > 0) notify(t('msgSyncLoaded').replace('{n}', loaded));
+    }
+    return true;
+  } catch(err){
+    console.error(err);
+    notify(t('syncReadFail'));
+    return false;
+  }
+}
 async function connectSyncHandle(handle, persist){
   if(!(await ensurePermission(handle, true))){
     notify(t('syncNoPermission'));
     syncDlgUi();
     return;
+  }
+  // If switching FROM a different sync file, flush the current library to the
+  // old file first so no data is lost, then clear the library to make way for
+  // the new container's contents.
+  const switching = sync.connected && sync.handle && sync.handle !== handle;
+  if(switching){
+    await writeLibraryToFile(); // flush current library to the old file
   }
   sync.handle = handle;
   sync.connected = true;
@@ -4519,8 +4588,9 @@ async function connectSyncHandle(handle, persist){
   if(persist){
     try { await metaPut('syncHandle', handle); } catch(err){ console.warn(err); }
   }
-  const ok = await readSyncFileAndMerge();
-  if(ok) await writeLibraryToFile(); // write the merged whole back
+  // Load (replace) the new file's contents — each sync file is its own container
+  const ok = await loadSyncFile();
+  if(ok) await writeLibraryToFile(); // write back (creates the file if it was empty)
   syncStatusUi();
   syncDlgUi();
 }
@@ -4572,7 +4642,7 @@ async function initSync(){
       // no need to hunt for the Sync button.
       if(await ensurePermission(handle, false)){
         sync.connected = true;
-        const ok = await readSyncFileAndMerge();
+        const ok = await loadSyncFile();
         if(ok) await writeLibraryToFile();
       } else {
         sync.needsPermission = true;
@@ -4596,7 +4666,7 @@ function armSyncAutoReconnect(){
     if(await ensurePermission(sync.handle, true)){
       sync.connected = true;
       sync.needsPermission = false;
-      const ok = await readSyncFileAndMerge();
+      const ok = await loadSyncFile();
       if(ok) await writeLibraryToFile();
       syncStatusUi();
       syncDlgUi();
@@ -4778,6 +4848,7 @@ const LANGS = {
     msgSyncOn:'Sync:',
     msgConnected:'connected',
     msgMerged:'Merged {n} from the sync file.',
+    msgSyncLoaded:'Loaded {n} entries from the sync file.',
     msgSyncOff:'Sync file disconnected — the library stays in this browser; the file keeps its last saved copy.',
     msgInstalled:'Installed! Open Verbatim from its own icon — that’s where the Library lives.',
     msgChecking:'Checking…',
@@ -5088,6 +5159,7 @@ const LANGS = {
     msgSyncOn:'同步：',
     msgConnected:'已连接',
     msgMerged:'已从同步文件合并 {n} 项。',
+    msgSyncLoaded:'已从同步文件加载 {n} 项条目。',
     msgSyncOff:'同步文件已断开——书库仍留在此浏览器中；文件保留其上次保存的副本。',
     msgInstalled:'已安装！请从 Verbatim 自己的图标打开——书库就在那里。',
     msgChecking:'正在检查…',
@@ -5397,6 +5469,7 @@ const LANGS = {
     msgSyncOn:'同步：',
     msgConnected:'已連接',
     msgMerged:'已由同步檔案合併 {n} 項。',
+    msgSyncLoaded:'已由同步檔案載入 {n} 項條目。',
     msgSyncOff:'同步檔案已斷開——書庫仍然留喺呢個瀏覽器；檔案保留佢上次儲存嘅副本。',
     msgInstalled:'已安裝！請喺 Verbatim 自己嘅圖示打開——書庫就喺嗰度。',
     msgChecking:'正在檢查…',
@@ -5706,6 +5779,7 @@ const LANGS = {
     msgSyncOn:'Synchro :',
     msgConnected:'connecté',
     msgMerged:'{n} fusionné(s) depuis le fichier de synchro.',
+    msgSyncLoaded:'{n} entrée(s) chargée(s) depuis le fichier de synchro.',
     msgSyncOff:'Fichier de synchro déconnecté — la bibliothèque reste dans ce navigateur ; le fichier garde sa dernière copie enregistrée.',
     msgInstalled:'Installé ! Ouvrez Verbatim depuis sa propre icône — c’est là que se trouve la bibliothèque.',
     msgChecking:'Vérification…',
@@ -6018,6 +6092,7 @@ const LANGS = {
     msgSyncOn:'Sync:',
     msgConnected:'verbunden',
     msgMerged:'{n} aus der Sync-Datei zusammengeführt.',
+    msgSyncLoaded:'{n} Einträge aus der Sync-Datei geladen.',
     msgSyncOff:'Sync-Datei getrennt — die Bibliothek bleibt in diesem Browser; die Datei behält ihre zuletzt gespeicherte Kopie.',
     msgInstalled:'Installiert! Öffnen Sie Verbatim über das eigene Symbol — dort liegt die Bibliothek.',
     msgChecking:'Wird geprüft…',
@@ -6332,6 +6407,7 @@ const LANGS = {
     msgSyncOn:'सिंक:',
     msgConnected:'कनेक्टेड',
     msgMerged:'सिंक फ़ाइल से {n} मिलाए गए।',
+    msgSyncLoaded:'सिंक फ़ाइल से {n} प्रविष्टियाँ लोड की गईं।',
     msgSyncOff:'सिंक फ़ाइल डिस्कनेक्ट हुई — पुस्तकालय इसी ब्राउज़र में रहता है; फ़ाइल अपनी अंतिम सहेजी प्रति रखती है।',
     msgInstalled:'इंस्टॉल हुआ! Verbatim को उसके अपने आइकन से खोलें — पुस्तकालय वहीं रहता है।',
     msgChecking:'जाँच हो रही है…',
@@ -6641,6 +6717,7 @@ const LANGS = {
     msgSyncOn:'Sincronizzazione:',
     msgConnected:'connesso',
     msgMerged:'{n} uniti dal file di sincronizzazione.',
+    msgSyncLoaded:'{n} voci caricate dal file di sincronizzazione.',
     msgSyncOff:'File di sincronizzazione disconnesso — la libreria resta in questo browser; il file conserva la sua ultima copia salvata.',
     msgInstalled:'Installato! Apri Verbatim dalla sua icona — è lì che risiede la libreria.',
     msgChecking:'Controllo in corso…',
@@ -6950,6 +7027,7 @@ const LANGS = {
     msgSyncOn:'同期：',
     msgConnected:'接続済み',
     msgMerged:'同期ファイルから {n} 件を統合しました。',
+    msgSyncLoaded:'同期ファイルから {n} 件の項目を読み込みました。',
     msgSyncOff:'同期ファイルを切断しました——ライブラリはこのブラウザに残り、ファイルは最後に保存されたコピーを保持します。',
     msgInstalled:'インストールしました！Verbatim 自身のアイコンから開いてください——そこにライブラリがあります。',
     msgChecking:'確認中…',
@@ -7259,6 +7337,7 @@ const LANGS = {
     msgSyncOn:'동기화:',
     msgConnected:'연결됨',
     msgMerged:'동기화 파일에서 {n}개를 병합했습니다.',
+    msgSyncLoaded:'동기화 파일에서 {n}개 항목을 불러왔습니다.',
     msgSyncOff:'동기화 파일 연결 해제됨 — 서재는 이 브라우저에 남고, 파일은 마지막 저장본을 유지합니다.',
     msgInstalled:'설치되었습니다! Verbatim의 자체 아이콘에서 여세요 — 서재는 거기에 있습니다.',
     msgChecking:'확인 중…',
@@ -7568,6 +7647,7 @@ const LANGS = {
     msgSyncOn:'Sincronização:',
     msgConnected:'ligado',
     msgMerged:'{n} fundidos a partir do ficheiro de sincronização.',
+    msgSyncLoaded:'{n} entradas carregadas do ficheiro de sincronização.',
     msgSyncOff:'Ficheiro de sincronização desligado — a biblioteca permanece neste navegador; o ficheiro mantém a sua última cópia guardada.',
     msgInstalled:'Instalado! Abra o Verbatim pelo seu próprio ícone — é lá que fica a biblioteca.',
     msgChecking:'A verificar…',
@@ -7857,6 +7937,7 @@ const LANGS = {
     msgBackupsInstalled:'Os backups são restaurados na biblioteca do app instalado — instale o Verbatim para importar isto.',
     msgSyncUnsupported:'Arquivo de sincronização ao vivo: precisa de um navegador Chromium de desktop (Chrome/Edge/Brave). Neste dispositivo, use Exportar/Importar — os arquivos são idênticos.',
     msgMerged:'{n} mesclados a partir do arquivo de sincronização.',
+    msgSyncLoaded:'{n} entradas carregadas do arquivo de sincronização.',
     msgSyncOff:'Arquivo de sincronização desconectado — a biblioteca permanece neste navegador; o arquivo mantém sua última cópia salva.',
     msgSyncWriteFail:'Não foi possível gravar no arquivo de sincronização — verifique se ainda existe e é gravável.',
     msgNoIdb:'Este navegador não pode armazenar uma biblioteca (sem IndexedDB) — praticar e compartilhar funcionam mesmo assim.',
@@ -7949,6 +8030,7 @@ const LANGS = {
     msgSyncOn:'Синхронизация:',
     msgConnected:'подключено',
     msgMerged:'Объединено {n} из файла синхронизации.',
+    msgSyncLoaded:'Загружено {n} записей из файла синхронизации.',
     msgSyncOff:'Файл синхронизации отключён — библиотека остаётся в этом браузере; файл хранит последнюю сохранённую копию.',
     msgInstalled:'Установлено! Открывайте Verbatim с его собственного значка — библиотека находится там.',
     msgChecking:'Проверка…',
@@ -8258,6 +8340,7 @@ const LANGS = {
     msgSyncOn:'Sincronización:',
     msgConnected:'conectado',
     msgMerged:'{n} combinados desde el archivo de sincronización.',
+    msgSyncLoaded:'{n} entradas cargadas desde el archivo de sincronización.',
     msgSyncOff:'Archivo de sincronización desconectado — la biblioteca permanece en este navegador; el archivo conserva su última copia guardada.',
     msgInstalled:'¡Instalado! Abre Verbatim desde su propio icono — ahí es donde vive la biblioteca.',
     msgChecking:'Comprobando…',
@@ -8568,6 +8651,7 @@ const LANGS = {
     msgSyncOn:'Eşitleme:',
     msgConnected:'bağlı',
     msgMerged:'Eşitleme dosyasından {n} birleştirildi.',
+    msgSyncLoaded:'Eşitleme dosyasından {n} girdi yüklendi.',
     msgSyncOff:'Eşitleme dosyası bağlantısı kesildi — kitaplık bu tarayıcıda kalır; dosya son kaydedilen kopyasını korur.',
     msgInstalled:'Kuruldu! Verbatim’i kendi simgesinden açın — kitaplık oradadır.',
     msgChecking:'Denetleniyor…',
@@ -8877,6 +8961,7 @@ const LANGS = {
     msgSyncOn:'Синхронізація:',
     msgConnected:'підключено',
     msgMerged:'Об’єднано {n} із файлу синхронізації.',
+    msgSyncLoaded:'Завантажено {n} записів із файлу синхронізації.',
     msgSyncOff:'Файл синхронізації відключено — бібліотека лишається в цьому браузері; файл зберігає свою останню збережену копію.',
     msgInstalled:'Установлено! Відкривайте Verbatim з його власного значка — бібліотека знаходиться там.',
     msgChecking:'Перевірка…',
