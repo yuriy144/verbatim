@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and typing-accuracy trainer
-  Version 4.6.2
+  Version 5.0.0
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="4.6.2">
+<meta name="app-version" content="5.0.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -55,7 +55,7 @@
   }
 })();
 </script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%2328253b'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Georgia,serif' font-size='42' font-weight='600' fill='%23d8d3c4'%3EV%3Ctspan fill='%23cba160' font-style='italic'%3E.%3C/tspan%3E%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%232c2940'/%3E%3Cstop offset='1' stop-color='%23232033'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Crect x='1' y='1' width='62' height='1' fill='%23d8d3c4' opacity='0.12'/%3E%3Ctext x='33' y='46' text-anchor='middle' font-family='Iowan Old Style,Palatino Linotype,Palatino,Georgia,serif' font-size='52' font-weight='600' letter-spacing='-0.3' fill='%23d8d3c4'%3EV%3Ctspan dx='3' fill='%23cba160' font-style='italic'%3E.%3C/tspan%3E%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#1a1822;
@@ -535,6 +535,154 @@
     .lib-drawer,.drawer-backdrop,.toast{transition:none;}
   }
 
+  /* ---------- library folder tree ---------- */
+  .lib-tree{
+    flex:0 0 auto;max-height:38%;overflow-y:auto;margin:0 0 10px;padding-right:2px;
+    display:flex;flex-direction:column;gap:1px;
+  }
+  .lib-tree:empty{display:none;}
+  .lib-tree::-webkit-scrollbar{width:6px;}
+  .lib-tree::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+  .tree-row{
+    display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:3px;cursor:pointer;
+    font-family:var(--serif);font-size:13px;color:var(--ink);transition:background .12s;
+    user-select:none;
+  }
+  .tree-row:hover{background:var(--bg-2);}
+  .tree-row.sel{background:color-mix(in srgb, var(--gold) 14%, transparent);color:var(--gold);}
+  .tree-row.drop-on{outline:1px solid var(--gold);outline-offset:-1px;}
+  .tree-tw{width:14px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--dim-2);flex:0 0 14px;}
+  .tree-dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;}
+  .tree-root-icon{flex:0 0 14px;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;color:var(--dim);}
+  .tree-root.sel .tree-root-icon, .tree-row.sel .tree-root-icon{color:var(--gold);}
+  .tree-root{font-weight:600;}
+  .tree-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tree-count{font-family:var(--mono);font-size:10px;color:var(--dim-2);}
+  .tree-grip{cursor:grab;color:var(--dim-2);opacity:0;transition:opacity .12s;font-size:12px;}
+  .tree-row:hover .tree-grip{opacity:.7;}
+  .tree-grip:active{cursor:grabbing;}
+  .tree-row.dragging{opacity:.4;}
+  .move-dest-row{cursor:pointer;}
+  .move-dest-row:hover{background:var(--bg-2);}
+  .move-dest-row.sel{background:color-mix(in srgb, var(--gold) 14%, transparent);color:var(--gold);}
+  .tree-menu{
+    font-family:var(--mono);font-size:11px;color:var(--dim-2);background:none;border:none;cursor:pointer;
+    padding:0 2px;opacity:0;transition:opacity .12s;
+  }
+  .tree-row:hover .tree-menu{opacity:.8;}
+  .tree-menu:hover{color:var(--gold);}
+  .tree-name-input{
+    flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--gold);border-radius:2px;
+    color:var(--ink);font-family:var(--serif);font-size:13px;padding:2px 5px;outline:none;
+  }
+  /* entry reorder + drag affordances */
+  .lib-item{cursor:default;}
+  .lib-item.dragging{opacity:.4;}
+  .lib-item.drop-before{box-shadow:0 -2px 0 var(--gold);}
+  .lib-item.drop-after{box-shadow:0 2px 0 var(--gold);}
+  .folder-chip{
+    display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;
+    letter-spacing:.04em;color:var(--dim);margin-right:6px;vertical-align:1px;
+  }
+  .folder-chip i{width:6px;height:6px;border-radius:50%;display:inline-block;}
+
+  /* ---------- tutorial (visual tour) ----------
+     Uses the app's own CSS variables and reuses real component classes
+     (.cue-box, .diff-box, .mark-cell, .panel …) for the mockups, so the
+     pictures always match the live app, in either theme. */
+  .dlg-tour{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.97);
+    width:min(980px, calc(100vw - 32px));max-height:calc(100vh - 40px);
+    background:var(--panel);border:1px solid var(--rule);border-radius:4px;
+    box-shadow:0 24px 64px rgba(0,0,0,.45);padding:0;z-index:56;
+    opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+    overflow:hidden;
+  }
+  .dlg-tour.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);}
+  .tour-body{display:flex;flex-direction:column;}
+  @media(min-width:760px){ .tour-body{flex-direction:row;} }
+  .tour-mock{
+    flex:0 0 58%;background:var(--bg-2);border-bottom:1px solid var(--rule);
+    padding:28px;display:flex;align-items:center;justify-content:center;overflow-y:auto;
+  }
+  @media(min-width:760px){
+    .tour-mock{border-bottom:none;border-right:1px solid var(--rule);}
+  }
+  .tour-mock .mock-frame{width:100%;max-width:440px;}
+  .tour-mock .mock-label{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--dim-2);margin-bottom:10px;
+  }
+  /* miniaturized real components inside the mockup */
+  .tour-mock .panel{padding:14px 15px;margin-bottom:0;border-radius:3px;}
+  .tour-mock .panel h2{font-size:11px;margin-bottom:10px;}
+  .tour-mock textarea{font-size:12px;padding:9px 10px;line-height:1.55;border-radius:2px;}
+  .tour-mock .split-modes{gap:6px;}
+  .tour-mock .split-modes button{font-size:10px;padding:5px 9px;border-radius:2px;}
+  .tour-mock .diff-box{font-size:12.5px;line-height:1.7;padding:10px 12px 10px 16px;min-height:0;border-radius:2px;}
+  .tour-mock .cue-box{font-size:13px;padding:9px 11px;margin-bottom:9px;border-radius:2px;}
+  .tour-mock .cue-box .cue-label{font-size:9px;}
+  .tour-mock .mark-cell{font-size:10px;padding:4px 0;min-width:26px;}
+  .tour-mock .stat{min-width:0;padding:10px 11px;border-radius:2px;}
+  .tour-mock .stat .num{font-size:17px;}
+  .tour-mock .stat .lbl{font-size:9px;}
+  .tour-mock .review-item{padding:9px 11px;border-radius:2px;}
+  .tour-mock .review-diff{font-size:11px;line-height:1.6;}
+  .tour-mock .review-meta{font-size:9px;}
+  .tour-mock .progress-line{font-size:10px;margin-bottom:8px;}
+  .tour-mock .progress-line b{font-size:10px;}
+  .tour-mock .live-stats{font-size:10px;gap:12px;margin-top:7px;}
+  .tour-mock #typeInputMock{font-size:12px;padding:9px 11px;border-radius:2px;min-height:0;}
+  .tour-mock .tree-row{font-size:11px;padding:5px 7px;}
+  /* clickable sample cards inside the tour */
+  .tour-samples{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+  .tour-sample{
+    display:block;width:100%;text-align:left;
+    background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
+    padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;
+    font-family:var(--serif);
+  }
+  .tour-sample:hover{border-color:var(--gold);background:color-mix(in srgb, var(--gold) 6%, var(--bg-2));}
+  .tour-sample .ts-title{font-size:13px;color:var(--ink);font-weight:600;}
+  .tour-sample .ts-blurb{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--dim-2);margin-top:3px;}
+  .tour-sample .ts-preview{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.45;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tour-side{flex:1;padding:28px 26px;display:flex;flex-direction:column;min-height:280px;}
+  .tour-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .tour-mark{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--ink);}
+  .tour-mark .mark{color:var(--gold);font-style:italic;margin-left:.1em;}
+  .tour-step{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);}
+  .tour-h{font-family:var(--serif);font-size:24px;font-weight:600;color:var(--ink);margin:0 0 10px;line-height:1.2;}
+  .tour-lede{font-family:var(--serif);font-size:15px;line-height:1.55;color:var(--dim);margin:0 0 14px;}
+  .tour-bullets{list-style:none;margin:0 0 0;padding:0;}
+  .tour-bullets li{
+    font-family:var(--serif);font-size:14px;line-height:1.45;color:var(--dim);
+    padding-left:16px;position:relative;margin-bottom:7px;
+  }
+  .tour-bullets li::before{
+    content:"";position:absolute;left:2px;top:9px;width:5px;height:5px;border-radius:50%;
+    background:var(--gold);
+  }
+  .tour-foot{margin-top:auto;padding-top:20px;display:flex;align-items:center;justify-content:space-between;}
+  .tour-dots{display:flex;gap:6px;}
+  .tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--rule);transition:background .2s,width .2s;cursor:pointer;}
+  .tour-dots i.on{background:var(--gold);width:20px;border-radius:3px;}
+  .tour-nav{display:flex;gap:8px;}
+  .tour-coach{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:54;
+    background:var(--panel);border:1px solid var(--gold);border-radius:3px;
+    box-shadow:0 8px 24px rgba(0,0,0,.3);
+    display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;
+    max-width:calc(100vw - 32px);font-family:var(--serif);font-size:13.5px;color:var(--ink);
+    opacity:0;transform:translateX(-50%) translateY(8px);transition:opacity .25s, transform .25s;
+    pointer-events:none;
+  }
+  .tour-coach.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+  .tour-coach .coach-x{
+    font-family:var(--mono);font-size:11px;color:var(--dim-2);background:none;border:none;
+    cursor:pointer;padding:2px 4px;
+  }
+  .tour-coach .coach-x:hover{color:var(--gold);}
+
   /* ---------- responsive: tablets & phones ---------- */
   @media (max-width: 720px){
     body{padding:20px 14px 48px;}
@@ -650,6 +798,7 @@
 
   <header class="top">
     <div class="header-actions">
+      <button id="btnTour" class="header-btn" data-i18n="tour" data-i18n-title="ttTour" title="Take a 60-second visual tour">Tour</button>
       <button id="btnLibraryDrawer" class="header-btn app-only" data-i18n="library" data-i18n-title="ttLibrary" title="Open your on-device library">Library</button>
       <button id="btnLang" class="lang-toggle" title="Language / 语言 / Idioma" aria-label="Change language">🌐︎</button>
       <button id="btnTheme" class="theme-toggle" data-i18n-title="ttTheme" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
@@ -827,7 +976,9 @@
       <input type="search" id="libSearch" data-i18n-ph="searchPh" placeholder="Search titles &amp; tags…" autocomplete="off">
       <button id="btnLibUnlock" class="micro-btn" data-i18n="unlock" data-i18n-title="ttUnlock" title="Reveal entries saved under a password">Unlock…</button>
       <button id="btnLibLock" class="micro-btn hidden" data-i18n="lock" data-i18n-title="ttLock" title="Hide all unlocked entries again">Lock</button>
+      <button id="btnNewFolder" class="micro-btn" data-i18n-title="ttNewFolder" title="Create a new folder">+ Folder</button>
     </div>
+    <div id="libTree" class="lib-tree"></div>
     <div id="libList" class="lib-list"></div>
     <div class="hint drawer-status" id="libStatus"></div>
     <div class="drawer-foot">
@@ -848,6 +999,10 @@
     <div class="field">
       <label for="saveTags"><span data-i18n="fTags">Tags</span> <span style="text-transform:none;letter-spacing:0;" data-i18n="fTagsHint">(comma-separated, optional)</span></label>
       <input type="text" id="saveTags" autocomplete="off" data-i18n-ph="tagsPh" placeholder="e.g. psalms, week 3">
+    </div>
+    <div class="field">
+      <label for="saveFolder" data-i18n="fFolder">Folder</label>
+      <select id="saveFolder"></select>
     </div>
     <div class="field check">
       <label><input type="checkbox" id="saveEnc"> <span data-i18n="fEnc">Encrypt this entry (hidden until unlocked)</span></label>
@@ -987,6 +1142,30 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- ================= TUTORIAL ================= -->
+  <div id="tourBackdrop" class="drawer-backdrop" style="z-index:55;"></div>
+  <div id="tourCard" class="dlg dlg-tour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" hidden>
+    <div class="tour-body">
+      <div class="tour-mock" id="tourMock"></div>
+      <div class="tour-side">
+        <div class="tour-head">
+          <span class="tour-mark">V<span class="mark">.</span></span>
+          <span class="tour-step" id="tourStepNum">Step 1 / 5</span>
+        </div>
+        <h2 id="tourTitle" class="tour-h">Paste a passage, split it up</h2>
+        <p class="tour-lede" id="tourLede"></p>
+        <ul class="tour-bullets" id="tourBullets"></ul>
+        <div class="tour-foot">
+          <div class="tour-dots" id="tourDots"></div>
+          <div class="tour-nav">
+            <button id="btnTourPrev" class="micro-btn" data-i18n="tourPrev">← Back</button>
+            <button id="btnTourNext" class="micro-btn primary" data-i18n="tourNext">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="drop-overlay">Drop a Verbatim share card or backup file to open it</div>
 
   <input type="file" id="importBackupFile" accept=".json,application/json" class="hidden">
@@ -1014,7 +1193,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '4.6.2';
+const APP_VERSION = '5.0.0';
 
 /* ====================== state ====================== */
 const state = {
@@ -2190,6 +2369,11 @@ document.getElementById('btnRestart').addEventListener('click', () => {
   stopTimer();
   state.startTime = null;
   state.endTime = null;
+  // The source/chunk textareas are DOM elements that retain their values
+  // across section toggles, so the split text stays in the 02 box. Refresh
+  // the block count display in case it drifted out of sync.
+  updateChunkCount();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 function exportTimestampSlug(){
@@ -2861,6 +3045,9 @@ const lib = {
   revealed: new Map(),   // id -> decrypted fields, for unlocked enc records
   keys: new Map(),       // saltB64 -> CryptoKey, for this session only
   saveCtx: null,         // {salt, key} — most recently unlocked/created password
+  folders: [],           // [{id,name,parentId,accent,createdAt}] — stored in meta
+  selectedFolder: null,  // folder id currently filtered in the drawer, or null
+  expandedFolders: {},   // id -> bool (default true)
 };
 
 function idbOpen(){
@@ -2957,33 +3144,51 @@ function visibleLibItems(){
     if(rec.enc){
       const dec = lib.revealed.get(rec.id);
       if(!dec) continue;
-      items.push({ id: rec.id, enc: true, title: dec.title || 'Untitled', tags: dec.tags || [], updatedAt: dec.updatedAt || 0 });
+      items.push({ id: rec.id, enc: true, title: dec.title || 'Untitled', tags: dec.tags || [], updatedAt: dec.updatedAt || 0, folderId: rec.folderId || null, order: rec.order ?? 0 });
     } else {
-      items.push({ id: rec.id, enc: false, title: rec.title || 'Untitled', tags: rec.tags || [], updatedAt: rec.updatedAt || 0 });
+      items.push({ id: rec.id, enc: false, title: rec.title || 'Untitled', tags: rec.tags || [], updatedAt: rec.updatedAt || 0, folderId: rec.folderId || null, order: rec.order ?? 0 });
     }
   }
-  const filtered = q ? items.filter(it => (it.title + ' ' + it.tags.join(' ')).toLowerCase().includes(q)) : items;
+  let filtered = q ? items.filter(it => (it.title + ' ' + it.tags.join(' ')).toLowerCase().includes(q)) : items;
+  const sel = lib.selectedFolder || null;
+  if(!q){
+    // No search: root view shows ONLY root-level entries (folderId === null);
+    // a selected folder shows ONLY its direct entries (strict, not descendants).
+    // This matches the count badge on each folder row and the Notability-style
+    // "navigate into a folder to see what's inside" model.
+    filtered = filtered.filter(it => (it.folderId || null) === sel);
+  }
+  // sort: within a folder, by manual order then updatedAt; root view by updatedAt desc
+  if(sel !== null && !q){
+    return filtered.sort((a,b) => (a.order - b.order) || (b.updatedAt - a.updatedAt));
+  }
   return filtered.sort((a,b) => b.updatedAt - a.updatedAt);
 }
 
 function refreshLibList(){
   const list = byId('libList');
   if(!lib.ok){ list.innerHTML = ''; return; }
+  refreshLibTree();
   const items = visibleLibItems();
   if(items.length === 0){
     const searching = byId('libSearch').value.trim().length > 0;
+    const inFolder = lib.selectedFolder !== null && !searching;
     list.innerHTML = '<div class="lib-empty">' +
-      (searching ? 'No entries match that search.'
-                 : 'Nothing on the shelf yet.<br>Build practice blocks, then “Save to library…”.') +
+      (searching ? t('libEmptySearch')
+                 : inFolder ? t('libEmptyFolder')
+                 : t('libEmptyRoot')) +
       '</div>';
     return;
   }
+  const canReorder = lib.selectedFolder !== null && !byId('libSearch').value.trim();
   list.innerHTML = items.map(it => {
     const date = it.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : '';
     const tags = it.tags.length ? escapeProse(it.tags.join(' · ')) : '';
     const meta = [tags, date].filter(Boolean).join(' · ');
-    return '<div class="lib-item" data-id="' + it.id + '">' +
-      '<div class="t">' + (it.enc ? '<span class="lock-chip" title="Encrypted entry">locked</span>' : '') + escapeProse(it.title) + '</div>' +
+    const folder = it.folderId ? (lib.folders.find(f => f.id === it.folderId)) : null;
+    const chip = folder ? '<span class="folder-chip"><i style="background:' + folderAccent(folder) + '"></i>' + escapeProse(folder.name) + '</span>' : '';
+    return '<div class="lib-item" data-id="' + it.id + '" draggable="true">' +
+      '<div class="t">' + (it.enc ? '<span class="lock-chip" title="Encrypted entry">locked</span>' : '') + chip + escapeProse(it.title) + '</div>' +
       (meta ? '<div class="meta">' + meta + '</div>' : '') +
       '<div class="lib-actions">' +
         '<button class="micro-btn" data-act="load">' + escapeProse(t('load')) + '</button>' +
@@ -2992,6 +3197,7 @@ function refreshLibList(){
       '</div>' +
     '</div>';
   }).join('');
+  bindEntryDnD(canReorder);
 }
 
 function loadEntryIntoSetup(data){
@@ -3061,6 +3267,10 @@ function openSaveDialog(prefill, editing){
   byId('btnDoSave').textContent = editing ? t('saveChanges') : t('save');
   byId('saveTitle').value = prefill.title || autoTitle(prefill.chunkText);
   byId('saveTags').value = (prefill.tags || []).join(', ');
+  // folder select: default to the entry's folder, else the drawer's selected folder
+  populateFolderSelect();
+  const startFolder = editing ? (editing.rec.folderId || null) : (prefill.folderId != null ? prefill.folderId : (lib.selectedFolder || null));
+  byId('saveFolder').value = startFolder || '';
   byId('saveEnc').checked = alreadyEnc;
   byId('saveEnc').disabled = alreadyEnc || !cryptoOK;
   byId('savePw').value = '';
@@ -3133,11 +3343,17 @@ async function doSave(){
         }
       }
       const { iv, blob } = await encryptJson(fields, ctx.key);
+      // folderId + order live OUTSIDE the encrypted blob so the tree can
+      // filter/reorder without decrypting.
       rec = { id: editTarget ? editTarget.id : uuid(), enc: 1, salt: ctx.salt, iv, blob };
       lib.revealed.set(rec.id, fields);
     } else {
       rec = Object.assign({ id: editTarget ? editTarget.id : uuid(), enc: 0 }, fields);
     }
+    // attach folder placement (kept on the record, not in the encrypted blob)
+    rec.folderId = byId('saveFolder').value || null;
+    if(!editTarget){ rec.order = nextOrderForFolder(rec.folderId); }
+    else { rec.order = (editTarget.rec.order != null ? editTarget.rec.order : nextOrderForFolder(rec.folderId)); }
     await idbPut(rec);
     const at = lib.entries.findIndex(r => r.id === rec.id);
     if(at >= 0) lib.entries[at] = rec; else lib.entries.push(rec);
@@ -3166,6 +3382,534 @@ byId('btnDoSave').addEventListener('click', doSave);
 byId('btnCancelSave').addEventListener('click', () => byId('dlgSave').close());
 byId('savePw').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doSave(); } });
 byId('saveTitle').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); doSave(); } });
+
+/* ====================== LIBRARY FOLDERS ======================
+   A vertical, nestable, color-coded folder tree for the library drawer,
+   plus drag-to-file and drag-to-reorder for entries. Folders persist in
+   the IndexedDB 'meta' store under key 'folders'; each entry record carries
+   a 'folderId' (outside any encrypted blob) and an 'order' for manual sort.
+   Self-contained: hooks into refreshLibList (tree render + entry chips) and
+   openSaveDialog/doSave (folder select). Touches no canvas/share/i18n. */
+const FOLDER_ACCENTS = ['#cf9f54','#74b07a','#8b9eea','#e16a63','#b18bd6','#d3873f'];
+function folderAccent(f){ return FOLDER_ACCENTS[(f && f.accent != null) ? f.accent : 0]; }
+function folderDescendants(id){
+  const out = new Set();
+  const walk = (pid) => { for(const f of lib.folders){ if(f.parentId === pid){ out.add(f.id); walk(f.id); } } };
+  walk(id); return out;
+}
+function isEntryVisible(rec){
+  // visible = non-encrypted, or encrypted-and-revealed (unlocked this session)
+  if(rec.enc) return lib.revealed.has(rec.id);
+  return true;
+}
+function folderCount(id){
+  // count only VISIBLE entries directly in this folder (strict, not descendants)
+  return lib.entries.filter(e => e.folderId === id && isEntryVisible(e)).length;
+}
+// A folder is "sensitive" if it contains (directly or in a descendant) ANY
+// encrypted entry — whether currently locked or unlocked. Sensitive folders
+// must stay isolated from regular folders: a regular folder cannot be moved
+// into a sensitive folder, and a sensitive folder cannot be moved into a
+// regular folder. This prevents the tree from mixing the two.
+function folderHasSensitive(id){
+  if(lib.entries.some(e => e.folderId === id && e.enc)) return true;
+  for(const f of lib.folders){
+    if(f.parentId === id && folderHasSensitive(f.id)) return true;
+  }
+  return false;
+}
+// Validate moving folder `id` into folder `destId` (null = root).
+// Returns { ok: true } or { ok: false, reason: '...' }.
+function canMoveFolder(id, destId){
+  if(id === destId) return { ok:false, reason:'same' };
+  // can't move a folder into itself or any of its descendants (would create a cycle)
+  const desc = new Set([id, ...folderDescendants(id)]);
+  if(destId && desc.has(destId)) return { ok:false, reason:'cycle' };
+  // sensitivity isolation: a sensitive folder can only go into another sensitive
+  // folder (or stay at root); a regular folder can never go into a sensitive folder
+  const srcSensitive = folderHasSensitive(id);
+  const destSensitive = destId ? folderHasSensitive(destId) : false;
+  if(!srcSensitive && destSensitive){
+    return { ok:false, reason:'regularIntoSensitive' };
+  }
+  if(srcSensitive && !destSensitive && destId){
+    return { ok:false, reason:'sensitiveIntoRegular' };
+  }
+  return { ok:true };
+}
+function folderEntriesExist(id){
+  // any entry at all (visible or hidden) directly in this folder or descendants?
+  const inc = new Set([id, ...folderDescendants(id)]);
+  return lib.entries.some(e => e.folderId && inc.has(e.folderId));
+}
+function folderShouldShow(id){
+  // Show a folder if it's empty (no entries anywhere under it) OR if it has at
+  // least one VISIBLE entry. The only case where a folder is hidden is when it
+  // contains entries but ALL of them are hidden encrypted ones — those folders
+  // appear only after the entries are unlocked.
+  if(!folderEntriesExist(id)) return true;            // empty folder → show
+  return folderHasVisible(id);                         // has entries → show if any visible
+}
+function folderHasVisible(id){
+  // any visible entry directly in this folder, or in any descendant folder?
+  if(lib.entries.some(e => e.folderId === id && isEntryVisible(e))) return true;
+  for(const f of lib.folders){
+    if(f.parentId === id && folderHasVisible(f.id)) return true;
+  }
+  return false;
+}
+function nextOrderForFolder(folderId){
+  const inFolder = lib.entries.filter(e => (e.folderId || null) === (folderId || null));
+  return inFolder.reduce((m,e) => Math.max(m, e.order ?? 0), 0) + 1;
+}
+async function saveFolders(){
+  try{ await metaPut('folders', lib.folders); scheduleSyncWrite(); }catch(e){ console.error(e); }
+}
+function populateFolderSelect(){
+  const sel = byId('saveFolder');
+  if(!sel) return;
+  // can't move into self or descendants when editing
+  const blocked = new Set();
+  // (entries have no folder-tree-self issue; this is mainly for future folder editing)
+  const flat = [];
+  const walk = (pid, depth) => {
+    for(const f of lib.folders){ if((f.parentId||null) === (pid||null)){ flat.push({f, depth}); walk(f.id, depth+1); } }
+  };
+  walk(null, 0);
+  sel.innerHTML = '<option value="">— Library root —</option>' +
+    flat.map(({f,depth}) => '<option value="' + f.id + '">' + '·\u00a0'.repeat(depth) + escapeProse(f.name) + '</option>').join('');
+}
+function refreshLibTree(){
+  const tree = byId('libTree');
+  if(!tree) return;
+  if(!lib.ok){ tree.innerHTML = ''; return; }
+  // Root row: "All entries" — always visible, serves as the back-to-root target.
+  // data-folder="" (empty) denotes the library root.
+  const rootSel = (lib.selectedFolder === null) ? ' sel' : '';
+  let html = '<div class="tree-row tree-root' + rootSel + '" data-folder="" style="padding-left:6px;">' +
+    '<span class="tree-tw"></span>' +
+    '<span class="tree-root-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h5l1 2h6v7H2z"/></svg></span>' +
+    '<span class="tree-name" data-root="1">' + escapeProse(t('allEntries')) + '</span>' +
+    '<span class="tree-count">' + lib.entries.filter(e => !e.folderId && isEntryVisible(e)).length + '</span>' +
+    '</div>';
+  // Folder rows: show empty folders and folders with visible entries; hide only
+  // folders whose entries are all hidden-encrypted.
+  const roots = lib.folders.filter(f => !f.parentId && folderShouldShow(f.id));
+  const renderNode = (f, depth) => {
+    const kids = lib.folders.filter(c => c.parentId === f.id && folderShouldShow(c.id));
+    const isOpen = lib.expandedFolders[f.id] !== false;
+    const tw = kids.length ? (isOpen ? '▾' : '▸') : '';
+    const sel = lib.selectedFolder === f.id ? ' sel' : '';
+    let h = '<div class="tree-row' + sel + '" data-folder="' + f.id + '" draggable="true" style="padding-left:' + (6 + depth*14) + 'px;">';
+    h += '<span class="tree-tw" data-tw="' + f.id + '">' + tw + '</span>';
+    h += '<span class="tree-dot" style="background:' + folderAccent(f) + '"></span>';
+    h += '<span class="tree-name" data-fname="' + f.id + '">' + escapeProse(f.name) + '</span>';
+    h += '<span class="tree-count">' + folderCount(f.id) + '</span>';
+    h += '<span class="tree-grip" data-fgrip="' + f.id + '" title="' + escapeProse(t('ttDragReorder')) + '">⠿</span>';
+    h += '<button class="tree-menu" data-fmenu="' + f.id + '" title="' + escapeProse(t('ttFolderOpts')) + '">⋯</button>';
+    h += '</div>';
+    if(isOpen && kids.length){ for(const k of kids){ h += renderNode(k, depth+1); } }
+    return h;
+  };
+  html += roots.map(f => renderNode(f, 0)).join('');
+  tree.innerHTML = html;
+}
+function initFolders(){
+  // folder row clicks: select; twisty toggles expand; menu opens a small popover
+  const tree = byId('libTree');
+  if(!tree) return;
+  tree.addEventListener('click', onTreeClick);
+  // new folder button
+  const nb = byId('btnNewFolder');
+  if(nb) nb.addEventListener('click', () => createFolder());
+  // entry drag-to-file + reorder (bound per-render by refreshLibList → bindEntryDnD)
+}
+function onTreeClick(e){
+  // ignore clicks inside an inline-edit input (rename or create) — clicking to
+  // place the cursor must NOT bubble up to re-render the tree and destroy it
+  if(e.target.closest('.tree-name-input')) return;
+  const tw = e.target.closest('[data-tw]');
+  const menu = e.target.closest('[data-fmenu]');
+  const row = e.target.closest('.tree-row');
+  if(!row) return;
+  const id = row.dataset.folder; // "" for the root row, a folder id, or undefined for the create-input row
+  if(id === undefined) return; // create-input row — don't navigate
+  if(menu){ e.stopPropagation(); openFolderMenu(id, menu); return; }
+  if(tw){
+    lib.expandedFolders[id] = !(lib.expandedFolders[id] !== false);
+    refreshLibTree(); return;
+  }
+  // root row (data-folder="") goes back to the library root
+  if(id === ''){
+    lib.selectedFolder = null;
+    byId('libSearch').value = '';
+    refreshLibTree(); refreshLibList();
+    return;
+  }
+  // folder row: select it (don't toggle off — click the root row to go back)
+  lib.selectedFolder = id;
+  byId('libSearch').value = '';
+  refreshLibTree(); refreshLibList();
+}
+let _folderEditId = null;
+function startFolderRename(id){
+  _folderEditId = id;
+  const f = lib.folders.find(x => x.id === id);
+  if(!f) return;
+  const nameEl = document.querySelector('[data-fname="' + id + '"]');
+  if(!nameEl) return;
+  const input = document.createElement('input');
+  input.className = 'tree-name-input';
+  input.value = f.name;
+  input.dataset.folderRename = id;
+  // stop clicks from bubbling to the tree so cursor placement never re-renders
+  input.addEventListener('click', (ev) => ev.stopPropagation());
+  input.addEventListener('mousedown', (ev) => ev.stopPropagation());
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  const commit = () => {
+    f.name = input.value.trim() || 'Untitled';
+    _folderEditId = null;
+    saveFolders(); refreshLibTree();
+  };
+  input.addEventListener('blur', commit, {once:true});
+  input.addEventListener('keydown', (ev) => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); input.blur(); }
+    if(ev.key === 'Escape'){ _folderEditId = null; refreshLibTree(); }
+  });
+}
+async function createFolder(parentId){
+  // Inline input at the top of the tree (no prompt() — works in iframes and
+  // installed-app contexts where prompt() can be blocked or clunky).
+  const tree = byId('libTree');
+  if(!tree) return;
+  // remove any existing inline input
+  const existing = tree.querySelector('.tree-create-input');
+  if(existing){ existing.focus(); existing.select(); return; }
+  refreshLibTree(); // ensure the root row + folder rows are rendered first
+  const wrap = document.createElement('div');
+  wrap.className = 'tree-row';
+  wrap.style.cssText = 'padding-left:6px;';
+  const dot = document.createElement('span');
+  dot.className = 'tree-dot';
+  dot.style.background = FOLDER_ACCENTS[lib.folders.length % FOLDER_ACCENTS.length];
+  wrap.appendChild(dot);
+  const input = document.createElement('input');
+  input.className = 'tree-name-input tree-create-input';
+  input.placeholder = 'Folder name…';
+  input.dataset.parentId = parentId || '';
+  input.addEventListener('click', (ev) => ev.stopPropagation());
+  input.addEventListener('mousedown', (ev) => ev.stopPropagation());
+  wrap.appendChild(input);
+  tree.insertBefore(wrap, tree.firstChild);
+  input.focus();
+  const commit = async () => {
+    const name = input.value.trim();
+    if(name){
+      const id = uuid();
+      lib.folders.push({ id, name, parentId: parentId || null, accent: lib.folders.length % FOLDER_ACCENTS.length, createdAt: Date.now() });
+      lib.expandedFolders[id] = true;
+      await saveFolders();
+      refreshLibTree(); refreshLibList();
+    } else {
+      refreshLibTree();
+    }
+  };
+  input.addEventListener('blur', commit, {once:true});
+  input.addEventListener('keydown', (ev) => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); input.blur(); }
+    if(ev.key === 'Escape'){ refreshLibTree(); }
+  });
+}
+async function deleteFolder(id){
+  if(!confirm('Delete this folder? Entries inside move to the library root. Sub-folders are also removed.')) return;
+  const gone = new Set([id, ...folderDescendants(id)]);
+  lib.folders = lib.folders.filter(f => !gone.has(f.id));
+  // re-file entries whose folder is gone → root
+  const toRefile = lib.entries.filter(e => e.folderId && gone.has(e.folderId));
+  for(const e of toRefile){ e.folderId = null; }
+  if(lib.selectedFolder && gone.has(lib.selectedFolder)) lib.selectedFolder = null;
+  await saveFolders();
+  for(const e of toRefile){ try{ await idbPut(e); }catch(_){} }
+  refreshLibTree(); refreshLibList();
+}
+function openFolderMenu(id, anchor){
+  // simple menu via a floating div (no dependency on a popover lib)
+  const f = lib.folders.find(x => x.id === id);
+  if(!f) return;
+  closeFolderMenu();
+  const m = document.createElement('div');
+  m.id = 'folderMenu';
+  m.style.cssText = 'position:fixed;z-index:50;background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-family:var(--serif);font-size:12.5px;min-width:150px;';
+  const item = (label, danger, fn) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'display:block;width:100%;text-align:left;background:none;border:none;color:' + (danger ? 'var(--sub-err)' : 'var(--ink)') + ';font:inherit;padding:5px 8px;border-radius:3px;cursor:pointer;';
+    b.onmouseenter = () => b.style.background = 'var(--bg-2)';
+    b.onmouseleave = () => b.style.background = 'none';
+    b.onclick = () => { closeFolderMenu(); fn(); };
+    m.appendChild(b);
+  };
+  item('Rename', false, () => startFolderRename(id));
+  item('New sub-folder', false, () => createFolder(id));
+  item('Change color', false, () => cycleFolderColor(id));
+  item('Move to…', false, () => moveFolderTo(id));
+  item('Delete folder', true, () => deleteFolder(id));
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.min(r.left, window.innerWidth - 170) + 'px';
+  m.style.top = (r.bottom + 4) + 'px';
+  setTimeout(() => document.addEventListener('click', closeFolderMenu, {once:true}), 0);
+}
+function closeFolderMenu(){
+  const m = byId('folderMenu'); if(m) m.remove();
+}
+async function cycleFolderColor(id){
+  const f = lib.folders.find(x => x.id === id); if(!f) return;
+  f.accent = ((f.accent ?? 0) + 1) % FOLDER_ACCENTS.length;
+  await saveFolders(); refreshLibTree();
+}
+function moveFolderTo(id){
+  // Tree-picker modal: shows only VISIBLE folders (folders with only hidden
+  // encrypted entries are excluded), respects sensitivity isolation, and
+  // prevents cycles. No prompt() — works in iframes and installed apps.
+  closeFolderMenu();
+  const f = lib.folders.find(x => x.id === id);
+  if(!f) return;
+  // remove any existing modal
+  closeMoveFolderModal();
+  const srcSensitive = folderHasSensitive(id);
+  const backdrop = document.createElement('div');
+  backdrop.id = 'moveFolderBackdrop';
+  backdrop.className = 'drawer-backdrop open';
+  backdrop.style.zIndex = '58';
+  const dlg = document.createElement('div');
+  dlg.className = 'dlg dlg-move';
+  dlg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:59;background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:22px 24px;width:min(420px, calc(100vw - 36px));box-shadow:0 24px 64px rgba(0,0,0,.45);';
+  let html = '<h2 style="font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);color:var(--gold);margin:0 0 14px;font-weight:600;">' + escapeProse(t('moveFolderTo')) + '</h2>';
+  html += '<p style="font-family:var(--serif);font-size:13px;color:var(--dim);margin:0 0 12px;line-height:1.5;">' + escapeProse(t('moveFolderPick').replace('{name}', f.name)) + '</p>';
+  if(srcSensitive){
+    html += '<p style="font-family:var(--mono);font-size:10.5px;color:var(--case-err);background:color-mix(in srgb, var(--case-err) 8%, var(--bg-2));border:1px solid color-mix(in srgb, var(--case-err) 35%, var(--rule));border-radius:3px;padding:8px 10px;margin:0 0 12px;line-height:1.5;">' + escapeProse(t('sensitiveFolderNote')) + '</p>';
+  }
+  html += '<div id="moveFolderTree" style="max-height:240px;overflow-y:auto;border:1px solid var(--rule);border-radius:3px;padding:6px;margin-bottom:14px;"></div>';
+  html += '<div style="display:flex;gap:8px;justify-content:flex-end;">';
+  html += '<button class="micro-btn" id="moveFolderCancel">' + escapeProse(t('cancel')) + '</button>';
+  html += '</div>';
+  dlg.innerHTML = html;
+  document.body.appendChild(backdrop);
+  document.body.appendChild(dlg);
+  // build the tree picker inside #moveFolderTree
+  const treeEl = dlg.querySelector('#moveFolderTree');
+  let pickedDest = null; // null = root
+  // root option
+  const buildDestRow = (folderId, name, depth, disabled, reason) => {
+    const pad = 6 + depth * 14;
+    const r = document.createElement('div');
+    r.className = 'tree-row move-dest-row';
+    r.style.cssText = 'padding-left:' + pad + 'px;' + (disabled ? 'opacity:.4;cursor:not-allowed;' : '');
+    let inner = '<span class="tree-tw"></span>';
+    if(folderId === null){
+      inner += '<span class="tree-root-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h5l1 2h6v7H2z"/></svg></span>';
+    } else {
+      inner += '<span class="tree-dot" style="background:' + folderAccent(lib.folders.find(x=>x.id===folderId)) + '"></span>';
+    }
+    inner += '<span class="tree-name">' + escapeProse(name) + (disabled ? ' <span style="font-family:var(--mono);font-size:10px;color:var(--dim-2);">(' + escapeProse(reason) + ')</span>' : '') + '</span>';
+    r.innerHTML = inner;
+    if(!disabled){
+      r.style.cursor = 'pointer';
+      r.addEventListener('click', () => {
+        treeEl.querySelectorAll('.move-dest-row.sel').forEach(x => x.classList.remove('sel'));
+        r.classList.add('sel');
+        pickedDest = folderId;
+      });
+    }
+    return r;
+  };
+  // root row
+  treeEl.appendChild(buildDestRow(null, t('libraryRoot'), 0, false));
+  // folder rows (only visible ones, excluding self + descendants)
+  const blocked = new Set([id, ...folderDescendants(id)]);
+  const walkDest = (pid, depth) => {
+    for(const fld of lib.folders){
+      if((fld.parentId || null) !== (pid || null)) continue;
+      if(!folderShouldShow(fld.id)) continue; // hidden encrypted-only → invisible
+      if(blocked.has(fld.id)){ walkDest(fld.id, depth+1); continue; }
+      const check = canMoveFolder(id, fld.id);
+      let reason = '';
+      if(!check.ok){
+        if(check.reason === 'regularIntoSensitive') reason = t('moveBlockedSensitive');
+        else if(check.reason === 'sensitiveIntoRegular') reason = t('moveBlockedRegular');
+        else reason = t('moveBlockedCycle');
+      }
+      treeEl.appendChild(buildDestRow(fld.id, fld.name, depth, !check.ok, reason));
+      walkDest(fld.id, depth+1);
+    }
+  };
+  walkDest(null, 0);
+  // confirm/cancel
+  const close = () => { closeMoveFolderModal(); };
+  dlg.querySelector('#moveFolderCancel').addEventListener('click', close);
+  backdrop.addEventListener('click', close);
+  // a confirm button that applies the move
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'micro-btn primary';
+  confirmBtn.textContent = t('moveApply');
+  confirmBtn.style.marginLeft = 'auto';
+  dlg.querySelector('div[style*="flex"]').insertBefore(confirmBtn, dlg.querySelector('#moveFolderCancel'));
+  confirmBtn.addEventListener('click', async () => {
+    f.parentId = pickedDest;
+    await saveFolders();
+    refreshLibTree(); refreshLibList();
+    close();
+    notify(t('movedFolder').replace('{name}', f.name));
+  });
+  // default-select the root row
+  treeEl.querySelector('.move-dest-row').classList.add('sel');
+}
+function closeMoveFolderModal(){
+  const b = byId('moveFolderBackdrop'); if(b) b.remove();
+  const d = document.querySelector('.dlg-move'); if(d) d.remove();
+}
+/* ---------- entry drag-to-file + reorder (HTML5 DnD) ---------- */
+let _dragEntryId = null;
+function bindEntryDnD(canReorder){
+  const list = byId('libList');
+  if(!list) return;
+  list.querySelectorAll('.lib-item').forEach(el => {
+    // dragstart + dragend are ALWAYS bound so entries can be dragged onto
+    // folder rows (drag-to-file) even in "All entries" or a parent folder.
+    el.addEventListener('dragstart', (e) => {
+      _dragEntryId = el.dataset.id;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try{ e.dataTransfer.setData('text/plain', el.dataset.id); }catch(_){}
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      _dragEntryId = null;
+      list.querySelectorAll('.drop-before,.drop-after').forEach(x => x.classList.remove('drop-before','drop-after'));
+    });
+    if(canReorder){
+      // reorder (dragover/drop on a sibling entry) only in a leaf folder
+      el.addEventListener('dragover', (e) => {
+        if(!_dragEntryId) return;
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height/2;
+        el.classList.toggle('drop-before', before);
+        el.classList.toggle('drop-after', !before);
+      });
+      el.addEventListener('dragleave', () => el.classList.remove('drop-before','drop-after'));
+      el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if(!_dragEntryId || _dragEntryId === el.dataset.id) return;
+        const rect = el.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height/2;
+        reorderEntry(_dragEntryId, el.dataset.id, before);
+      });
+    }
+  });
+}
+// folder drag state (separate from entry drag)
+let _dragFolderId = null;
+// also allow dropping entries AND folders onto folder rows in the tree
+function bindTreeDrop(){
+  const tree = byId('libTree'); if(!tree) return;
+  tree.querySelectorAll('.tree-row').forEach(row => {
+    // folder rows are draggable themselves
+    const folderId = row.dataset.folder;
+    if(folderId){ // not the root row (which has data-folder="")
+      row.addEventListener('dragstart', (e) => {
+        // don't start a folder drag if the click originated on the rename input or menu
+        if(e.target.closest('.tree-name-input') || e.target.closest('.tree-menu') || e.target.closest('[data-tw]')) {
+          e.preventDefault(); return;
+        }
+        _dragFolderId = folderId;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try{ e.dataTransfer.setData('text/plain', 'folder:' + folderId); }catch(_){}
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        _dragFolderId = null;
+        tree.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on'));
+      });
+    }
+    row.addEventListener('dragover', (e) => {
+      const destId = row.dataset.folder; // "" = root, or a folder id
+      // entry being dragged, OR a folder being dragged
+      if(_dragEntryId){
+        // can drop an entry onto any folder row OR the root row
+        if(folderId || destId === ''){
+          e.preventDefault(); row.classList.add('drop-on'); e.dataTransfer.dropEffect='move';
+        }
+      } else if(_dragFolderId){
+        // can drop a folder onto: root row, or a folder row that passes canMoveFolder
+        const dest = destId === '' ? null : destId;
+        const check = canMoveFolder(_dragFolderId, dest);
+        if(check.ok){
+          e.preventDefault(); row.classList.add('drop-on'); e.dataTransfer.dropEffect='move';
+        }
+      }
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drop-on'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault(); row.classList.remove('drop-on');
+      const destId = row.dataset.folder;
+      const dest = destId === '' ? null : destId;
+      if(_dragEntryId){
+        fileEntryToFolder(_dragEntryId, dest);
+      } else if(_dragFolderId){
+        moveFolderToDest(_dragFolderId, dest);
+      }
+    });
+  });
+}
+async function moveFolderToDest(id, destId){
+  const check = canMoveFolder(id, destId);
+  if(!check.ok){
+    let msg = t('moveBlockedGeneric');
+    if(check.reason === 'regularIntoSensitive') msg = t('moveBlockedSensitiveMsg');
+    else if(check.reason === 'sensitiveIntoRegular') msg = t('moveBlockedRegularMsg');
+    else if(check.reason === 'cycle') msg = t('moveBlockedCycleMsg');
+    notify(msg);
+    return;
+  }
+  const f = lib.folders.find(x => x.id === id);
+  if(!f) return;
+  f.parentId = destId;
+  await saveFolders();
+  refreshLibTree(); refreshLibList();
+}
+// refreshLibTree already renders; bind tree drop after each tree render by
+// wrapping refreshLibTree
+const _origRefreshLibTree = refreshLibTree;
+refreshLibTree = function(){ _origRefreshLibTree(); bindTreeDrop(); };
+async function fileEntryToFolder(entryId, folderId){
+  const e = lib.entries.find(r => r.id === entryId); if(!e) return;
+  e.folderId = folderId || null;
+  e.order = nextOrderForFolder(e.folderId);
+  try{ await idbPut(e); }catch(err){ console.error(err); }
+  scheduleSyncWrite();
+  refreshLibList();
+}
+async function reorderEntry(draggedId, targetId, before){
+  const folderId = lib.selectedFolder || null;
+  const inFolder = lib.entries.filter(e => (e.folderId||null) === folderId)
+    .sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
+  const drag = inFolder.find(e => e.id === draggedId);
+  const targ = inFolder.find(e => e.id === targetId);
+  if(!drag || !targ) return;
+  const without = inFolder.filter(e => e.id !== draggedId);
+  const ti = without.findIndex(e => e.id === targetId);
+  const insertAt = before ? ti : ti + 1;
+  without.splice(insertAt, 0, drag);
+  // reassign order
+  without.forEach((e, i) => { e.order = i + 1; });
+  try{ for(const e of without){ await idbPut(e); } }catch(err){ console.error(err); }
+  scheduleSyncWrite();
+  refreshLibList();
+}
 
 /* ---------- unlock / lock ---------- */
 async function doUnlock(){
@@ -3255,10 +3999,10 @@ async function doExport(){
       st.textContent = t('encrypting');
       const salt = crypto.getRandomValues(new Uint8Array(16));
       const key = await deriveKey(pw, salt);
-      const { iv, blob } = await encryptJson({ entries: lib.entries }, key);
+      const { iv, blob } = await encryptJson({ entries: lib.entries, folders: lib.folders }, key);
       fileObj = { verbatim_backup: 2, enc: 1, exported: new Date().toISOString(), salt: bufToB64u(salt), iv, blob };
     } else {
-      fileObj = { verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries };
+      fileObj = { verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries, folders: lib.folders };
     }
     downloadBlob(new Blob([JSON.stringify(fileObj)], { type:'application/json' }),
                  'Verbatim_Library_' + stamp + '.json');
@@ -3316,6 +4060,7 @@ async function importBackupData(data){
   const readable = data.verbatim_backup === 1 || (data.verbatim_backup === 2 && data.enc === 0);
   if(readable && entries){
     const { added, skipped } = await mergeEntries(entries);
+    if(Array.isArray(data.folders)){ await mergeFolders(data.folders); }
     scheduleSyncWrite();
     notify(t('msgImported').replace('{a}', added).replace('{s}', skipped));
     return;
@@ -3336,11 +4081,22 @@ async function doImportPw(){
     byId('dlgImportPw').close();
     pendingEncBackup = null;
     const { added, skipped } = await mergeEntries(inner.entries);
+    if(Array.isArray(inner.folders)){ await mergeFolders(inner.folders); }
     scheduleSyncWrite();
     notify(t('msgImported').replace('{a}', added).replace('{s}', skipped));
   } catch(err){
     st.textContent = t('msgBadBackupPw');
   }
+}
+async function mergeFolders(incoming){
+  let added = 0;
+  for(const f of incoming){
+    if(!f || typeof f.id !== 'string') continue;
+    if(lib.folders.some(x => x.id === f.id)) continue;
+    lib.folders.push({ id: f.id, name: f.name || 'Untitled', parentId: f.parentId || null, accent: f.accent ?? 0, createdAt: f.createdAt || Date.now() });
+    added++;
+  }
+  if(added){ await saveFolders(); refreshLibTree(); }
 }
 byId('btnLibImport').addEventListener('click', () => byId('importBackupFile').click());
 byId('importBackupFile').addEventListener('change', (e) => {
@@ -3678,7 +4434,7 @@ async function writeLibraryToFile(){
   sync.writing = true;
   try {
     const w = await sync.handle.createWritable();
-    await w.write(JSON.stringify({ verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries }));
+    await w.write(JSON.stringify({ verbatim_backup: 2, enc: 0, exported: new Date().toISOString(), entries: lib.entries, folders: lib.folders }));
     await w.close();
     syncStatusUi();
   } catch(err){
@@ -3708,6 +4464,7 @@ async function readSyncFileAndMerge(){
         const { added } = await mergeEntries(entries);
         if(added > 0) notify(t('msgMerged').replace('{n}', added));
       }
+      if(data && Array.isArray(data.folders)){ await mergeFolders(data.folders); }
     }
     return true;
   } catch(err){
@@ -3985,6 +4742,89 @@ const LANGS = {
     ttImport:'Merge a backup file into this library',
     ttOpenShare:'Open a Verbatim share card (.png) or share file someone sent you',
     ttLibrary:'Open your on-device library',
+    ttTour:'Take a 60-second visual tour',
+    tour:'Tour',
+    tourPrev:'← Back',
+    tourNext:'Next →',
+    tourTry:'Try it',
+    tourCoach:'New here? Take the 60-second tour — pictures, not paragraphs.',
+    tourCoachCta:'Start',
+    ttNewFolder:'Create a new folder',
+    ttDragReorder:'Drag to reorder',
+    ttFolderOpts:'Folder options',
+    allEntries:'All entries',
+    moveFolderTo:'Move folder',
+    moveFolderPick:'Choose a new home for “{name}”. Only folders with visible contents are shown.',
+    moveApply:'Move here',
+    movedFolder:'Moved “{name}”.',
+    libraryRoot:'Library root',
+    sensitiveFolderNote:'This folder contains encrypted entries. It can only be moved into another folder that also contains encrypted entries, or to the library root.',
+    moveBlockedSensitive:'contains encrypted entries',
+    moveBlockedRegular:'no encrypted entries',
+    moveBlockedCycle:'nested under itself',
+    moveBlockedGeneric:'Cannot move the folder there.',
+    moveBlockedSensitiveMsg:'A regular folder can\'t be moved into a folder that contains encrypted entries. Encrypted folders stay isolated.',
+    moveBlockedRegularMsg:'A folder containing encrypted entries can only be moved into another encrypted folder, or to the library root.',
+    moveBlockedCycleMsg:'A folder can\'t be moved inside itself or one of its own sub-folders.',
+    libEmptySearch:'No entries match that search.',
+    libEmptyFolder:'This folder is empty.<br>Save an entry here, or drag one in.',
+    libEmptyRoot:'Nothing on the shelf yet.<br>Build practice blocks, then “Save to library…”.',
+    tourStepOf:'Step {n} / {t}',
+    tourTryBlurb:'loads into setup, ready to practice',
+    tourLoaded:'Loaded "{t}" — ready to practice.',
+    tourS1Title:'Paste a passage, split it up',
+    tourS1Lede:'Drop in anything you want to memorize, then pick how it breaks into blocks — or tap a sample to try one right now.',
+    tourS1B1:'Lines, sentences, verses, or Q & A',
+    tourS1B2:'Edit the blocks freely before you start',
+    tourS1B3:'Use a “ → ” for a cue you see but don’t type',
+    tourS2Title:'Type it back, see every slip',
+    tourS2Lede:'Type each block from memory. Characters light up as you go — case, punctuation, the lot.',
+    tourS2B1:'Green = correct, wavy red = wrong character',
+    tourS2B2:'Yellow = case, blue = punctuation',
+    tourS2B3:'Dots hide the text you haven’t reached yet',
+    tourS3Title:'How accuracy is scored',
+    tourS3Lede:'Verbatim grades at the character level — it won’t let a swapped comma slide. Here’s what each color means.',
+    tourS3B1:'Correct characters build your score',
+    tourS3B2:'Extra typed text lowers it (reciting + adding ≠ verbatim)',
+    tourS3B3:'Omissions and wrong chars count against you',
+    tourS4Title:'Read your honest score',
+    tourS4Lede:'Finish for an overall accuracy and a line-by-line diff. Export a PNG to keep a record.',
+    tourS4B1:'Per-block breakdown: case, punctuation, misses',
+    tourS4B2:'Active time only — AFK gaps don’t count',
+    tourS4B3:'Download or copy a PNG of the whole summary',
+    tourS5Title:'Build your library',
+    tourS5Lede:'Save passages and keep them tidy. File them into folders, drag to reorder, tag what matters.',
+    tourS5B1:'A vertical folder tree — nest and color-code',
+    tourS5B2:'Drag entries between folders',
+    tourS5B3:'Edit and re-save any entry',
+    tourS6Title:'You’re set.',
+    tourS6Lede:'Closing the tab clears your practice session — the library stays, on this device only. Nothing is ever sent anywhere.',
+    tourS6B1:'Your library lives in this browser',
+    tourS6B2:'Toggle theme anytime',
+    tourS6B3:'Re-open this tour from the header',
+    samplePsalm23:'Psalm 23 (vv. 1–3)',
+    samplePsalm23Blurb:'Verse mode · cue → recall',
+    sampleSonnet18:'Sonnet 18',
+    sampleSonnet18Blurb:'Line mode · one line per block',
+    sampleQA:'Exam Q & A',
+    sampleQABlurb:'Q & A mode · prompt then answer',
+    sampleGettysburg:'Gettysburg Address',
+    sampleGettysburgBlurb:'Sentence mode · splits on . ! ?',
+    samplePsalm23Preview:'v1 The Lord is my shepherd; I shall not want.',
+    sampleSonnet18Preview:'Shall I compare thee to a summer\'s day?',
+    sampleQAPreview:'Q1 Who wrote "The Old Man and the Sea"?',
+    sampleGettysburgPreview:'Four score and seven years ago…',
+    mockVerse:'Verse', mockLines:'Lines', mockSentences:'Sentences', mockQA:'Q & A',
+    mockPractice:'Practice', mockCue:'cue', mockThisLine:'this line:', mockTyped:'typed:',
+    mockBlockOf:'Block {n} of {t}', mockBlockN:'Block {n}', mockNBlocks:'{n} blocks',
+    mockColorKey:'Color key', mockAccuracy:'accuracy', mockBlocks:'blocks', mockActive:'active',
+    mockScripture:'Scripture', mockPsalms:'Psalms', mockPoetry:'Poetry', mockPsalm1:'Psalm 1',
+    mockTagline:'memorize, character by character',
+    mockPsalmText:'v1 The Lord is my shepherd;\nI shall not want.\nv2 He makes me lie down…',
+    mockPsalmDiffCorrect:'he Lord is my shepherd; ',
+    mockPsalmDiffOmit:'want',
+    mockPsalmTyped:'the Lord is my shepherd; I shall not',
+    mockPsalmDiffCorrect2:'he Lord is my shepherd;',
     ttPrev:'Previous block (Ctrl+Alt+P)',
     ttReload:'Reload Verbatim — clear everything and start fresh',
     ttUnlock:'Reveal entries saved under a password',
@@ -4094,6 +4934,7 @@ const LANGS = {
     fullReview:'Full review — your typing vs. the original',
     fTags:'Tags',
     fTagsHint:'(comma-separated, optional)',
+    fFolder:'Folder',
     encWarnEntry:'If you forget this password, this entry cannot be recovered. There is no reset, no recovery e-mail, and no server copy — that is the point of the encryption.',
     unlockHint:'Entries saved under this password will appear in the list. Nothing shows which passwords exist — a wrong password simply reveals nothing.',
     shareHint:'The text rides inside the link or card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).',
@@ -4203,6 +5044,32 @@ const LANGS = {
     ttImport:'将备份文件合并到此书库',
     ttOpenShare:'打开别人发给你的 Verbatim 分享卡（.png）或分享文件',
     ttLibrary:'打开你的本机书库',
+    allEntries:'所有条目',
+    moveFolderTo:'移动文件夹',
+    moveFolderPick:'为“{name}”选择一个新的位置。仅显示包含可见内容的文件夹。',
+    moveApply:'移到这里',
+    movedFolder:'已移动“{name}”。',
+    libraryRoot:'书库根目录',
+    sensitiveFolderNote:'此文件夹包含加密条目。它只能移动到另一个包含加密条目的文件夹，或移动到书库根目录。',
+    moveBlockedSensitive:'包含加密条目',
+    moveBlockedRegular:'无加密条目',
+    moveBlockedCycle:'嵌套于自身',
+    moveBlockedGeneric:'无法将文件夹移动到那里。',
+    moveBlockedSensitiveMsg:'普通文件夹不能移动到包含加密条目的文件夹中。加密文件夹保持隔离。',
+    moveBlockedRegularMsg:'包含加密条目的文件夹只能移动到另一个加密文件夹，或移动到书库根目录。',
+    moveBlockedCycleMsg:'文件夹不能移动到自身或其子文件夹内。',
+    ttDragReorder:'拖动以重新排序',
+    ttFolderOpts:'文件夹选项',
+    libEmptySearch:'没有匹配的条目。',
+    libEmptyFolder:'此文件夹为空。<br>在这里保存一个条目，或拖入一个。',
+    libEmptyRoot:'书架上还没有内容。<br>先建立练习块，然后“保存到书库…”。',
+    ttTour:'60秒可视化导览',
+    tour:'导览',
+    tourPrev:'← 上一步',
+    tourNext:'下一步 →',
+    tourTry:'试一试',
+    tourCoach:'初次来访？60秒可视化导览——图片，不是文字。',
+    tourCoachCta:'开始',
     ttPrev:'上一块（Ctrl+Alt+P）',
     ttReload:'重新加载 Verbatim——清空一切，重新开始',
     ttUnlock:'显示以密码保存的条目',
@@ -4312,6 +5179,64 @@ const LANGS = {
     fullReview:'完整回顾——你的输入与原文对照',
     fTags:'标签',
     fTagsHint:'（用逗号分隔，可选）',
+    fFolder:'文件夹',
+    ttNewFolder:'新建文件夹',
+    tourStepOf:'第 {n} / {t} 步',
+    tourTryBlurb:'加载到设置中，即可开始练习',
+    tourLoaded:'已加载「{t}」——即可开始练习。',
+    tourS1Title:'粘贴一段文字，拆分练习',
+    tourS1Lede:'把要背诵的内容粘贴进来，再选择如何拆分成块——或者直接点一个示例试试。',
+    tourS1B1:'按行、按句、按经节，或问答',
+    tourS1B2:'开始前可自由编辑各块',
+    tourS1B3:'用「 → 」标记一个你能看到但无需输入的提示',
+    tourS2Title:'凭记忆打出来，逐字看到每个错',
+    tourS2Lede:'凭记忆输入每一块。字符会随打字逐一亮起——大小写、标点，一个不漏。',
+    tourS2B1:'绿色 = 正确，波浪红 = 错字',
+    tourS2B2:'黄色 = 大小写，蓝色 = 标点',
+    tourS2B3:'圆点隐藏你尚未输入到的文字',
+    tourS3Title:'准确度如何评分',
+    tourS3Lede:'Verbatim 按字符级别评分——调换一个逗号也算错。以下是每种颜色的含义。',
+    tourS3B1:'正确的字符累积你的分数',
+    tourS3B2:'多打的文字会扣分（背诵 + 添加 ≠ 逐字）',
+    tourS3B3:'漏字和错字都会扣分',
+    tourS4Title:'看看你真实的分数',
+    tourS4Lede:'完成后得到总体准确度和逐行对照。可导出 PNG 留档。',
+    tourS4B1:'各块明细：大小写、标点、漏字',
+    tourS4B2:'仅计实际用时——挂机不计',
+    tourS4B3:'下载或复制整张摘要 PNG',
+    tourS5Title:'建立你的书库',
+    tourS5Lede:'保存段落并整理有序。归入文件夹、拖拽排序、为重要内容加标签。',
+    tourS5B1:'纵向文件夹树——可嵌套、可配色',
+    tourS5B2:'在文件夹之间拖拽条目',
+    tourS5B3:'编辑并重新保存任意条目',
+    tourS6Title:'一切就绪。',
+    tourS6Lede:'关闭标签页会清空本次练习——书库保留，仅存于此设备。任何内容都不会上传。',
+    tourS6B1:'你的书库只存在于此浏览器',
+    tourS6B2:'随时切换主题',
+    tourS6B3:'从顶部栏再次打开本导览',
+    samplePsalm23:'诗篇 23（1–3 节）',
+    samplePsalm23Blurb:'经节模式 · 提示 → 回忆',
+    sampleSonnet18:'十四行诗第 18 首',
+    sampleSonnet18Blurb:'按行模式 · 每行一块',
+    sampleQA:'考试问答',
+    sampleQABlurb:'问答模式 · 先题后答',
+    sampleGettysburg:'葛底斯堡演说',
+    sampleGettysburgBlurb:'按句模式 · 以 . ! ? 拆分',
+    samplePsalm23Preview:'v1 耶和华是我的牧者；我必不至缺乏。',
+    sampleSonnet18Preview:'我怎能将你比作夏日？',
+    sampleQAPreview:'Q1 谁写了《老人与海》？',
+    sampleGettysburgPreview:'八十七年前……',
+    mockVerse:'经节', mockLines:'行', mockSentences:'句', mockQA:'问答',
+    mockPractice:'练习', mockCue:'提示', mockThisLine:'本行：', mockTyped:'已输入：',
+    mockBlockOf:'第 {n} 块，共 {t} 块', mockBlockN:'第 {n} 块', mockNBlocks:'{n} 块',
+    mockColorKey:'颜色图例', mockAccuracy:'准确率', mockBlocks:'块', mockActive:'当前',
+    mockScripture:'圣经', mockPsalms:'诗篇', mockPoetry:'诗歌', mockPsalm1:'诗篇 1',
+    mockTagline:'一字一字地记忆',
+    mockPsalmText:'v1 耶和华是我的牧者；\n我必不至缺乏。\nv2 他使我躺卧在青草地上……',
+    mockPsalmDiffCorrect:'耶和华是我的牧者；',
+    mockPsalmDiffOmit:'缺乏',
+    mockPsalmTyped:'耶和华是我的牧者；我必不至',
+    mockPsalmDiffCorrect2:'耶和华是我的牧者；',
     encWarnEntry:'如果忘记此密码，此条目将无法恢复。没有重置、没有找回邮件、也没有服务器副本——这正是加密的意义所在。',
     unlockHint:'以此密码保存的条目将出现在列表中。任何地方都不会显示存在哪些密码——密码错误只会什么都不显示。',
     shareHint:'文字就藏在链接或卡片本身之中——它从不经过任何服务器。有效期也一并随附，在打开分享时检查：这是一个礼节性期限，而非服务器强制执行（本就没有服务器）。',
@@ -4420,6 +5345,32 @@ const LANGS = {
     ttImport:'將備份檔合併入呢個書庫',
     ttOpenShare:'打開人哋發俾你嘅 Verbatim 分享卡（.png）或分享檔',
     ttLibrary:'打開你嘅本機書庫',
+    allEntries:'全部條目',
+    moveFolderTo:'移動資料夾',
+    moveFolderPick:'為「{name}」揀一個新位置。只顯示有可見內容嘅資料夾。',
+    moveApply:'移去呢度',
+    movedFolder:'已移動「{name}」。',
+    libraryRoot:'書庫根目錄',
+    sensitiveFolderNote:'呢個資料夾包含加密條目。佢只可以移去另一個包含加密條目嘅資料夾，或者移去書庫根目錄。',
+    moveBlockedSensitive:'包含加密條目',
+    moveBlockedRegular:'無加密條目',
+    moveBlockedCycle:'嵌套於自身',
+    moveBlockedGeneric:'無法將資料夾移去嗰度。',
+    moveBlockedSensitiveMsg:'普通資料夾唔可以移入包含加密條目嘅資料夾。加密資料夾保持隔離。',
+    moveBlockedRegularMsg:'包含加密條目嘅資料夾只可以移入另一個加密資料夾，或者移去書庫根目錄。',
+    moveBlockedCycleMsg:'資料夾唔可以移入自身或佢嘅子資料夾。',
+    ttDragReorder:'拖曳以重新排序',
+    ttFolderOpts:'資料夾選項',
+    libEmptySearch:'無符合嘅條目。',
+    libEmptyFolder:'呢個資料夾係空嘅。<br>喺度儲存一個條目，或者拖一個入嚟。',
+    libEmptyRoot:'書架仲未有嘢。<br>先建立練習塊，然後「儲存到書庫…」。',
+    ttTour:'60秒視覺化導覽',
+    tour:'導覽',
+    tourPrev:'← 上一步',
+    tourNext:'下一步 →',
+    tourTry:'試下',
+    tourCoach:'初次到訪？60秒視覺化導覽——圖片，唔係文字。',
+    tourCoachCta:'開始',
     ttPrev:'上一段（Ctrl+Alt+P）',
     ttReload:'重新載入 Verbatim——清空一切，重新開始',
     ttUnlock:'顯示用密碼儲存嘅條目',
@@ -4529,6 +5480,64 @@ const LANGS = {
     fullReview:'完整回顧——你打嘅字同原文對照',
     fTags:'標籤',
     fTagsHint:'（用逗號分隔，可選）',
+    fFolder:'資料夾',
+    ttNewFolder:'建立新資料夾',
+    tourStepOf:'第 {n} / {t} 步',
+    tourTryBlurb:'載入到設定，即可開始練習',
+    tourLoaded:'已載入「{t}」——即可開始練習。',
+    tourS1Title:'貼上一段文字，再拆分',
+    tourS1Lede:'將想背嘅內容貼入嚟，再揀點樣拆做一塊塊——或者直接撳一個範例試下。',
+    tourS1B1:'按行、按句、按經節，或者問答',
+    tourS1B2:'開始之前可以自由編輯各塊',
+    tourS1B3:'用「 → 」標記一個你睇到但唔使打嘅提示',
+    tourS2Title:'憑記憶打返出嚟，逐字睇到每個錯',
+    tourS2Lede:'憑記憶輸入每一塊。字符會一路打一路亮起——大小楷、標點，一個都唔漏。',
+    tourS2B1:'綠色 = 正確，波浪紅 = 錯字',
+    tourS2B2:'黃色 = 大小楷，藍色 = 標點',
+    tourS2B3:'圓點隱藏你仲未打到嘅文字',
+    tourS3Title:'準確度點樣計分',
+    tourS3Lede:'Verbatim 按字符級別評分——調亂一個逗號都算錯。以下係每種顏色嘅意思。',
+    tourS3B1:'正確嘅字符累積你嘅分數',
+    tourS3B2:'打多咗嘅字會扣分（背誦 + 添加 ≠ 逐字）',
+    tourS3B3:'漏字同錯字都會扣分',
+    tourS4Title:'睇下你真實嘅分數',
+    tourS4Lede:'完成後得到總體準確度同逐行對照。可以匯出 PNG 留檔。',
+    tourS4B1:'各塊明細：大小楷、標點、漏字',
+    tourS4B2:'淨計實際用時——掛機唔計',
+    tourS4B3:'下載或者複製成張摘要 PNG',
+    tourS5Title:'建立你嘅書庫',
+    tourS5Lede:'儲存段落並整理妥當。歸入資料夾、拖拽排序、為重要內容加標籤。',
+    tourS5B1:'縱向資料夾樹——可以嵌套、可以配色',
+    tourS5B2:'喺資料夾之間拖拽條目',
+    tourS5B3:'編輯並重新儲存任何條目',
+    tourS6Title:'一切就緒。',
+    tourS6Lede:'閂咗分頁會清空今次練習——書庫會保留，只存喺呢部機。任何內容都唔會上傳。',
+    tourS6B1:'你嘅書庫只存喺呢個瀏覽器',
+    tourS6B2:'隨時切換主題',
+    tourS6B3:'喺頂部欄再次打開呢個導覽',
+    samplePsalm23:'詩篇 23（1–3 節）',
+    samplePsalm23Blurb:'經節模式 · 提示 → 回憶',
+    sampleSonnet18:'十四行詩第 18 首',
+    sampleSonnet18Blurb:'按行模式 · 每行一塊',
+    sampleQA:'考試問答',
+    sampleQABlurb:'問答模式 · 先題後答',
+    sampleGettysburg:'葛底斯堡演說',
+    sampleGettysburgBlurb:'按句模式 · 以 . ! ? 拆分',
+    samplePsalm23Preview:'v1 耶和華是我的牧者；我必不致缺乏。',
+    sampleSonnet18Preview:'我點可以將你比作夏日？',
+    sampleQAPreview:'Q1 邊個寫咗《老人與海》？',
+    sampleGettysburgPreview:'八十七年前……',
+    mockVerse:'經節', mockLines:'行', mockSentences:'句', mockQA:'問答',
+    mockPractice:'練習', mockCue:'提示', mockThisLine:'呢行：', mockTyped:'已輸入：',
+    mockBlockOf:'第 {n} 塊，共 {t} 塊', mockBlockN:'第 {n} 塊', mockNBlocks:'{n} 塊',
+    mockColorKey:'顏色圖例', mockAccuracy:'準確率', mockBlocks:'塊', mockActive:'當前',
+    mockScripture:'聖經', mockPsalms:'詩篇', mockPoetry:'詩歌', mockPsalm1:'詩篇 1',
+    mockTagline:'一字一字噉記憶',
+    mockPsalmText:'v1 耶和華是我的牧者；\n我必不致缺乏。\nv2 他使我躺臥在青草地上……',
+    mockPsalmDiffCorrect:'耶和華是我的牧者；',
+    mockPsalmDiffOmit:'缺乏',
+    mockPsalmTyped:'耶和華是我的牧者；我必不致',
+    mockPsalmDiffCorrect2:'耶和華是我的牧者；',
     encWarnEntry:'如果唔記得呢個密碼，呢個條目就無法復原。冇重設、冇找回電郵、亦都冇伺服器副本——呢個正正就係加密嘅用意。',
     unlockHint:'用呢個密碼儲存嘅條目會喺清單度出現。任何地方都唔會顯示有邊啲密碼存在——密碼錯咗就淨係乜都唔顯示。',
     shareHint:'文字就藏喺連結或者卡本身入面——佢從來唔會經過任何伺服器。限期都一齊隨附，喺打開分享時檢查：呢個係禮貌性嘅限期，而唔係伺服器強制執行（根本冇伺服器）。',
@@ -4637,6 +5646,32 @@ const LANGS = {
     ttImport:'Fusionner un fichier de sauvegarde dans cette bibliothèque',
     ttOpenShare:'Ouvrir une carte de partage Verbatim (.png) ou un fichier de partage reçu',
     ttLibrary:'Ouvrir votre bibliothèque locale',
+    allEntries:'Toutes les entrées',
+    moveFolderTo:'Déplacer le dossier',
+    moveFolderPick:'Choisissez une nouvelle destination pour « {name} ». Seuls les dossiers au contenu visible sont affichés.',
+    moveApply:'Déplacer ici',
+    movedFolder:'« {name} » déplacé.',
+    libraryRoot:'Racine de la bibliothèque',
+    sensitiveFolderNote:'Ce dossier contient des entrées chiffrées. Il ne peut être déplacé que vers un autre dossier contenant des entrées chiffrées, ou vers la racine de la bibliothèque.',
+    moveBlockedSensitive:'contient des entrées chiffrées',
+    moveBlockedRegular:'aucune entrée chiffrée',
+    moveBlockedCycle:'imbriqué sous lui-même',
+    moveBlockedGeneric:'Impossible de déplacer le dossier là.',
+    moveBlockedSensitiveMsg:'Un dossier normal ne peut pas être déplacé dans un dossier contenant des entrées chiffrées. Les dossiers chiffrés restent isolés.',
+    moveBlockedRegularMsg:'Un dossier contenant des entrées chiffrées ne peut être déplacé que vers un autre dossier chiffré, ou vers la racine.',
+    moveBlockedCycleMsg:'Un dossier ne peut pas être déplacé à l\'intérieur de lui-même ou de l\'un de ses sous-dossiers.',
+    ttDragReorder:'Glisser pour réorganiser',
+    ttFolderOpts:'Options du dossier',
+    libEmptySearch:'Aucune entrée ne correspond à cette recherche.',
+    libEmptyFolder:'Ce dossier est vide.<br>Enregistrez une entrée ici, ou glissez-en une.',
+    libEmptyRoot:'Rien sur l\'étagère pour l\'instant.<br>Créez des blocs de pratique, puis « Enregistrer dans la bibliothèque… ».',
+    ttTour:'Visite visuelle de 60 secondes',
+    tour:'Visite',
+    tourPrev:'← Retour',
+    tourNext:'Suivant →',
+    tourTry:'Essayer',
+    tourCoach:'Nouveau ici ? Faites la visite de 60 secondes — des images, pas des paragraphes.',
+    tourCoachCta:'Commencer',
     ttPrev:'Bloc précédent (Ctrl+Alt+P)',
     ttReload:'Recharger Verbatim — tout effacer et repartir de zéro',
     ttUnlock:'Révéler les entrées enregistrées sous un mot de passe',
@@ -4746,6 +5781,64 @@ const LANGS = {
     fullReview:'Revue complète — votre saisie face à l\'original',
     fTags:'Étiquettes',
     fTagsHint:'(séparées par des virgules, facultatif)',
+    fFolder:'Dossier',
+    ttNewFolder:'Créer un nouveau dossier',
+    tourStepOf:'Étape {n} / {t}',
+    tourTryBlurb:'se charge dans la configuration, prêt à répéter',
+    tourLoaded:'« {t} » chargé — prêt à répéter.',
+    tourS1Title:'Collez un passage, découpez-le',
+    tourS1Lede:'Déposez tout ce que vous voulez mémoriser, puis choisissez comment le découper en blocs — ou touchez un exemple pour l’essayer tout de suite.',
+    tourS1B1:'Lignes, phrases, versets, ou Q & R',
+    tourS1B2:'Modifiez librement les blocs avant de commencer',
+    tourS1B3:'Utilisez « → » pour un indice que vous voyez sans le taper',
+    tourS2Title:'Retapez-le, repérez chaque erreur',
+    tourS2Lede:'Tapez chaque bloc de mémoire. Les caractères s’illuminent au fur et à mesure — majuscules, ponctuation, tout y passe.',
+    tourS2B1:'Vert = correct, rouge ondulé = mauvais caractère',
+    tourS2B2:'Jaune = casse, bleu = ponctuation',
+    tourS2B3:'Des points masquent le texte pas encore atteint',
+    tourS3Title:'Comment la précision est notée',
+    tourS3Lede:'Verbatim évalue au niveau du caractère — une virgule inversée ne passe pas. Voici ce que chaque couleur signifie.',
+    tourS3B1:'Les caractères corrects construisent votre score',
+    tourS3B2:'Le texte en trop le baisse (réciter + ajouter ≠ verbatim)',
+    tourS3B3:'Les omissions et mauvais caractères comptent contre vous',
+    tourS4Title:'Lisez votre score honnête',
+    tourS4Lede:'Terminez pour une précision globale et un diff ligne par ligne. Exportez un PNG pour garder une trace.',
+    tourS4B1:'Décomposition par bloc : casse, ponctuation, oublis',
+    tourS4B2:'Temps actif uniquement — les pauses AFK ne comptent pas',
+    tourS4B3:'Téléchargez ou copiez un PNG de tout le résumé',
+    tourS5Title:'Constituez votre bibliothèque',
+    tourS5Lede:'Enregistrez des passages et gardez-les en ordre. Rangez-les dans des dossiers, glissez pour réorganiser, étiquetez ce qui compte.',
+    tourS5B1:'Une arborescence verticale de dossiers — imbriquée et colorée',
+    tourS5B2:'Glissez des entrées entre les dossiers',
+    tourS5B3:'Modifiez et réenregistrez n’importe quelle entrée',
+    tourS6Title:'C’est prêt.',
+    tourS6Lede:'Fermer l’onglet efface la séance en cours — la bibliothèque reste, sur cet appareil uniquement. Rien n’est jamais envoyé nulle part.',
+    tourS6B1:'Votre bibliothèque vit dans ce navigateur',
+    tourS6B2:'Changez de thème à tout moment',
+    tourS6B3:'Rouvrir cette visite depuis l’en-tête',
+    samplePsalm23:'Psaume 23 (vv. 1–3)',
+    samplePsalm23Blurb:'Mode verset · indice → rappel',
+    sampleSonnet18:'Sonnet 18',
+    sampleSonnet18Blurb:'Mode ligne · une ligne par bloc',
+    sampleQA:'Q & R d’examen',
+    sampleQABlurb:'Mode Q & R · question puis réponse',
+    sampleGettysburg:'Discours de Gettysburg',
+    sampleGettysburgBlurb:'Mode phrase · coupe sur . ! ?',
+    samplePsalm23Preview:'v1 L’Éternel est mon berger; je ne manquerai de rien.',
+    sampleSonnet18Preview:'Dois-je te comparer à un jour d’été ?',
+    sampleQAPreview:'Q1 Qui a écrit « Le Vieil Homme et la Mer » ?',
+    sampleGettysburgPreview:'Il y a quatre-vingt-sept ans…',
+    mockVerse:'Verset', mockLines:'Lignes', mockSentences:'Phrases', mockQA:'Q & R',
+    mockPractice:'Pratique', mockCue:'indice', mockThisLine:'cette ligne :', mockTyped:'saisi :',
+    mockBlockOf:'Bloc {n} sur {t}', mockBlockN:'Bloc {n}', mockNBlocks:'{n} blocs',
+    mockColorKey:'Code couleur', mockAccuracy:'précision', mockBlocks:'blocs', mockActive:'actif',
+    mockScripture:'Écritures', mockPsalms:'Psaumes', mockPoetry:'Poésie', mockPsalm1:'Psaume 1',
+    mockTagline:'mémoriser, caractère par caractère',
+    mockPsalmText:'v1 L’Éternel est mon berger;\nje ne manquerai de rien.\nv2 Il me fait reposer…',
+    mockPsalmDiffCorrect:'l’Éternel est mon berger; ',
+    mockPsalmDiffOmit:'rien',
+    mockPsalmTyped:'l’Éternel est mon berger; je ne manquerai de',
+    mockPsalmDiffCorrect2:'l’Éternel est mon berger;',
     encWarnEntry:'Si vous oubliez ce mot de passe, cette entrée est irrécupérable. Aucune réinitialisation, aucun e-mail de récupération, aucune copie sur un serveur — c\'est tout l\'intérêt du chiffrement.',
     unlockHint:'Les entrées enregistrées sous ce mot de passe apparaîtront dans la liste. Rien n\'indique quels mots de passe existent — un mauvais mot de passe ne révèle simplement rien.',
     shareHint:'Le texte voyage à l\'intérieur du lien ou de la carte — il ne touche jamais de serveur. L\'expiration voyage aussi avec lui et est vérifiée à l\'ouverture : une échéance de courtoisie, non imposée par un serveur (il n\'y en a aucun).',
@@ -4857,6 +5950,32 @@ const LANGS = {
     ttImport:'Eine Sicherungsdatei in diese Bibliothek einfügen',
     ttOpenShare:'Eine Verbatim-Teilkarte (.png) oder erhaltene Teildatei öffnen',
     ttLibrary:'Ihre lokale Bibliothek öffnen',
+    allEntries:'Alle Einträge',
+    moveFolderTo:'Ordner verschieben',
+    moveFolderPick:'Wähle ein neues Ziel für „{name}“. Nur Ordner mit sichtbarem Inhalt werden angezeigt.',
+    moveApply:'Hierher verschieben',
+    movedFolder:'„{name}“ verschoben.',
+    libraryRoot:'Bibliothek-Wurzel',
+    sensitiveFolderNote:'Dieser Ordner enthält verschlüsselte Einträge. Er kann nur in einen anderen Ordner mit verschlüsselten Einträgen oder an die Bibliothek-Wurzel verschoben werden.',
+    moveBlockedSensitive:'enthält verschlüsselte Einträge',
+    moveBlockedRegular:'keine verschlüsselten Einträge',
+    moveBlockedCycle:'in sich selbst verschachtelt',
+    moveBlockedGeneric:'Ordner lässt sich nicht dorthin verschieben.',
+    moveBlockedSensitiveMsg:'Ein normaler Ordner kann nicht in einen Ordner mit verschlüsselten Einträgen verschoben werden. Verschlüsselte Ordner bleiben isoliert.',
+    moveBlockedRegularMsg:'Ein Ordner mit verschlüsselten Einträgen kann nur in einen anderen verschlüsselten Ordner oder an die Wurzel verschoben werden.',
+    moveBlockedCycleMsg:'Ein Ordner kann nicht in sich selbst oder einen seiner Unterordner verschoben werden.',
+    ttDragReorder:'Ziehen zum Sortieren',
+    ttFolderOpts:'Ordner-Optionen',
+    libEmptySearch:'Keine Einträge passen zur Suche.',
+    libEmptyFolder:'Dieser Ordner ist leer.<br>Speichere hier einen Eintrag oder ziehe einen hinein.',
+    libEmptyRoot:'Noch nichts im Regal.<br>Erstelle Übungsblöcke, dann „In Bibliothek speichern…“.',
+    ttTour:'60-Sekunden-Visite',
+    tour:'Visite',
+    tourPrev:'← Zurück',
+    tourNext:'Weiter →',
+    tourTry:'Ausprobieren',
+    tourCoach:'Neu hier? Mach die 60-Sekunden-Visite — Bilder, keine Absätze.',
+    tourCoachCta:'Starten',
     ttPrev:'Vorheriger Block (Strg+Alt+P)',
     ttReload:'Verbatim neu laden — alles löschen und neu beginnen',
     ttUnlock:'Unter einem Passwort gespeicherte Einträge zeigen',
@@ -4966,6 +6085,64 @@ const LANGS = {
     fullReview:'Vollständige Durchsicht — Ihre Eingabe im Vergleich zum Original',
     fTags:'Schlagwörter',
     fTagsHint:'(durch Kommas getrennt, optional)',
+    fFolder:'Ordner',
+    ttNewFolder:'Neuen Ordner erstellen',
+    tourStepOf:'Schritt {n} / {t}',
+    tourTryBlurb:'wird ins Setup geladen, bereit zum Üben',
+    tourLoaded:'„{t}“ geladen — bereit zum Üben.',
+    tourS1Title:'Text einfügen und aufteilen',
+    tourS1Lede:'Fügen Sie alles ein, was Sie sich merken möchten, und wählen Sie, wie es in Blöcke zerlegt wird — oder tippen Sie auf ein Beispiel, um es sofort auszuprobieren.',
+    tourS1B1:'Zeilen, Sätze, Verse oder Q & A',
+    tourS1B2:'Blöcke vor dem Start frei bearbeiten',
+    tourS1B3:'„ → “ für einen Hinweis verwenden, den Sie sehen, aber nicht tippen',
+    tourS2Title:'Abtippen und jeden Fehler sehen',
+    tourS2Lede:'Tippen Sie jeden Block aus dem Gedächtnis. Zeichen leuchten beim Tippen auf — Groß-/Kleinschreibung, Zeichensetzung, alles.',
+    tourS2B1:'Grün = richtig, wellig rot = falsches Zeichen',
+    tourS2B2:'Gelb = Groß-/Kleinschreibung, Blau = Zeichensetzung',
+    tourS2B3:'Punkte verbergen den Text, den Sie noch nicht erreicht haben',
+    tourS3Title:'Wie die Genauigkeit bewertet wird',
+    tourS3Lede:'Verbatim bewertet auf Zeichenebene — ein vertauschtes Komma rutscht nicht durch. Hier ist, was jede Farbe bedeutet.',
+    tourS3B1:'Richtige Zeichen bauen Ihre Punktzahl auf',
+    tourS3B2:'Zusätzlich getippter Text senkt sie (Vortragen + Hinzufügen ≠ verbatim)',
+    tourS3B3:'Auslassungen und falsche Zeichen wirken gegen Sie',
+    tourS4Title:'Lesen Sie Ihre ehrliche Punktzahl',
+    tourS4Lede:'Abschließen für eine Gesamtwertung und einen zeilenweisen Diff. Exportieren Sie ein PNG als Nachweis.',
+    tourS4B1:'Aufschlüsselung pro Block: Groß-/Kleinschreibung, Zeichensetzung, Fehlstellen',
+    tourS4B2:'Nur aktive Zeit — AFK-Pausen zählen nicht',
+    tourS4B3:'PNG der gesamten Zusammenfassung herunterladen oder kopieren',
+    tourS5Title:'Bauen Sie Ihre Bibliothek auf',
+    tourS5Lede:'Speichern Sie Texte und halten Sie sie ordentlich. Sortieren Sie in Ordner, ziehen Sie zum Umsortieren, taggen Sie, was zählt.',
+    tourS5B1:'Ein vertikaler Ordnerbaum — verschachtelbar und farbcodiert',
+    tourS5B2:'Einträge zwischen Ordnern ziehen',
+    tourS5B3:'Jeden Eintrag bearbeiten und neu speichern',
+    tourS6Title:'Sie sind startklar.',
+    tourS6Lede:'Das Schließen des Tabs löscht die Übungssitzung — die Bibliothek bleibt, nur auf diesem Gerät. Nichts wird jemals irgendwohin gesendet.',
+    tourS6B1:'Ihre Bibliothek lebt in diesem Browser',
+    tourS6B2:'Theme jederzeit umschalten',
+    tourS6B3:'Diese Tour erneut aus der Kopfzeile öffnen',
+    samplePsalm23:'Psalm 23 (V. 1–3)',
+    samplePsalm23Blurb:'Vers-Modus · Hinweis → Abruf',
+    sampleSonnet18:'Sonett 18',
+    sampleSonnet18Blurb:'Zeilenmodus · eine Zeile pro Block',
+    sampleQA:'Prüfung Q & A',
+    sampleQABlurb:'Q-&-A-Modus · Frage dann Antwort',
+    sampleGettysburg:'Gettysburg Address',
+    sampleGettysburgBlurb:'Satzmodus · trennt bei . ! ?',
+    samplePsalm23Preview:'v1 Der Herr ist mein Hirte; mir wird nichts mangeln.',
+    sampleSonnet18Preview:'Soll ich dich mit einem Sommertag vergleichen?',
+    sampleQAPreview:'F1 Wer schrieb „Der alte Mann und das Meer“?',
+    sampleGettysburgPreview:'Vor siebenundachtzig Jahren…',
+    mockVerse:'Vers', mockLines:'Zeilen', mockSentences:'Sätze', mockQA:'Q & A',
+    mockPractice:'Übung', mockCue:'Hinweis', mockThisLine:'diese Zeile:', mockTyped:'getippt:',
+    mockBlockOf:'Block {n} von {t}', mockBlockN:'Block {n}', mockNBlocks:'{n} Blöcke',
+    mockColorKey:'Farbschlüssel', mockAccuracy:'Genauigkeit', mockBlocks:'Blöcke', mockActive:'aktiv',
+    mockScripture:'Schrift', mockPsalms:'Psalmen', mockPoetry:'Poesie', mockPsalm1:'Psalm 1',
+    mockTagline:'auswendig lernen, Zeichen für Zeichen',
+    mockPsalmText:'v1 Der Herr ist mein Hirte;\nmir wird nichts mangeln.\nv2 Er weidet mich…',
+    mockPsalmDiffCorrect:'der Herr ist mein Hirte; ',
+    mockPsalmDiffOmit:'mangeln',
+    mockPsalmTyped:'der Herr ist mein Hirte; mir wird nichts',
+    mockPsalmDiffCorrect2:'der Herr ist mein Hirte;',
     encWarnEntry:'Wenn Sie dieses Passwort vergessen, kann dieser Eintrag nicht wiederhergestellt werden. Es gibt kein Zurücksetzen, keine Wiederherstellungs-E-Mail und keine Serverkopie — das ist der Sinn der Verschlüsselung.',
     unlockHint:'Unter diesem Passwort gespeicherte Einträge erscheinen in der Liste. Nichts zeigt an, welche Passwörter existieren — ein falsches Passwort offenbart schlicht nichts.',
     shareHint:'Der Text reist im Link oder in der Karte selbst mit — er berührt nie einen Server. Das Ablaufdatum reist ebenfalls mit und wird beim Öffnen geprüft: eine Frist aus Höflichkeit, nicht von einem Server erzwungen (es gibt keinen).',
@@ -5075,6 +6252,32 @@ const LANGS = {
     ttImport:'किसी बैकअप फ़ाइल को इस पुस्तकालय में मिलाएँ',
     ttOpenShare:'किसी का भेजा Verbatim शेयर कार्ड (.png) या शेयर फ़ाइल खोलें',
     ttLibrary:'अपना डिवाइस-स्थित पुस्तकालय खोलें',
+    allEntries:'सभी प्रविष्टियाँ',
+    moveFolderTo:'फ़ोल्डर ले जाएँ',
+    moveFolderPick:'„{name}“ के लिए नई जगह चुनें। केवल दृश्य सामग्री वाले फ़ोल्डर दिखाए जाते हैं।',
+    moveApply:'यहाँ ले जाएँ',
+    movedFolder:'„{name}“ ले जाया गया।',
+    libraryRoot:'पुस्तकालय मूल',
+    sensitiveFolderNote:'इस फ़ोल्डर में एन्क्रिप्टेड प्रविष्टियाँ हैं। इसे केवल किसी अन्य एन्क्रिप्टेड फ़ोल्डर में, या पुस्तकालय मूल में ले जाया जा सकता है।',
+    moveBlockedSensitive:'एन्क्रिप्टेड प्रविष्टियाँ हैं',
+    moveBlockedRegular:'कोई एन्क्रिप्टेड प्रविष्टि नहीं',
+    moveBlockedCycle:'स्वयं में नेस्टेड',
+    moveBlockedGeneric:'फ़ोल्डर को वहाँ नहीं ले जाया जा सकता।',
+    moveBlockedSensitiveMsg:'सामान्य फ़ोल्डर को एन्क्रिप्टेड प्रविष्टियों वाले फ़ोल्डर में नहीं ले जाया जा सकता। एन्क्रिप्टेड फ़ोल्डर अलग रहते हैं।',
+    moveBlockedRegularMsg:'एन्क्रिप्टेड प्रविष्टियों वाला फ़ोल्डर केवल किसी अन्य एन्क्रिप्टेड फ़ोल्डर में, या मूल में ले जाया जा सकता है।',
+    moveBlockedCycleMsg:'फ़ोल्डर को स्वयं में या उसके किसी सब-फ़ोल्डर में नहीं ले जाया जा सकता।',
+    ttDragReorder:'पुनर्व्यवस्थित करने के लिए खींचें',
+    ttFolderOpts:'फ़ोल्डर विकल्प',
+    libEmptySearch:'खोज से कोई प्रविष्टि मेल नहीं खाती।',
+    libEmptyFolder:'यह फ़ोल्डर खाली है।<br>यहाँ प्रविष्टि सहेजें, या एक खींचें।',
+    libEmptyRoot:'अभी तक कुछ नहीं है।<br>अभ्यास ब्लॉक बनाएँ, फिर „पुस्तकालय में सहेजें…“।',
+    ttTour:'60-सेकंड दृश्य टूर',
+    tour:'टूर',
+    tourPrev:'← पीछे',
+    tourNext:'अगला →',
+    tourTry:'आज़माएं',
+    tourCoach:'नए हैं? 60-सेकंड का दृश्य टूर लें — चित्र, पैराग्राफ नहीं।',
+    tourCoachCta:'शुरू करें',
     ttPrev:'पिछला खंड (Ctrl+Alt+P)',
     ttReload:'Verbatim पुनः लोड करें — सब कुछ साफ़ कर नए सिरे से शुरू करें',
     ttUnlock:'पासवर्ड से सहेजी प्रविष्टियाँ दिखाएँ',
@@ -5184,6 +6387,64 @@ const LANGS = {
     fullReview:'पूर्ण समीक्षा — आपका टंकण बनाम मूल',
     fTags:'टैग',
     fTagsHint:'(अल्पविराम से अलग, वैकल्पिक)',
+    fFolder:'फ़ोल्डर',
+    ttNewFolder:'नया फ़ोल्डर बनाएँ',
+    tourStepOf:'चरण {n} / {t}',
+    tourTryBlurb:'सेटअप में लोड होता है, अभ्यास के लिए तैयार',
+    tourLoaded:'“{t}” लोड हुआ — अभ्यास के लिए तैयार।',
+    tourS1Title:'एक अंश चिपकाएँ, टुकड़ों में तोड़ें',
+    tourS1Lede:'जो भी याद करना है उसे डालिए, फिर चुनिए कि वह ब्लॉकों में कैसे टूटे — या अभी आज़माने के लिए किसी नमूने को टैप करें।',
+    tourS1B1:'पंक्तियाँ, वाक्य, पद्यांश, या प्रश्नोत्तर',
+    tourS1B2:'शुरू करने से पहले ब्लॉकों को स्वतंत्र रूप से संपादित करें',
+    tourS1B3:'किसी ऐसे संकेत के लिए “ → ” का उपयोग करें जो आप देखते हैं पर टाइप नहीं करते',
+    tourS2Title:'वापस टाइप करें, हर ग़लती देखें',
+    tourS2Lede:'हर ब्लॉक को स्मृति से टाइप करें। अक्षर टाइप करते ही जगमगाते हैं — अक्षर-स्थिति, विराम-चिह्न, सब कुछ।',
+    tourS2B1:'हरा = सही, लहरदार लाल = ग़लत अक्षर',
+    tourS2B2:'पीला = अक्षर-स्थिति, नीला = विराम-चिह्न',
+    tourS2B3:'बिंदु उस पाठ को छिपाते हैं जो तक आप अभी नहीं पहुँचे',
+    tourS3Title:'सटीकता कैसे अंकित होती है',
+    tourS3Lede:'Verbatim अक्षर-स्तर पर अंक देता है — अदला-बदली कॉमा छूटने नहीं पाएगी। यहाँ हर रंग का अर्थ बताया गया है।',
+    tourS3B1:'सही अक्षर आपका स्कोर बढ़ाते हैं',
+    tourS3B2:'अतिरिक्त टाइप किया पाठ उसे घटाता है (सुनाना + जोड़ना ≠ शब्दशः)',
+    tourS3B3:'छूट और ग़लत अक्षर आपके ख़िलाफ़ गिने जाते हैं',
+    tourS4Title:'अपना ईमानदार स्कोर पढ़ें',
+    tourS4Lede:'समग्र सटीकता और पंक्ति-दर-पंक्ति अंतर के लिए समाप्त करें। रिकॉर्ड रखने के लिए PNG निर्यात करें।',
+    tourS4B1:'प्रति-ब्लॉक विवरण: अक्षर-स्थिति, विराम-चिह्न, छूट',
+    tourS4B2:'केवल सक्रिय समय — AFK अंतराल नहीं गिने जाते',
+    tourS4B3:'पूरे सारांश का PNG डाउनलोड या कॉपी करें',
+    tourS5Title:'अपना संग्रह बनाएँ',
+    tourS5Lede:'अंश सहेजें और व्यवस्थित रखें। फ़ोल्डर में रखें, क्रम बदलने के लिए खींचें, जो मायने रखता है उसे टैग करें।',
+    tourS5B1:'एक ऊर्ध्वाधर फ़ोल्डर वृक्ष — नेस्ट करें और रंग-कोडित करें',
+    tourS5B2:'फ़ोल्डरों के बीच प्रविष्टियाँ खींचें',
+    tourS5B3:'किसी भी प्रविष्टि को संपादित करें और पुनः सहेजें',
+    tourS6Title:'सब तैयार है।',
+    tourS6Lede:'टैब बंद करने से आपका अभ्यास सत्र मिट जाता है — संग्रह रहता है, केवल इसी डिवाइस पर। कुछ भी कभी कहीं नहीं भेजा जाता।',
+    tourS6B1:'आपका संग्रह इसी ब्राउज़र में रहता है',
+    tourS6B2:'थीम कभी भी बदलें',
+    tourS6B3:'यह टूर शीर्षक से पुनः खोलें',
+    samplePsalm23:'गीत 23 (पद 1–3)',
+    samplePsalm23Blurb:'पद्य मोड · संकेत → स्मरण',
+    sampleSonnet18:'सॉनेट 18',
+    sampleSonnet18Blurb:'पंक्ति मोड · प्रति ब्लॉक एक पंक्ति',
+    sampleQA:'परीक्षा प्रश्नोत्तर',
+    sampleQABlurb:'प्रश्नोत्तर मोड · पहले प्रश्न फिर उत्तर',
+    sampleGettysburg:'गेटिसबर्ग भाषण',
+    sampleGettysburgBlurb:'वाक्य मोड · . ! ? पर विभाजित',
+    samplePsalm23Preview:'v1 यहोवा मेरा चरवाहा है; मुझे किसी बात की कमी नहीं होगी।',
+    sampleSonnet18Preview:'क्या मैं तुम्हारी तुलना एक ग्रीष्मकालीन दिन से करूँ?',
+    sampleQAPreview:'प्र1 "बूढ़ा आदमी और समुद्र" किसने लिखा?',
+    sampleGettysburgPreview:'सत्तासी वर्ष पूर्व…',
+    mockVerse:'श्लोक', mockLines:'पंक्तियाँ', mockSentences:'वाक्य', mockQA:'प्रश्नोत्तर',
+    mockPractice:'अभ्यास', mockCue:'संकेत', mockThisLine:'यह पंक्ति:', mockTyped:'टाइप किया:',
+    mockBlockOf:'ब्लॉक {t} में से {n}', mockBlockN:'ब्लॉक {n}', mockNBlocks:'{n} ब्लॉक',
+    mockColorKey:'रंग कुंजी', mockAccuracy:'सटीकता', mockBlocks:'ब्लॉक', mockActive:'सक्रिय',
+    mockScripture:'धर्मशास्त्र', mockPsalms:'गीत', mockPoetry:'काव्य', mockPsalm1:'गीत 1',
+    mockTagline:'कंठस्थ करें, अक्षर दर अक्षर',
+    mockPsalmText:'v1 यहोवा मेरा चरवाहा है;\nमुझे किसी बात की कमी नहीं होगी।\nv2 वह मुझे हरे-भरे चरागाहों में लेटाता है…',
+    mockPsalmDiffCorrect:'यहोवा मेरा चरवाहा है; ',
+    mockPsalmDiffOmit:'होगी',
+    mockPsalmTyped:'यहोवा मेरा चरवाहा है; मुझे किसी बात की कमी नहीं',
+    mockPsalmDiffCorrect2:'यहोवा मेरा चरवाहा है;',
     encWarnEntry:'यदि आप यह पासवर्ड भूल जाते हैं, तो यह प्रविष्टि पुनर्प्राप्त नहीं की जा सकती। कोई रीसेट नहीं, कोई पुनर्प्राप्ति ई-मेल नहीं, और कोई सर्वर प्रति नहीं — यही एन्क्रिप्शन का उद्देश्य है।',
     unlockHint:'इस पासवर्ड के अंतर्गत सहेजी गई प्रविष्टियाँ सूची में दिखाई देंगी। कहीं यह नहीं दिखता कि कौन-से पासवर्ड मौजूद हैं — ग़लत पासवर्ड बस कुछ भी प्रकट नहीं करता।',
     shareHint:'पाठ लिंक या कार्ड के भीतर ही यात्रा करता है — यह कभी किसी सर्वर को नहीं छूता। समाप्ति भी साथ चलती है और साझा खोलते समय जाँची जाती है: एक शिष्टाचार-समय-सीमा, कोई सर्वर इसे लागू नहीं करता (कोई है ही नहीं)।',
@@ -5292,6 +6553,32 @@ const LANGS = {
     ttImport:'Unisci un file di backup a questa libreria',
     ttOpenShare:'Apri una scheda di condivisione Verbatim (.png) o un file ricevuto',
     ttLibrary:'Apri la tua libreria locale',
+    allEntries:'Tutte le voci',
+    moveFolderTo:'Sposta cartella',
+    moveFolderPick:'Scegli una nuova destinazione per «{name}». Sono mostrate solo le cartelle con contenuti visibili.',
+    moveApply:'Sposta qui',
+    movedFolder:'«{name}» spostata.',
+    libraryRoot:'Radice della libreria',
+    sensitiveFolderNote:'Questa cartella contiene voci crittografate. Può essere spostata solo in un\'altra cartella con voci crittografate, o nella radice della libreria.',
+    moveBlockedSensitive:'contiene voci crittografate',
+    moveBlockedRegular:'nessuna voce crittografata',
+    moveBlockedCycle:'annidata in se stessa',
+    moveBlockedGeneric:'Impossibile spostare la cartella lì.',
+    moveBlockedSensitiveMsg:'Una cartella normale non può essere spostata in una cartella con voci crittografate. Le cartelle crittografate restano isolate.',
+    moveBlockedRegularMsg:'Una cartella con voci crittografate può essere spostata solo in un\'altra cartella crittografata, o nella radice.',
+    moveBlockedCycleMsg:'Una cartella non può essere spostata dentro se stessa o una delle sue sottocartelle.',
+    ttDragReorder:'Trascina per riordinare',
+    ttFolderOpts:'Opzioni cartella',
+    libEmptySearch:'Nessuna voce corrisponde alla ricerca.',
+    libEmptyFolder:'Questa cartella è vuota.<br>Salva una voce qui, oppure trascinanene una.',
+    libEmptyRoot:'Niente sullo scaffale ancora.<br>Crea blocchi di pratica, poi «Salva in libreria…».',
+    ttTour:'Tour visivo di 60 secondi',
+    tour:'Tour',
+    tourPrev:'← Indietro',
+    tourNext:'Avanti →',
+    tourTry:'Prova',
+    tourCoach:'Nuovo qui? Fai il tour di 60 secondi — immagini, non paragrafi.',
+    tourCoachCta:'Inizia',
     ttPrev:'Blocco precedente (Ctrl+Alt+P)',
     ttReload:'Ricarica Verbatim — cancella tutto e ricomincia',
     ttUnlock:'Mostra le voci salvate con una password',
@@ -5401,6 +6688,64 @@ const LANGS = {
     fullReview:'Revisione completa — la tua digitazione a fronte dell\'originale',
     fTags:'Etichette',
     fTagsHint:'(separate da virgole, facoltativo)',
+    fFolder:'Cartella',
+    ttNewFolder:'Crea una nuova cartella',
+    tourStepOf:'Passo {n} / {t}',
+    tourTryBlurb:'si carica nella configurazione, pronto per esercitarsi',
+    tourLoaded:'«{t}» caricato — pronto per esercitarsi.',
+    tourS1Title:'Incolla un brano, dividilo',
+    tourS1Lede:'Inserisci qualsiasi cosa tu voglia memorizzare, poi scegli come dividerla in blocchi — oppure tocca un esempio per provarlo subito.',
+    tourS1B1:'Righe, frasi, versetti, o Q & A',
+    tourS1B2:'Modifica liberamente i blocchi prima di iniziare',
+    tourS1B3:'Usa « → » per un indizio che vedi ma non digiti',
+    tourS2Title:'Riditalo, vedi ogni errore',
+    tourS2Lede:'Digita ogni blocco a memoria. I caratteri si illuminano mentre scrivi — maiuscole, punteggiatura, tutto.',
+    tourS2B1:'Verde = corretto, rosso ondulato = carattere sbagliato',
+    tourS2B2:'Giallo = maiuscola/minuscola, blu = punteggiatura',
+    tourS2B3:'I puntini nascondono il testo che non hai ancora raggiunto',
+    tourS3Title:'Come viene valutata la precisione',
+    tourS3Lede:'Verbatim valuta a livello di carattere — non lascia scivolare via una virgola scambiata. Ecco cosa significa ogni colore.',
+    tourS3B1:'I caratteri corretti costruiscono il tuo punteggio',
+    tourS3B2:'Il testo digitato in più lo abbassa (recitare + aggiungere ≠ verbatim)',
+    tourS3B3:'Omissioni e caratteri sbagliati contano contro di te',
+    tourS4Title:'Leggi il tuo punteggio onesto',
+    tourS4Lede:'Termina per una precisione generale e un diff riga per riga. Esporta un PNG per conservare un resoconto.',
+    tourS4B1:'Suddivisione per blocco: maiuscole, punteggiatura, omissioni',
+    tourS4B2:'Solo tempo attivo — le pause AFK non contano',
+    tourS4B3:'Scarica o copia un PNG dell’intero riepilogo',
+    tourS5Title:'Costruisci la tua libreria',
+    tourS5Lede:'Salva i brani e tienili in ordine. Archiviali in cartelle, trascina per riordinare, tagga ciò che conta.',
+    tourS5B1:'Un albero di cartelle verticale — annidabile e colorato',
+    tourS5B2:'Trascina le voci tra le cartelle',
+    tourS5B3:'Modifica e salva di nuovo qualsiasi voce',
+    tourS6Title:'Tutto pronto.',
+    tourS6Lede:'Chiudere la scheda cancella la sessione di esercitazione — la libreria resta, solo su questo dispositivo. Niente viene mai inviato da nessuna parte.',
+    tourS6B1:'La tua libreria vive in questo browser',
+    tourS6B2:'Cambia tema in qualsiasi momento',
+    tourS6B3:'Riapri questo tour dall’intestazione',
+    samplePsalm23:'Salmo 23 (vv. 1–3)',
+    samplePsalm23Blurb:'Modo versetto · indizio → richiamo',
+    sampleSonnet18:'Sonetto 18',
+    sampleSonnet18Blurb:'Modo riga · una riga per blocco',
+    sampleQA:'Q & A d’esame',
+    sampleQABlurb:'Modo Q & A · domanda poi risposta',
+    sampleGettysburg:'Discorso di Gettysburg',
+    sampleGettysburgBlurb:'Modo frase · divide su . ! ?',
+    samplePsalm23Preview:'v1 Il Signore è il mio pastore; nulla mi mancherà.',
+    sampleSonnet18Preview:'Debbo io paragonarti a un giorno d’estate?',
+    sampleQAPreview:'D1 Chi ha scritto «Il vecchio e il mare»?',
+    sampleGettysburgPreview:'Ottantasette anni fa…',
+    mockVerse:'Versetto', mockLines:'Righe', mockSentences:'Frasi', mockQA:'Q & A',
+    mockPractice:'Pratica', mockCue:'indizio', mockThisLine:'questa riga:', mockTyped:'scritto:',
+    mockBlockOf:'Blocco {n} di {t}', mockBlockN:'Blocco {n}', mockNBlocks:'{n} blocchi',
+    mockColorKey:'Legenda colori', mockAccuracy:'precisione', mockBlocks:'blocchi', mockActive:'attivo',
+    mockScripture:'Scrittura', mockPsalms:'Salmi', mockPoetry:'Poesia', mockPsalm1:'Salmo 1',
+    mockTagline:'memorizzare, carattere per carattere',
+    mockPsalmText:'v1 Il Signore è il mio pastore;\nnulla mi mancherà.\nv2 Mi fa riposare…',
+    mockPsalmDiffCorrect:'il Signore è il mio pastore; ',
+    mockPsalmDiffOmit:'mancherà',
+    mockPsalmTyped:'il Signore è il mio pastore; nulla mi',
+    mockPsalmDiffCorrect2:'il Signore è il mio pastore;',
     encWarnEntry:'Se dimentichi questa password, questa voce non può essere recuperata. Nessun ripristino, nessuna e-mail di recupero e nessuna copia sul server — è proprio questo lo scopo della cifratura.',
     unlockHint:'Le voci salvate con questa password appariranno nell\'elenco. Nulla indica quali password esistano — una password errata semplicemente non rivela nulla.',
     shareHint:'Il testo viaggia dentro il link o la scheda stessa — non tocca mai un server. Anche la scadenza viaggia con esso e viene controllata all\'apertura: un termine di cortesia, non imposto da un server (non ce n\'è alcuno).',
@@ -5509,6 +6854,32 @@ const LANGS = {
     ttImport:'バックアップファイルをこのライブラリに統合',
     ttOpenShare:'受け取った Verbatim 共有カード（.png）や共有ファイルを開く',
     ttLibrary:'端末内のライブラリを開く',
+    allEntries:'すべての項目',
+    moveFolderTo:'フォルダーを移動',
+    moveFolderPick:'「{name}」の新しい移動先を選んでください。表示内容のあるフォルダーのみ表示されます。',
+    moveApply:'ここに移動',
+    movedFolder:'「{name}」を移動しました。',
+    libraryRoot:'ライブラリのルート',
+    sensitiveFolderNote:'このフォルダーには暗号化された項目が含まれています。同じく暗号化項目を含む別のフォルダー、またはライブラリのルートにのみ移動できます。',
+    moveBlockedSensitive:'暗号化項目を含む',
+    moveBlockedRegular:'暗号化項目なし',
+    moveBlockedCycle:'自身の下にネスト',
+    moveBlockedGeneric:'フォルダーをそこには移動できません。',
+    moveBlockedSensitiveMsg:'通常のフォルダーは、暗号化項目を含むフォルダーには移動できません。暗号化フォルダーは分離されています。',
+    moveBlockedRegularMsg:'暗号化項目を含むフォルダーは、別の暗号化フォルダーまたはルートにのみ移動できます。',
+    moveBlockedCycleMsg:'フォルダーは自身やそのサブフォルダーの中には移動できません。',
+    ttDragReorder:'ドラッグで並べ替え',
+    ttFolderOpts:'フォルダーオプション',
+    libEmptySearch:'検索に一致する項目はありません。',
+    libEmptyFolder:'このフォルダーは空です。<br>ここに項目を保存するか、ドラッグで追加してください。',
+    libEmptyRoot:'まだ何もありません。<br>練習ブロックを作成してから「ライブラリに保存…」してください。',
+    ttTour:'60秒のビジュアルツアー',
+    tour:'ツアー',
+    tourPrev:'← 戻る',
+    tourNext:'次へ →',
+    tourTry:'試す',
+    tourCoach:'初めてですか？60秒のビジュアルツアーをご覧ください — 写真で説明、長文なし。',
+    tourCoachCta:'開始',
     ttPrev:'前のブロック（Ctrl+Alt+P）',
     ttReload:'Verbatim を再読み込み——すべて消して最初から',
     ttUnlock:'パスワードで保存した項目を表示',
@@ -5618,6 +6989,64 @@ const LANGS = {
     fullReview:'全体の見直し——入力と原文の比較',
     fTags:'タグ',
     fTagsHint:'（カンマ区切り、任意）',
+    fFolder:'フォルダー',
+    ttNewFolder:'新しいフォルダーを作成',
+    tourStepOf:'ステップ {n} / {t}',
+    tourTryBlurb:'セットアップに読み込まれ、練習できる状態になります',
+    tourLoaded:'「{t}」を読み込みました——練習できます。',
+    tourS1Title:'文章を貼り付けて、ブロックに分割',
+    tourS1Lede:'暗記したい文章を貼り付け、ブロックへの分割方法を選びます——サンプルをタップしてすぐ試すこともできます。',
+    tourS1B1:'行・文・節・Q & A',
+    tourS1B2:'開始前にブロックを自由に編集',
+    tourS1B3:'「 → 」は見えるだけのヒント（入力不要）に使用',
+    tourS2Title:'打ち返して、すべての誤りを見る',
+    tourS2Lede:'各ブロックを記憶から入力します。文字は打つたびに光ります——大文字小文字、句読点、すべて。',
+    tourS2B1:'緑 = 正解、波線赤 = 誤字',
+    tourS2B2:'黄 = 大小文字、青 = 句読点',
+    tourS2B3:'点はまだ到達していない文字を隠します',
+    tourS3Title:'精度の採点方法',
+    tourS3Lede:'Verbatim は文字レベルで採点します——入れ替わったカンマも見逃しません。各色の意味は以下の通りです。',
+    tourS3B1:'正しい文字がスコアを積み上げます',
+    tourS3B2:'余分な入力文字はスコアを下げます（暗唱＋追加 ≠ verbatim）',
+    tourS3B3:'脱落や誤字も減点対象です',
+    tourS4Title:'正直なスコアを読む',
+    tourS4Lede:'完了すると全体の精度と行ごとの差分が表示されます。記録用に PNG を書き出せます。',
+    tourS4B1:'ブロックごとの内訳：大小文字・句読点・脱落',
+    tourS4B2:'実働時間のみ——AFK（無操作）の隙間は含みません',
+    tourS4B3:'サマリー全体の PNG をダウンロードまたはコピー',
+    tourS5Title:'ライブラリを築く',
+    tourS5Lede:'文章を保存して整頓します。フォルダーに分類、ドラッグで並び替え、重要なものにタグを。',
+    tourS5B1:'縦型フォルダーツリー——入れ子＆色分け可',
+    tourS5B2:'フォルダー間で項目をドラッグ',
+    tourS5B3:'どの項目も編集して再保存',
+    tourS6Title:'準備完了。',
+    tourS6Lede:'タブを閉じると練習セッションは消えます——ライブラリは残ります、この端末のみに。何もどこへも送信されません。',
+    tourS6B1:'ライブラリはこのブラウザーに存在します',
+    tourS6B2:'いつでもテーマを切り替え',
+    tourS6B3:'ヘッダーからこのツアーを再表示',
+    samplePsalm23:'詩篇 23（1–3 節）',
+    samplePsalm23Blurb:'節モード · ヒント → 回想',
+    sampleSonnet18:'ソネット 18',
+    sampleSonnet18Blurb:'行モード · 1 ブロック 1 行',
+    sampleQA:'試験 Q & A',
+    sampleQABlurb:'Q & A モード · まず問題、次に答え',
+    sampleGettysburg:'ゲティスバーグ演説',
+    sampleGettysburgBlurb:'文モード · . ! ? で分割',
+    samplePsalm23Preview:'v1 主は私の牧者、私には乏しいことがない。',
+    sampleSonnet18Preview:'君をある夏の日に例えようか？',
+    sampleQAPreview:'Q1 『老人と海』は誰が書いた？',
+    sampleGettysburgPreview:'八十七年前……',
+    mockVerse:'節', mockLines:'行', mockSentences:'文', mockQA:'Q & A',
+    mockPractice:'練習', mockCue:'ヒント', mockThisLine:'この行：', mockTyped:'入力：',
+    mockBlockOf:'{t} 個中 {n} 個目のブロック', mockBlockN:'ブロック {n}', mockNBlocks:'{n} ブロック',
+    mockColorKey:'色凡例', mockAccuracy:'正確さ', mockBlocks:'ブロック', mockActive:'進行中',
+    mockScripture:'聖書', mockPsalms:'詩篇', mockPoetry:'詩', mockPsalm1:'詩篇 1',
+    mockTagline:'一文字ずつ暗記する',
+    mockPsalmText:'v1 主は私の牧者、\n私には乏しいことがない。\nv2 主は私を緑の牧場に伏させ…',
+    mockPsalmDiffCorrect:'主は私の牧者、',
+    mockPsalmDiffOmit:'ない',
+    mockPsalmTyped:'主は私の牧者、私には乏しいことが',
+    mockPsalmDiffCorrect2:'主は私の牧者、',
     encWarnEntry:'このパスワードを忘れると、この項目は復元できません。リセットも、復旧メールも、サーバー上の控えもありません——それが暗号化の目的です。',
     unlockHint:'このパスワードで保存した項目が一覧に表示されます。どのパスワードが存在するかはどこにも示されません——間違ったパスワードでは何も現れないだけです。',
     shareHint:'テキストはリンクやカード自体の中を運ばれます——サーバーには一切触れません。有効期限も一緒に運ばれ、共有を開くときに確認されます：これは礼儀としての期限で、サーバーが強制するものではありません（そもそも存在しません）。',
@@ -5726,6 +7155,32 @@ const LANGS = {
     ttImport:'백업 파일을 이 서재에 병합',
     ttOpenShare:'받은 Verbatim 공유 카드(.png)나 공유 파일 열기',
     ttLibrary:'기기 내 서재 열기',
+    allEntries:'모든 항목',
+    moveFolderTo:'폴더 이동',
+    moveFolderPick:'„{name}“의 새 위치를 선택하세요. 표시되는 콘텐츠가 있는 폴더만 표시됩니다.',
+    moveApply:'여기로 이동',
+    movedFolder:'„{name}“을(를) 이동했습니다.',
+    libraryRoot:'서재 루트',
+    sensitiveFolderNote:'이 폴더에는 암호화된 항목이 있습니다. 다른 암호화 폴더로만 이동하거나 서재 루트로 이동할 수 있습니다.',
+    moveBlockedSensitive:'암호화 항목 포함',
+    moveBlockedRegular:'암호화 항목 없음',
+    moveBlockedCycle:'자체 내에 중첩',
+    moveBlockedGeneric:'폴더를 그곳으로 이동할 수 없습니다.',
+    moveBlockedSensitiveMsg:'일반 폴더는 암호화 항목이 있는 폴더로 이동할 수 없습니다. 암호화 폴더는 격리됩니다.',
+    moveBlockedRegularMsg:'암호화 항목이 있는 폴더는 다른 암호화 폴더 또는 루트로만 이동할 수 있습니다.',
+    moveBlockedCycleMsg:'폴더를 자체 또는 하위 폴더 안으로 이동할 수 없습니다.',
+    ttDragReorder:'드래그하여 재정렬',
+    ttFolderOpts:'폴더 옵션',
+    libEmptySearch:'검색과 일치하는 항목이 없습니다.',
+    libEmptyFolder:'이 폴더가 비어 있습니다.<br>여기에 항목을 저장하거나 끌어다 놓으세요.',
+    libEmptyRoot:'아직 아무것도 없습니다.<br>연습 블록을 만든 후 "서재에 저장…"하세요.',
+    ttTour:'60초 시각 투어',
+    tour:'투어',
+    tourPrev:'← 뒤로',
+    tourNext:'다음 →',
+    tourTry:'체험하기',
+    tourCoach:'처음이신가요? 60초 시각 투어를 즐겨보세요 — 그림으로, 긴 글이 아닙니다.',
+    tourCoachCta:'시작',
     ttPrev:'이전 블록 (Ctrl+Alt+P)',
     ttReload:'Verbatim 새로 고침 — 모두 지우고 처음부터',
     ttUnlock:'비밀번호로 저장한 항목 표시',
@@ -5835,6 +7290,64 @@ const LANGS = {
     fullReview:'전체 검토 — 입력과 원문 비교',
     fTags:'태그',
     fTagsHint:'(쉼표로 구분, 선택 사항)',
+    fFolder:'폴더',
+    ttNewFolder:'새 폴더 만들기',
+    tourStepOf:'{n} / {t} 단계',
+    tourTryBlurb:'설정에 불러와져 연습할 준비가 됩니다',
+    tourLoaded:'“{t}” 불러옴 — 연습할 준비가 됐습니다.',
+    tourS1Title:'본문을 붙여 넣고 나누세요',
+    tourS1Lede:'암기할 내용을 넣은 뒤 블록으로 나누는 방식을 고르세요 — 아니면 지금 바로 샘플을 눌러 보세요.',
+    tourS1B1:'줄, 문장, 절, 또는 Q & A',
+    tourS1B2:'시작 전에 블록을 자유롭게 편집',
+    tourS1B3:'보이지만 입력하지 않는 단서에 “ → ” 사용',
+    tourS2Title:'다시 입력하며 모든 오류 보기',
+    tourS2Lede:'각 블록을 기억에서 입력하세요. 입력하는 대로 문자가 빛납니다 — 대소문자, 문장부호, 모두.',
+    tourS2B1:'초록 = 정답, 물결 빨강 = 잘못된 문자',
+    tourS2B2:'노랑 = 대소문자, 파랑 = 문장부호',
+    tourS2B3:'점은 아직 도달하지 않은 글자를 숨깁니다',
+    tourS3Title:'정확도 채점 방식',
+    tourS3Lede:'Verbatim은 문자 단위로 채점합니다 — 바뀐 쉼표 하나도 그냥 넘기지 않습니다. 각 색상의 의미는 다음과 같습니다.',
+    tourS3B1:'맞은 문자가 점수를 쌓습니다',
+    tourS3B2:'추가로 입력한 글자는 점수를 낮춥니다 (암송 + 추가 ≠ verbatim)',
+    tourS3B3:'누락과 잘못된 문자도 감점 대상입니다',
+    tourS4Title:'정직한 점수를 읽으세요',
+    tourS4Lede:'완료하면 전체 정확도와 줄별 차이를 봅니다. 기록을 남기려 PNG를 내보내세요.',
+    tourS4B1:'블록별 세부 내역: 대소문자, 문장부호, 누락',
+    tourS4B2:'실제 사용 시간만 — AFK 구간은 제외',
+    tourS4B3:'전체 요약의 PNG를 다운로드하거나 복사',
+    tourS5Title:'라이브러리를 구축하세요',
+    tourS5Lede:'본문을 저장하고 정돈하세요. 폴더에 분류하고, 드래그로 재정렬하고, 중요한 것에 태그를 달으세요.',
+    tourS5B1:'세로 폴더 트리 — 중첩과 색상 코딩 가능',
+    tourS5B2:'폴더 사이로 항목 드래그',
+    tourS5B3:'어떤 항목이든 편집하고 다시 저장',
+    tourS6Title:'준비 완료.',
+    tourS6Lede:'탭을 닫으면 연습 세션이 지워집니다 — 라이브러리는 남습니다, 이 기기에만. 어떤 것도 어디로도 전송되지 않습니다.',
+    tourS6B1:'라이브러리는 이 브라우저에 살아 있습니다',
+    tourS6B2:'언제든 테마 전환',
+    tourS6B3:'헤더에서 이 투어 다시 열기',
+    samplePsalm23:'시편 23 (1–3절)',
+    samplePsalm23Blurb:'절 모드 · 단서 → 회상',
+    sampleSonnet18:'소네트 18',
+    sampleSonnet18Blurb:'줄 모드 · 한 줄당 한 블록',
+    sampleQA:'시험 Q & A',
+    sampleQABlurb:'Q & A 모드 · 먼저 질문, 그다음 답',
+    sampleGettysburg:'게티스버그 연설',
+    sampleGettysburgBlurb:'문장 모드 · . ! ? 에서 분할',
+    samplePsalm23Preview:'v1 여호와는 나의 목자시니 내게 부족함이 없으리로다',
+    sampleSonnet18Preview:'내가 그대를 한여름 날에 비기랴?',
+    sampleQAPreview:'Q1 『노인과 바다』는 누가 썼나?',
+    sampleGettysburgPreview:'팔십칠 년 전……',
+    mockVerse:'절', mockLines:'줄', mockSentences:'문장', mockQA:'Q & A',
+    mockPractice:'연습', mockCue:'단서', mockThisLine:'이 줄:', mockTyped:'입력:',
+    mockBlockOf:'{t} 중 {n}번째 블록', mockBlockN:'블록 {n}', mockNBlocks:'{n} 블록',
+    mockColorKey:'색상 표', mockAccuracy:'정확도', mockBlocks:'블록', mockActive:'활성',
+    mockScripture:'성경', mockPsalms:'시편', mockPoetry:'시', mockPsalm1:'시편 1',
+    mockTagline:'한 글자씩 외우기',
+    mockPsalmText:'v1 여호와는 나의 목자시니\n내게 부족함이 없으리로다.\nv2 그가 나를 푸른 풀밭에 누이시며…',
+    mockPsalmDiffCorrect:'여호와는 나의 목자시니 ',
+    mockPsalmDiffOmit:'없으리로다',
+    mockPsalmTyped:'여호와는 나의 목자시니 내게 부족함이',
+    mockPsalmDiffCorrect2:'여호와는 나의 목자시니',
     encWarnEntry:'이 비밀번호를 잊으면 이 항목은 복구할 수 없습니다. 재설정도, 복구 이메일도, 서버 사본도 없습니다 — 그것이 암호화의 목적입니다.',
     unlockHint:'이 비밀번호로 저장한 항목이 목록에 나타납니다. 어떤 비밀번호가 있는지는 어디에도 표시되지 않습니다 — 틀린 비밀번호는 아무것도 드러내지 않을 뿐입니다.',
     shareHint:'텍스트는 링크나 카드 자체 안에 실려 이동합니다 — 어떤 서버에도 닿지 않습니다. 만료 역시 함께 실려 공유를 열 때 확인됩니다: 서버가 강제하는 것이 아니라 예의상의 기한입니다(서버는 아예 없습니다).',
@@ -5943,6 +7456,32 @@ const LANGS = {
     ttImport:'Fundir um ficheiro de cópia nesta biblioteca',
     ttOpenShare:'Abrir um cartão de partilha Verbatim (.png) ou ficheiro recebido',
     ttLibrary:'Abrir a sua biblioteca local',
+    allEntries:'Todas as entradas',
+    moveFolderTo:'Mover pasta',
+    moveFolderPick:'Escolha um novo destino para «{name}». Apenas pastas com conteúdo visível são mostradas.',
+    moveApply:'Mover para aqui',
+    movedFolder:'«{name}» movida.',
+    libraryRoot:'Raiz da biblioteca',
+    sensitiveFolderNote:'Esta pasta contém entradas criptografadas. Só pode ser movida para outra pasta com entradas criptografadas, ou para a raiz da biblioteca.',
+    moveBlockedSensitive:'contém entradas criptografadas',
+    moveBlockedRegular:'sem entradas criptografadas',
+    moveBlockedCycle:'aninhada em si mesma',
+    moveBlockedGeneric:'Não é possível mover a pasta para lá.',
+    moveBlockedSensitiveMsg:'Uma pasta normal não pode ser movida para uma pasta com entradas criptografadas. Pastas criptografadas ficam isoladas.',
+    moveBlockedRegularMsg:'Uma pasta com entradas criptografadas só pode ser movida para outra pasta criptografada, ou para a raiz.',
+    moveBlockedCycleMsg:'Uma pasta não pode ser movida para dentro de si mesma ou de uma das suas subpastas.',
+    ttDragReorder:'Arraste para reordenar',
+    ttFolderOpts:'Opções da pasta',
+    libEmptySearch:'Nenhuma entrada corresponde a essa pesquisa.',
+    libEmptyFolder:'Esta pasta está vazia.<br>Salve uma entrada aqui, ou arraste uma para dentro.',
+    libEmptyRoot:'Ainda não há nada na estante.<br>Crie blocos de prática, depois «Salvar na biblioteca…».',
+    ttTour:'Tour visual de 60 segundos',
+    tour:'Tour',
+    tourPrev:'← Voltar',
+    tourNext:'Próximo →',
+    tourTry:'Experimentar',
+    tourCoach:'Novo aqui? Faça o tour de 60 segundos — imagens, não parágrafos.',
+    tourCoachCta:'Iniciar',
     ttPrev:'Bloco anterior (Ctrl+Alt+P)',
     ttReload:'Recarregar o Verbatim — apagar tudo e recomeçar',
     ttUnlock:'Revelar entradas guardadas sob palavra-passe',
@@ -6052,6 +7591,64 @@ const LANGS = {
     fullReview:'Revisão completa — a sua escrita face ao original',
     fTags:'Etiquetas',
     fTagsHint:'(separadas por vírgulas, opcional)',
+    fFolder:'Pasta',
+    ttNewFolder:'Criar uma nova pasta',
+    tourStepOf:'Passo {n} / {t}',
+    tourTryBlurb:'carrega na configuração, pronto para praticar',
+    tourLoaded:'«{t}» carregado — pronto para praticar.',
+    tourS1Title:'Cole uma passagem, divida em blocos',
+    tourS1Lede:'Insira o que quiser memorizar e escolha como dividir em blocos — ou toque num exemplo para experimentar agora.',
+    tourS1B1:'Linhas, frases, versículos ou Q & A',
+    tourS1B2:'Edite os blocos livremente antes de começar',
+    tourS1B3:'Use « → » para uma pista que vê mas não digita',
+    tourS2Title:'Digite de novo, veja cada deslize',
+    tourS2Lede:'Digite cada bloco de memória. Os caracteres acendem-se à medida que escreve — maiúsculas, pontuação, tudo.',
+    tourS2B1:'Verde = certo, vermelho ondulado = caráter errado',
+    tourS2B2:'Amarelo = maiúsculas, azul = pontuação',
+    tourS2B3:'Pontos ocultam o texto que ainda não atingiu',
+    tourS3Title:'Como a precisão é pontuada',
+    tourS3Lede:'O Verbatim avalia ao nível do caráter — não deixa passar uma vírgula trocada. Eis o que cada cor significa.',
+    tourS3B1:'Caracteres corretos constroem a sua pontuação',
+    tourS3B2:'Texto extra digitado baixa-a (recitar + adicionar ≠ verbatim)',
+    tourS3B3:'Omissões e caracteres errados contam contra si',
+    tourS4Title:'Leia a sua pontuação honesta',
+    tourS4Lede:'Termine para uma precisão global e um diff linha a linha. Exporte um PNG para guardar registo.',
+    tourS4B1:'Detalhe por bloco: maiúsculas, pontuação, omissões',
+    tourS4B2:'Apenas tempo ativo — pausas AFK não contam',
+    tourS4B3:'Descarregar ou copiar um PNG de todo o resumo',
+    tourS5Title:'Construa a sua biblioteca',
+    tourS5Lede:'Guarde passagens e mantenha-as arrumadas. Arquive em pastas, arraste para reordenar, etiquete o que importa.',
+    tourS5B1:'Uma árvore de pastas vertical — aninhável e colorida',
+    tourS5B2:'Arrastar entradas entre pastas',
+    tourS5B3:'Editar e voltar a guardar qualquer entrada',
+    tourS6Title:'Tudo pronto.',
+    tourS6Lede:'Fechar o separador limpa a sessão de prática — a biblioteca fica, só neste dispositivo. Nada é nunca enviado para lado nenhum.',
+    tourS6B1:'A sua biblioteca vive neste navegador',
+    tourS6B2:'Alternar o tema a qualquer momento',
+    tourS6B3:'Reabrir este tour pelo cabeçalho',
+    samplePsalm23:'Salmo 23 (vv. 1–3)',
+    samplePsalm23Blurb:'Modo versículo · pista → recordação',
+    sampleSonnet18:'Soneto 18',
+    sampleSonnet18Blurb:'Modo linha · uma linha por bloco',
+    sampleQA:'Q & A de exame',
+    sampleQABlurb:'Modo Q & A · pergunta depois resposta',
+    sampleGettysburg:'Discurso de Gettysburg',
+    sampleGettysburgBlurb:'Modo frase · divide em . ! ?',
+    samplePsalm23Preview:'v1 O Senhor é o meu pastor; nada me faltará.',
+    sampleSonnet18Preview:'Devo comparar-te a um dia de verão?',
+    sampleQAPreview:'P1 Quem escreveu «O Velho e o Mar»?',
+    sampleGettysburgPreview:'Há oitenta e sete anos…',
+    mockVerse:'Versículo', mockLines:'Linhas', mockSentences:'Frases', mockQA:'Q & A',
+    mockPractice:'Prática', mockCue:'pista', mockThisLine:'esta linha:', mockTyped:'digitado:',
+    mockBlockOf:'Bloco {n} de {t}', mockBlockN:'Bloco {n}', mockNBlocks:'{n} blocos',
+    mockColorKey:'Legenda de cores', mockAccuracy:'precisão', mockBlocks:'blocos', mockActive:'ativo',
+    mockScripture:'Escrituras', mockPsalms:'Salmos', mockPoetry:'Poesia', mockPsalm1:'Salmo 1',
+    mockTagline:'memorizar, carácter por carácter',
+    mockPsalmText:'v1 O Senhor é o meu pastor;\nnada me faltará.\nv2 Faz-me repousar…',
+    mockPsalmDiffCorrect:'o Senhor é o meu pastor; ',
+    mockPsalmDiffOmit:'faltará',
+    mockPsalmTyped:'o Senhor é o meu pastor; nada me',
+    mockPsalmDiffCorrect2:'o Senhor é o meu pastor;',
     encWarnEntry:'Se esquecer esta palavra-passe, esta entrada não pode ser recuperada. Não há reposição, não há e-mail de recuperação e não há cópia no servidor — é esse o objetivo da encriptação.',
     unlockHint:'As entradas guardadas com esta palavra-passe aparecerão na lista. Nada indica que palavras-passe existem — uma palavra-passe errada simplesmente não revela nada.',
     shareHint:'O texto viaja dentro do próprio link ou cartão — nunca toca num servidor. A validade viaja também com ele e é verificada ao abrir a partilha: um prazo de cortesia, não imposto por um servidor (não existe nenhum).',
@@ -6232,6 +7829,32 @@ const LANGS = {
     ttImport:'Объединить файл резервной копии с этой библиотекой',
     ttOpenShare:'Открыть карточку Verbatim (.png) или присланный файл',
     ttLibrary:'Открыть локальную библиотеку',
+    allEntries:'Все записи',
+    moveFolderTo:'Переместить папку',
+    moveFolderPick:'Выберите новый дом для «{name}». Показаны только папки с видимым содержимым.',
+    moveApply:'Переместить сюда',
+    movedFolder:'«{name}» перемещена.',
+    libraryRoot:'Корень библиотеки',
+    sensitiveFolderNote:'Эта папка содержит зашифрованные записи. Её можно переместить только в другую папку с зашифрованными записями или в корень библиотеки.',
+    moveBlockedSensitive:'содержит зашифрованные записи',
+    moveBlockedRegular:'без зашифрованных записей',
+    moveBlockedCycle:'вложена в себя',
+    moveBlockedGeneric:'Невозможно переместить папку туда.',
+    moveBlockedSensitiveMsg:'Обычную папку нельзя переместить в папку с зашифрованными записями. Зашифрованные папки остаются изолированными.',
+    moveBlockedRegularMsg:'Папку с зашифрованными записями можно переместить только в другую зашифрованную папку или в корень.',
+    moveBlockedCycleMsg:'Папку нельзя переместить внутрь себя или одной из её подпапок.',
+    ttDragReorder:'Перетащите для сортировки',
+    ttFolderOpts:'Параметры папки',
+    libEmptySearch:'Ничего не найдено по запросу.',
+    libEmptyFolder:'Эта папка пуста.<br>Сохраните сюда запись или перетащите одну.',
+    libEmptyRoot:'На полке пока пусто.<br>Создайте блоки практики, затем «Сохранить в библиотеку…».',
+    ttTour:'60-секундный визуальный тур',
+    tour:'Тур',
+    tourPrev:'← Назад',
+    tourNext:'Далее →',
+    tourTry:'Попробовать',
+    tourCoach:'Новичок? Пройдите 60-секундный визуальный тур — картинки, а не абзацы текста.',
+    tourCoachCta:'Начать',
     ttPrev:'Предыдущий блок (Ctrl+Alt+P)',
     ttReload:'Перезагрузить Verbatim — стереть всё и начать заново',
     ttUnlock:'Показать записи, сохранённые под паролем',
@@ -6341,6 +7964,64 @@ const LANGS = {
     fullReview:'Полный разбор — ваш набор в сравнении с оригиналом',
     fTags:'Метки',
     fTagsHint:'(через запятую, необязательно)',
+    fFolder:'Папка',
+    ttNewFolder:'Создать новую папку',
+    tourStepOf:'Шаг {n} / {t}',
+    tourTryBlurb:'загружается в настройку, готов к практике',
+    tourLoaded:'«{t}» загружено — готово к практике.',
+    tourS1Title:'Вставьте отрывок и разбейте его',
+    tourS1Lede:'Вставьте всё, что хотите выучить, затем выберите, как разбить на блоки — или нажмите образец, чтобы попробовать прямо сейчас.',
+    tourS1B1:'Строки, предложения, стихи или Q & A',
+    tourS1B2:'Свободно редактируйте блоки перед началом',
+    tourS1B3:'Используйте « → » для подсказки, которую видите, но не печатаете',
+    tourS2Title:'Напечатайте заново, увидите каждую ошибку',
+    tourS2Lede:'Печатайте каждый блок по памяти. Символы подсвечиваются по мере ввода — регистр, пунктуация, всё.',
+    tourS2B1:'Зелёный = верно, волнистый красный = неверный символ',
+    tourS2B2:'Жёлтый = регистр, синий = пунктуация',
+    tourS2B3:'Точки скрывают текст, до которого вы ещё не дошли',
+    tourS3Title:'Как оценивается точность',
+    tourS3Lede:'Verbatim оценивает на уровне символов — перепутанная запятая не проскочит. Вот что значит каждый цвет.',
+    tourS3B1:'Верные символы наращивают ваш счёт',
+    tourS3B2:'Лишний напечатанный текст снижает его (чтение + добавление ≠ verbatim)',
+    tourS3B3:'Пропуски и неверные символы идут в минус',
+    tourS4Title:'Прочтите свой честный счёт',
+    tourS4Lede:'Завершите, чтобы увидеть общую точность и построчное сравнение. Экспортируйте PNG для записи.',
+    tourS4B1:'Разбивка по блокам: регистр, пунктуация, пропуски',
+    tourS4B2:'Только активное время — паузы AFK не учитываются',
+    tourS4B3:'Скачать или скопировать PNG всего отчёта',
+    tourS5Title:'Собирайте свою библиотеку',
+    tourS5Lede:'Сохраняйте отрывки и держите их в порядке. Раскладывайте по папкам, перетаскивайте для сортировки, помечайте метками важное.',
+    tourS5B1:'Вертикальное дерево папок — вложенность и цвет',
+    tourS5B2:'Перетаскивайте записи между папками',
+    tourS5B3:'Редактируйте и пересохраняйте любую запись',
+    tourS6Title:'Всё готово.',
+    tourS6Lede:'Закрытие вкладки очищает практическую сессию — библиотека остаётся, только на этом устройстве. Ничего никогда никуда не отправляется.',
+    tourS6B1:'Ваша библиотека живёт в этом браузере',
+    tourS6B2:'Переключайте тему в любой момент',
+    tourS6B3:'Снова откройте этот тур из шапки',
+    samplePsalm23:'Псалом 23 (ст. 1–3)',
+    samplePsalm23Blurb:'Режим стихов · подсказка → припоминание',
+    sampleSonnet18:'Сонет 18',
+    sampleSonnet18Blurb:'Режим строк · одна строка на блок',
+    sampleQA:'Экзамен Q & A',
+    sampleQABlurb:'Режим Q & A · сначала вопрос, затем ответ',
+    sampleGettysburg:'Геттисбергская речь',
+    sampleGettysburgBlurb:'Режим предложений · делит по . ! ?',
+    samplePsalm23Preview:'v1 Господь — Пастырь мой; я ни в чем не буду нуждаться.',
+    sampleSonnet18Preview:'Сравнить ли мне тебя с летним днём?',
+    sampleQAPreview:'В1 Кто написал «Старик и море»?',
+    sampleGettysburgPreview:'Восемьдесят семь лет назад…',
+    mockVerse:'Стих', mockLines:'Строки', mockSentences:'Предложения', mockQA:'Q & A',
+    mockPractice:'Практика', mockCue:'подсказка', mockThisLine:'эта строка:', mockTyped:'набрано:',
+    mockBlockOf:'Блок {n} из {t}', mockBlockN:'Блок {n}', mockNBlocks:'{n} блоков',
+    mockColorKey:'Цветовая легенда', mockAccuracy:'точность', mockBlocks:'блоков', mockActive:'активен',
+    mockScripture:'Писание', mockPsalms:'Псалтирь', mockPoetry:'Поэзия', mockPsalm1:'Псалом 1',
+    mockTagline:'запоминать, символ за символом',
+    mockPsalmText:'v1 Господь — Пастырь мой;\nя ни в чем не буду нуждаться.\nv2 Он покоит меня…',
+    mockPsalmDiffCorrect:'господь — Пастырь мой; ',
+    mockPsalmDiffOmit:'нуждаться',
+    mockPsalmTyped:'господь — Пастырь мой; я ни в чем не буду',
+    mockPsalmDiffCorrect2:'господь — Пастырь мой;',
     encWarnEntry:'Если вы забудете этот пароль, эту запись нельзя восстановить. Нет сброса, нет письма для восстановления и нет копии на сервере — в этом и смысл шифрования.',
     unlockHint:'Записи, сохранённые под этим паролем, появятся в списке. Нигде не показано, какие пароли существуют — неверный пароль просто ничего не открывает.',
     shareHint:'Текст едет внутри самой ссылки или карточки — он никогда не касается сервера. Срок действия едет вместе с ним и проверяется при открытии: это срок из вежливости, а не принуждение со стороны сервера (его попросту нет).',
@@ -6449,6 +8130,32 @@ const LANGS = {
     ttImport:'Combinar un archivo de copia con esta biblioteca',
     ttOpenShare:'Abrir una tarjeta de Verbatim (.png) o un archivo recibido',
     ttLibrary:'Abrir tu biblioteca local',
+    allEntries:'Todas las entradas',
+    moveFolderTo:'Mover carpeta',
+    moveFolderPick:'Elige un nuevo destino para «{name}». Solo se muestran las carpetas con contenido visible.',
+    moveApply:'Mover aquí',
+    movedFolder:'«{name}» movida.',
+    libraryRoot:'Raíz de la biblioteca',
+    sensitiveFolderNote:'Esta carpeta contiene entradas cifradas. Solo puede moverse a otra carpeta con entradas cifradas, o a la raíz de la biblioteca.',
+    moveBlockedSensitive:'contiene entradas cifradas',
+    moveBlockedRegular:'sin entradas cifradas',
+    moveBlockedCycle:'anidada en sí misma',
+    moveBlockedGeneric:'No se puede mover la carpeta ahí.',
+    moveBlockedSensitiveMsg:'Una carpeta normal no se puede mover a una carpeta con entradas cifradas. Las carpetas cifradas permanecen aisladas.',
+    moveBlockedRegularMsg:'Una carpeta con entradas cifradas solo se puede mover a otra carpeta cifrada, o a la raíz.',
+    moveBlockedCycleMsg:'Una carpeta no se puede mover dentro de sí misma o de una de sus subcarpetas.',
+    ttDragReorder:'Arrastra para reordenar',
+    ttFolderOpts:'Opciones de carpeta',
+    libEmptySearch:'Ninguna entrada coincide con esa búsqueda.',
+    libEmptyFolder:'Esta carpeta está vacía.<br>Guarda una entrada aquí, o arrastra una.',
+    libEmptyRoot:'Todavía no hay nada en el estante.<br>Crea bloques de práctica, luego «Guardar en la biblioteca…».',
+    ttTour:'Tour visual de 60 segundos',
+    tour:'Tour',
+    tourPrev:'← Atrás',
+    tourNext:'Siguiente →',
+    tourTry:'Probar',
+    tourCoach:'¿Nuevo aquí? Haz el tour de 60 segundos — imágenes, no párrafos.',
+    tourCoachCta:'Empezar',
     ttPrev:'Bloque anterior (Ctrl+Alt+P)',
     ttReload:'Recargar Verbatim — borrar todo y empezar de nuevo',
     ttUnlock:'Revelar entradas guardadas con una contraseña',
@@ -6558,6 +8265,64 @@ const LANGS = {
     fullReview:'Revisión completa — tu escritura frente al original',
     fTags:'Etiquetas',
     fTagsHint:'(separadas por comas, opcional)',
+    fFolder:'Carpeta',
+    ttNewFolder:'Crear una nueva carpeta',
+    tourStepOf:'Paso {n} / {t}',
+    tourTryBlurb:'se carga en la configuración, listo para practicar',
+    tourLoaded:'«{t}» cargado — listo para practicar.',
+    tourS1Title:'Pega un pasaje y divídelo',
+    tourS1Lede:'Pega lo que quieras memorizar y elige cómo se rompe en bloques — o toca un ejemplo para probarlo ahora mismo.',
+    tourS1B1:'Líneas, frases, versículos o Q & A',
+    tourS1B2:'Edita los bloques libremente antes de empezar',
+    tourS1B3:'Usa « → » para una pista que ves pero no escribes',
+    tourS2Title:'Escríbelo de nuevo, ve cada fallo',
+    tourS2Lede:'Escribe cada bloque de memoria. Los caracteres se iluminan al escribir — mayúsculas, puntuación, todo.',
+    tourS2B1:'Verde = correcto, rojo ondulado = carácter erróneo',
+    tourS2B2:'Amarillo = mayúsculas, azul = puntuación',
+    tourS2B3:'Los puntos ocultan el texto que aún no has alcanzado',
+    tourS3Title:'Cómo se puntúa la precisión',
+    tourS3Lede:'Verbatim evalúa a nivel de carácter — no deja pasar una coma cambiada. Esto es lo que significa cada color.',
+    tourS3B1:'Los caracteres correctos construyen tu puntuación',
+    tourS3B2:'El texto extra tecleado la baja (recitar + añadir ≠ verbatim)',
+    tourS3B3:'Omisiones y caracteres erróneos cuentan en tu contra',
+    tourS4Title:'Lee tu puntuación honesta',
+    tourS4Lede:'Termina para una precisión global y un diff línea por línea. Exporta un PNG para dejar constancia.',
+    tourS4B1:'Desglose por bloque: mayúsculas, puntuación, omisiones',
+    tourS4B2:'Solo tiempo activo — las pausas AFK no cuentan',
+    tourS4B3:'Descarga o copia un PNG de todo el resumen',
+    tourS5Title:'Construye tu biblioteca',
+    tourS5Lede:'Guarda pasajes y mantenlos ordenados. Archívalos en carpetas, arrastra para reordenar, etiqueta lo que importa.',
+    tourS5B1:'Un árbol vertical de carpetas — anidable y con color',
+    tourS5B2:'Arrastra entradas entre carpetas',
+    tourS5B3:'Edita y vuelve a guardar cualquier entrada',
+    tourS6Title:'Ya está todo listo.',
+    tourS6Lede:'Cerrar la pestaña borra la sesión de práctica — la biblioteca se queda, solo en este dispositivo. Nada se envía nunca a ningún sitio.',
+    tourS6B1:'Tu biblioteca vive en este navegador',
+    tourS6B2:'Cambia de tema cuando quieras',
+    tourS6B3:'Vuelve a abrir este tour desde la cabecera',
+    samplePsalm23:'Salmo 23 (vv. 1–3)',
+    samplePsalm23Blurb:'Modo versículo · pista → recuerdo',
+    sampleSonnet18:'Soneto 18',
+    sampleSonnet18Blurb:'Modo línea · una línea por bloque',
+    sampleQA:'Examen Q & A',
+    sampleQABlurb:'Modo Q & A · pregunta y luego respuesta',
+    sampleGettysburg:'Discurso de Gettysburg',
+    sampleGettysburgBlurb:'Modo frase · divide en . ! ?',
+    samplePsalm23Preview:'v1 Jehová es mi pastor; nada me faltará.',
+    sampleSonnet18Preview:'¿Te compararé con un día de verano?',
+    sampleQAPreview:'P1 ¿Quién escribió «El viejo y el mar»?',
+    sampleGettysburgPreview:'Hace ochenta y siete años…',
+    mockVerse:'Versículo', mockLines:'Líneas', mockSentences:'Frases', mockQA:'Q & A',
+    mockPractice:'Práctica', mockCue:'pista', mockThisLine:'esta línea:', mockTyped:'escrito:',
+    mockBlockOf:'Bloque {n} de {t}', mockBlockN:'Bloque {n}', mockNBlocks:'{n} bloques',
+    mockColorKey:'Leyenda de colores', mockAccuracy:'precisión', mockBlocks:'bloques', mockActive:'activo',
+    mockScripture:'Escrituras', mockPsalms:'Salmos', mockPoetry:'Poesía', mockPsalm1:'Salmo 1',
+    mockTagline:'memorizar, carácter por carácter',
+    mockPsalmText:'v1 Jehová es mi pastor;\nnada me faltará.\nv2 Me hace descansar…',
+    mockPsalmDiffCorrect:'jehová es mi pastor; ',
+    mockPsalmDiffOmit:'faltará',
+    mockPsalmTyped:'jehová es mi pastor; nada me',
+    mockPsalmDiffCorrect2:'jehová es mi pastor;',
     encWarnEntry:'Si olvidas esta contraseña, esta entrada no se puede recuperar. No hay restablecimiento, ni correo de recuperación, ni copia en el servidor — ese es el propósito del cifrado.',
     unlockHint:'Las entradas guardadas con esta contraseña aparecerán en la lista. Nada indica qué contraseñas existen — una contraseña incorrecta simplemente no revela nada.',
     shareHint:'El texto viaja dentro del propio enlace o tarjeta — nunca toca un servidor. La caducidad también viaja con él y se comprueba al abrir el envío: un plazo de cortesía, no impuesto por un servidor (no hay ninguno).',
@@ -6667,6 +8432,32 @@ const LANGS = {
     ttImport:'Bir yedek dosyasını bu kitaplığa birleştir',
     ttOpenShare:'Bir Verbatim paylaşım kartını (.png) ya da alınan dosyayı aç',
     ttLibrary:'Cihazdaki kitaplığınızı açın',
+    allEntries:'Tüm girdiler',
+    moveFolderTo:'Klasörü taşı',
+    moveFolderPick:'«{name}» için yeni bir hedef seçin. Yalnızca görünen içeriğe sahip klasörler gösterilir.',
+    moveApply:'Buraya taşı',
+    movedFolder:'«{name}» taşındı.',
+    libraryRoot:'Kitaplık kökü',
+    sensitiveFolderNote:'Bu klasör şifrelenmiş girdiler içeriyor. Yalnızca şifrelenmiş girdiler içeren başka bir klasöre veya kitaplık köküne taşınabilir.',
+    moveBlockedSensitive:'şifrelenmiş girdi içerir',
+    moveBlockedRegular:'şifrelenmiş girdi yok',
+    moveBlockedCycle:'kendisi içinde iç içe',
+    moveBlockedGeneric:'Klasör oraya taşınamaz.',
+    moveBlockedSensitiveMsg:'Normal bir klasör, şifrelenmiş girdi içeren bir klasöre taşınamaz. Şifreli klasörler izole kalır.',
+    moveBlockedRegularMsg:'Şifrelenmiş girdi içeren bir klasör yalnızca başka bir şifreli klasöre veya köke taşınabilir.',
+    moveBlockedCycleMsg:'Bir klasör kendisinin veya alt klasörlerinden birinin içine taşınamaz.',
+    ttDragReorder:'Yeniden sıralamak için sürükle',
+    ttFolderOpts:'Klasör seçenekleri',
+    libEmptySearch:'Bu aramayla eşleşen girdi yok.',
+    libEmptyFolder:'Bu klasör boş.<br>Buraya bir girdi kaydet veya birini sürükle.',
+    libEmptyRoot:'Rafta henüz hiçbir şey yok.<br>Pratik blokları oluştur, sonra «Kitaplığa kaydet…».',
+    ttTour:'60 saniyelik görsel tur',
+    tour:'Tur',
+    tourPrev:'← Geri',
+    tourNext:'İleri →',
+    tourTry:'Dene',
+    tourCoach:'Yeni misiniz? 60 saniyelik görsel turu yapın — resimler, paragraflar değil.',
+    tourCoachCta:'Başla',
     ttPrev:'Önceki blok (Ctrl+Alt+P)',
     ttReload:'Verbatim\'i yeniden yükle — her şeyi temizle ve baştan başla',
     ttUnlock:'Parolayla kaydedilen kayıtları göster',
@@ -6776,6 +8567,64 @@ const LANGS = {
     fullReview:'Tam inceleme — yazdıklarınız ile özgün metin',
     fTags:'Etiketler',
     fTagsHint:'(virgülle ayrılmış, isteğe bağlı)',
+    fFolder:'Klasör',
+    ttNewFolder:'Yeni klasör oluştur',
+    tourStepOf:'Adım {n} / {t}',
+    tourTryBlurb:'kuruluma yüklenir, alıştırmaya hazır',
+    tourLoaded:'«{t}» yüklendi — alıştırmaya hazır.',
+    tourS1Title:'Bir metin yapıştır, böl',
+    tourS1Lede:'Hafızaya almak istediğin her şeyi yapıştır, sonra bloklara nasıl bölüneceğini seç — ya da hemen denemek için bir örneğe dokun.',
+    tourS1B1:'Satırlar, cümleler, ayetler veya Q & A',
+    tourS1B2:'Başlamadan önce blokları özgürce düzenle',
+    tourS1B3:'Gördüğün ama yazmadığın bir ipucu için « → » kullan',
+    tourS2Title:'Geri yaz, her hatayı gör',
+    tourS2Lede:'Her bloğu hafızadan yaz. Karakterler yazdıkça parlar — büyük/küçük harf, noktalama, hepsi.',
+    tourS2B1:'Yeşil = doğru, dalgalı kırmızı = yanlış karakter',
+    tourS2B2:'Sarı = büyük/küçük, mavi = noktalama',
+    tourS2B3:'Noktalar henüz ulaşmadığın metni gizler',
+    tourS3Title:'Doğruluk nasıl puanlanır',
+    tourS3Lede:'Verbatim karakter düzeyinde puanlar — yer değiştiren bir virgül de geçmez. Her rengin anlamı şöyledir.',
+    tourS3B1:'Doğru karakterler puanını oluşturur',
+    tourS3B2:'Fazladan yazılan metin puanı düşürür (ezberlemek + eklemek ≠ verbatim)',
+    tourS3B3:'Atlamalar ve yanlış karakterler aleyhine sayılır',
+    tourS4Title:'Dürüst puanını oku',
+    tourS4Lede:'Bitir ki genel doğruluk ve satır satır diff gör. Kayıt için bir PNG dışa aktar.',
+    tourS4B1:'Blok başına döküm: büyük/küçük, noktalama, atlamalar',
+    tourS4B2:'Yalnızca etkin süre — AFK boşlukları sayılmaz',
+    tourS4B3:'Özetin tamamının PNG’sini indir veya kopyala',
+    tourS5Title:'Kütüphaneni kur',
+    tourS5Lede:'Metinleri kaydet ve düzenli tut. Klasörlere yerleştir, sürükle yeniden sırala, önemli olana etiket ver.',
+    tourS5B1:'Dikey bir klasör ağacı — iç içe ve renk kodlu',
+    tourS5B2:'Klasörler arasında girdileri sürükle',
+    tourS5B3:'Herhangi bir girdiyi düzenle ve yeniden kaydet',
+    tourS6Title:'Her şey hazır.',
+    tourS6Lede:'Sekmeyi kapatmak alıştırma oturumunu siler — kütüphane kalır, yalnızca bu cihazda. Hiçbir şey hiçbir yere gönderilmez.',
+    tourS6B1:'Kütüphanen bu tarayıcıda yaşar',
+    tourS6B2:'Temayı istediğin an değiştir',
+    tourS6B3:'Bu turu başlıktan tekrar aç',
+    samplePsalm23:'Mezmur 23 (ay. 1–3)',
+    samplePsalm23Blurb:'Ayet kipi · ipucu → hatırlama',
+    sampleSonnet18:'Sonet 18',
+    sampleSonnet18Blurb:'Satır kipi · blok başına bir satır',
+    sampleQA:'Sınav Q & A',
+    sampleQABlurb:'Q & A kipi · önce soru, sonra cevap',
+    sampleGettysburg:'Gettysburg Konuşması',
+    sampleGettysburgBlurb:'Cümle kipi · . ! ? üzerinde bölünür',
+    samplePsalm23Preview:'v1 Rab benim çobanımdır; hiçbir şeye ihtiyacım olmaz.',
+    sampleSonnet18Preview:'Seni bir yaz gününe benzeteyim mi?',
+    sampleQAPreview:'S1 «İhtiyar Adam ve Deniz» kitabını kim yazdı?',
+    sampleGettysburgPreview:'Seksen yedi yıl önce…',
+    mockVerse:'Ayet', mockLines:'Satırlar', mockSentences:'Cümleler', mockQA:'Q & A',
+    mockPractice:'Pratik', mockCue:'ipucu', mockThisLine:'bu satır:', mockTyped:'yazılan:',
+    mockBlockOf:'{t} bloğun {n}. bloğu', mockBlockN:'Blok {n}', mockNBlocks:'{n} blok',
+    mockColorKey:'Renk anahtarı', mockAccuracy:'doğruluk', mockBlocks:'blok', mockActive:'etkin',
+    mockScripture:'Kutsal Kitap', mockPsalms:'Mezmurlar', mockPoetry:'Şiir', mockPsalm1:'Mezmur 1',
+    mockTagline:'ezberle, harf harf',
+    mockPsalmText:'v1 Rab benim çobanımdır;\nhiçbir şeye ihtiyacım olmaz.\nv2 Beni yeşil otlaklarda dinlendirir…',
+    mockPsalmDiffCorrect:'rab benim çobanımdır; ',
+    mockPsalmDiffOmit:'olmaz',
+    mockPsalmTyped:'rab benim çobanımdır; hiçbir şeye ihtiyacım',
+    mockPsalmDiffCorrect2:'rab benim çobanımdır;',
     encWarnEntry:'Bu parolayı unutursanız bu kayıt kurtarılamaz. Sıfırlama yok, kurtarma e-postası yok ve sunucu kopyası yok — şifrelemenin amacı da budur.',
     unlockHint:'Bu parolayla kaydedilen kayıtlar listede görünür. Hangi parolaların var olduğunu hiçbir şey göstermez — yanlış parola yalnızca hiçbir şey açığa çıkarmaz.',
     shareHint:'Metin, bağlantının veya kartın kendi içinde taşınır — hiçbir sunucuya değmez. Son kullanma da onunla taşınır ve paylaşım açılırken denetlenir: bir nezaket süresidir, bir sunucunun dayattığı bir şey değil (zaten yok).',
@@ -6884,6 +8733,32 @@ const LANGS = {
     ttImport:'Об\'єднати файл резервної копії з цією бібліотекою',
     ttOpenShare:'Відкрити картку Verbatim (.png) або надісланий файл',
     ttLibrary:'Відкрити локальну бібліотеку',
+    allEntries:'Усі записи',
+    moveFolderTo:'Перемістити теку',
+    moveFolderPick:'Оберіть нове місце для «{name}». Показано лише теки з видимим вмістом.',
+    moveApply:'Перемістити сюди',
+    movedFolder:'«{name}» переміщено.',
+    libraryRoot:'Корінь бібліотеки',
+    sensitiveFolderNote:'Ця тека містить зашифровані записи. Її можна перемістити лише в іншу теку із зашифрованими записами, або в корінь бібліотеки.',
+    moveBlockedSensitive:'містить зашифровані записи',
+    moveBlockedRegular:'без зашифрованих записів',
+    moveBlockedCycle:'вкладена в себе',
+    moveBlockedGeneric:'Неможливо перемістити теку туди.',
+    moveBlockedSensitiveMsg:'Звичайну теку не можна перемістити в теку із зашифрованими записами. Зашифровані теки залишаються ізольованими.',
+    moveBlockedRegularMsg:'Теку із зашифрованими записами можна перемістити лише в іншу зашифровану теку, або в корінь.',
+    moveBlockedCycleMsg:'Теку не можна перемістити всередину себе або однієї з її підтеок.',
+    ttDragReorder:'Перетягніть для впорядкування',
+    ttFolderOpts:'Параметри теки',
+    libEmptySearch:'Жоден запис не відповідає пошуку.',
+    libEmptyFolder:'Ця тека порожня.<br>Збережіть сюди запис або перетягніть один.',
+    libEmptyRoot:'На полиці ще нічого немає.<br>Створіть блоки практики, потім «Зберегти до бібліотеки…».',
+    ttTour:'60-секундний візуальний тур',
+    tour:'Тур',
+    tourPrev:'← Назад',
+    tourNext:'Далі →',
+    tourTry:'Спробувати',
+    tourCoach:'Вперше? Пройдіть 60-секундний візуальний тур — картинки, а не абзаци.',
+    tourCoachCta:'Почати',
     ttPrev:'Попередній блок (Ctrl+Alt+P)',
     ttReload:'Перезавантажити Verbatim — стерти все й почати заново',
     ttUnlock:'Показати записи, збережені під паролем',
@@ -6993,6 +8868,64 @@ const LANGS = {
     fullReview:'Повний розбір — ваш набір у порівнянні з оригіналом',
     fTags:'Мітки',
     fTagsHint:'(через кому, необов\'язково)',
+    fFolder:'Тека',
+    ttNewFolder:'Створити нову теку',
+    tourStepOf:'Крок {n} / {t}',
+    tourTryBlurb:'завантажується в налаштування, готовий до практики',
+    tourLoaded:'«{t}» завантажено — готово до практики.',
+    tourS1Title:'Вставте уривок і розбийте його',
+    tourS1Lede:'Вставте все, що хочете запам\'ятати, потім оберіть, як розбити на блоки — або торкніться зразка, щоб спробувати просто зараз.',
+    tourS1B1:'Рядки, речення, вірші або Q & A',
+    tourS1B2:'Вільно редагуйте блоки перед початком',
+    tourS1B3:'Використовуйте « → » для підказки, яку бачите, але не друкуєте',
+    tourS2Title:'Надрукуйте наново, побачите кожну помилку',
+    tourS2Lede:'Друкуйте кожен блок за пам\'яттю. Символи підсвічуються під час набору — регістр, пунктуація, усе.',
+    tourS2B1:'Зелений = вірно, хвилеподібний червоний = неправильний символ',
+    tourS2B2:'Жовтий = регістр, синій = пунктуація',
+    tourS2B3:'Крапки ховають текст, до якого ви ще не дійшли',
+    tourS3Title:'Як оцінюється точність',
+    tourS3Lede:'Verbatim оцінює на рівні символів — переплутана кома не проскочить. Ось що означає кожен колір.',
+    tourS3B1:'Правильні символи нарощують ваш рахунок',
+    tourS3B2:'Зайвий надрукований текст знижує його (декламування + додавання ≠ verbatim)',
+    tourS3B3:'Пропуски й неправильні символи йдуть у мінус',
+    tourS4Title:'Прочитайте свій чесний рахунок',
+    tourS4Lede:'Завершіть, щоб побачити загальну точність і рядкове порівняння. Експортуйте PNG для запису.',
+    tourS4B1:'Розбивка по блоках: регістр, пунктуація, пропуски',
+    tourS4B2:'Лише активний час — паузи AFK не враховуються',
+    tourS4B3:'Завантажити або скопіювати PNG усього звіту',
+    tourS5Title:'Збирайте свою бібліотеку',
+    tourS5Lede:'Зберігайте уривки й тримайте їх у порядку. Розкладайте по теках, перетягуйте для сортування, позначайте мітками важливе.',
+    tourS5B1:'Вертикальне дерево тек — вкладеність і колір',
+    tourS5B2:'Перетягуйте записи між теками',
+    tourS5B3:'Редагуйте й перезберігайте будь-який запис',
+    tourS6Title:'Усе готово.',
+    tourS6Lede:'Закриття вкладки очищає практичну сесію — бібліотека лишається, лише на цьому пристрої. Ніщо ніколи нікуди не надсилається.',
+    tourS6B1:'Ваша бібліотека живе в цьому браузері',
+    tourS6B2:'Перемикайте тему будь-коли',
+    tourS6B3:'Знову відкрийте цей тур із шапки',
+    samplePsalm23:'Псалом 23 (ст. 1–3)',
+    samplePsalm23Blurb:'Режим віршів · підказка → згадка',
+    sampleSonnet18:'Сонет 18',
+    sampleSonnet18Blurb:'Режим рядків · один рядок на блок',
+    sampleQA:'Іспит Q & A',
+    sampleQABlurb:'Режим Q & A · спочатку питання, потім відповідь',
+    sampleGettysburg:'Геттісбергська промова',
+    sampleGettysburgBlurb:'Режим речень · ділить за . ! ?',
+    samplePsalm23Preview:'v1 Господь — мій Пастир; я не буду мати нестачі.',
+    sampleSonnet18Preview:'Чи порівняти тебе з літнім днем?',
+    sampleQAPreview:'П1 Хто написав «Старий і море»?',
+    sampleGettysburgPreview:'Вісімдесят сім років тому…',
+    mockVerse:'Вірш', mockLines:'Рядки', mockSentences:'Речення', mockQA:'Q & A',
+    mockPractice:'Практика', mockCue:'підказка', mockThisLine:'цей рядок:', mockTyped:'набрано:',
+    mockBlockOf:'Блок {n} із {t}', mockBlockN:'Блок {n}', mockNBlocks:'{n} блоків',
+    mockColorKey:'Кольорова легенда', mockAccuracy:'точність', mockBlocks:'блоків', mockActive:'активний',
+    mockScripture:'Писання', mockPsalms:'Псалми', mockPoetry:'Поезія', mockPsalm1:'Псалом 1',
+    mockTagline:'запам’ятовувати, символ за символом',
+    mockPsalmText:'v1 Господь — мій Пастир;\nя не буду мати нестачі.\nv2 Він мене на зелені пасовиська покладає…',
+    mockPsalmDiffCorrect:'господь — мій Пастир; ',
+    mockPsalmDiffOmit:'нестачі',
+    mockPsalmTyped:'господь — мій Пастир; я не буду мати',
+    mockPsalmDiffCorrect2:'господь — мій Пастир;',
     encWarnEntry:'Якщо ви забудете цей пароль, цей запис неможливо відновити. Немає скидання, немає листа для відновлення й немає копії на сервері — у цьому й сенс шифрування.',
     unlockHint:'Записи, збережені під цим паролем, з\'являться у списку. Ніде не показано, які паролі існують — неправильний пароль просто нічого не відкриває.',
     shareHint:'Текст їде всередині самого посилання чи картки — він ніколи не торкається сервера. Термін дії їде разом із ним і перевіряється під час відкриття: це термін із ввічливості, а не примус із боку сервера (його немає).',
@@ -7077,6 +9010,8 @@ function applyLang(){
   updateChunkCount();
   if(lib.ok) refreshLibList();
   syncStatusUi && syncStatusUi();
+  // re-render the tour if it's open so a language change shows up immediately
+  if(typeof tourState !== 'undefined' && tourState.open) tourRender();
 }
 function setLang(code){
   if(!LANGS[code]) return;
@@ -7110,6 +9045,8 @@ async function initLibrary(){
     lib.db = await idbOpen();
     lib.entries = await idbGetAll();
     lib.ok = true;
+    try { lib.folders = (await metaGet('folders')) || []; } catch(e){ lib.folders = []; }
+    initFolders();
     refreshLibList();
     libStatus(lib.entries.filter(r => !r.enc).length === 0
       ? 'Everything you save here stays on this device only — nothing syncs, nothing uploads.'
@@ -7125,8 +9062,251 @@ if(!cryptoOK){
   byId('btnLibUnlock').disabled = true;
   byId('exportEnc').disabled = true;
 }
+
+/* ====================== TUTORIAL (visual tour) ======================
+   A self-contained, additive module. Renders mini app mockups built from the
+   REAL component classes (.cue-box, .diff-box, .stat, .review-item, .panel …)
+   so the pictures always match the live app in either theme. Touches no
+   existing state, canvas, share, or library logic. */
+const TOUR_SAMPLES = {
+  psalm23: {
+    titleKey: 'samplePsalm23', blurbKey: 'samplePsalm23Blurb', previewKey: 'samplePsalm23Preview',
+    mode: 'verse',
+    source: 'v1 The Lord is my shepherd; I shall not want.\nv2 He makes me lie down in green pastures. He leads me beside still waters.\nv3 He restores my soul. He leads me in paths of righteousness for his name\'s sake.',
+  },
+  sonnet18: {
+    titleKey: 'sampleSonnet18', blurbKey: 'sampleSonnet18Blurb', previewKey: 'sampleSonnet18Preview',
+    mode: 'lines',
+    source: 'Shall I compare thee to a summer\'s day?\nThou art more lovely and more temperate:\nRough winds do shake the darling buds of May,\nAnd summer\'s lease hath all too short a date.',
+  },
+  qa: {
+    titleKey: 'sampleQA', blurbKey: 'sampleQABlurb', previewKey: 'sampleQAPreview',
+    mode: 'qa',
+    source: 'Q1 Who wrote "The Old Man and the Sea"?\nAnswer\nErnest Hemingway\nQ2 1) In what year? 2) What sea?\nAnswer\n1) 1952 2) the Gulf Stream',
+  },
+  gettysburg: {
+    titleKey: 'sampleGettysburg', blurbKey: 'sampleGettysburgBlurb', previewKey: 'sampleGettysburgPreview',
+    mode: 'sentences',
+    source: 'Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation can long endure.',
+  },
+};
+
+const TOUR_STEPS = [
+  {
+    titleKey: 'tourS1Title', ledeKey: 'tourS1Lede',
+    bulletKeys: ['tourS1B1', 'tourS1B2', 'tourS1B3'],
+    mock: () => '<div class="mock-frame">' +
+      '<div class="mock-label">' + escapeProse(t('refText')) + '</div>' +
+      '<div class="panel">' +
+        '<h2>' + escapeProse(t('refText')) + '</h2>' +
+        '<textarea rows="3" readonly>' + escapeProse(t('mockPsalmText')) + '</textarea>' +
+        '<div class="split-modes" style="margin-top:8px;">' +
+          '<button class="active">' + escapeProse(t('mockVerse')) + '</button>' +
+          '<button>' + escapeProse(t('mockLines')) + '</button>' +
+          '<button>' + escapeProse(t('mockSentences')) + '</button>' +
+          '<button>' + escapeProse(t('mockQA')) + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tour-samples">' +
+        '<button class="tour-sample" data-tour-sample="psalm23"><div class="ts-title"></div><div class="ts-blurb"></div><div class="ts-preview"></div></button>' +
+        '<button class="tour-sample" data-tour-sample="sonnet18"><div class="ts-title"></div><div class="ts-blurb"></div><div class="ts-preview"></div></button>' +
+        '<button class="tour-sample" data-tour-sample="qa"><div class="ts-title"></div><div class="ts-blurb"></div><div class="ts-preview"></div></button>' +
+        '<button class="tour-sample" data-tour-sample="gettysburg"><div class="ts-title"></div><div class="ts-blurb"></div><div class="ts-preview"></div></button>' +
+      '</div>' +
+    '</div>',
+  },
+  {
+    titleKey: 'tourS2Title', ledeKey: 'tourS2Lede',
+    bulletKeys: ['tourS2B1', 'tourS2B2', 'tourS2B3'],
+    mock: () => '<div class="mock-frame">' +
+      '<div class="mock-label">' + escapeProse(t('mockPractice')) + '</div>' +
+      '<div class="progress-line"><span>' + escapeProse(t('mockBlockOf').replace('{n}','1').replace('{t}','3')) + '</span><span class="elapsed">⏱ 0:12</span></div>' +
+      '<div class="cue-box show"><span class="cue-label">' + escapeProse(t('mockCue')) + '</span>v1</div>' +
+      '<div class="diff-box"><span class="case-err">T</span><span class="correct">' + escapeProse(t('mockPsalmDiffCorrect')) + '</span><span class="omitted">' + escapeProse(t('mockPsalmDiffOmit')) + '</span><span class="pending">.</span></div>' +
+      '<div class="live-stats"><span>' + escapeProse(t('mockThisLine')) + ' <b>50%</b></span><span>' + escapeProse(t('mockTyped')) + ' <b>28</b> / 34</span></div>' +
+      '<textarea id="typeInputMock" rows="1" readonly>' + escapeProse(t('mockPsalmTyped')) + '</textarea>' +
+    '</div>',
+  },
+  {
+    titleKey: 'tourS3Title', ledeKey: 'tourS3Lede',
+    bulletKeys: ['tourS3B1', 'tourS3B2', 'tourS3B3'],
+    mock: () => '<div class="mock-frame">' +
+      '<div class="mock-label">' + escapeProse(t('mockColorKey')) + '</div>' +
+      '<div class="diff-box"><span class="correct">' + escapeProse(t('legCorrect')) + '</span> <span class="case-err">' + escapeProse(t('legCaseShort')) + '</span> <span class="punct-err">' + escapeProse(t('legPunctShort')) + '</span> <span class="sub-err">' + escapeProse(t('legWrong')) + '</span> <span class="omitted">' + escapeProse(t('legMissing')) + '</span> <span class="extra">' + escapeProse(t('legExtra')) + '</span></div>' +
+      '<div class="legend" style="margin-top:14px;">' +
+        '<span><i style="background:var(--correct)"></i>' + escapeProse(t('legCorrect')) + '</span>' +
+        '<span><i style="background:var(--case-err)"></i>' + escapeProse(t('legCaseShort')) + '</span>' +
+        '<span><i style="background:var(--punct-err)"></i>' + escapeProse(t('legPunctShort')) + '</span>' +
+        '<span><i style="background:var(--sub-err)"></i>' + escapeProse(t('legWrong')) + '</span>' +
+      '</div>' +
+    '</div>',
+  },
+  {
+    titleKey: 'tourS4Title', ledeKey: 'tourS4Lede',
+    bulletKeys: ['tourS4B1', 'tourS4B2', 'tourS4B3'],
+    mock: () => '<div class="mock-frame">' +
+      '<div class="mock-label">' + escapeProse(t('sumTitle')) + '</div>' +
+      '<div class="stat-grid">' +
+        '<div class="stat"><div class="num">83%</div><div class="lbl">' + escapeProse(t('mockAccuracy')) + '</div></div>' +
+        '<div class="stat"><div class="num">3/3</div><div class="lbl">' + escapeProse(t('mockBlocks')) + '</div></div>' +
+        '<div class="stat"><div class="num">1:08</div><div class="lbl">' + escapeProse(t('mockActive')) + '</div></div>' +
+      '</div>' +
+      '<div class="review-item mid" style="margin-top:10px;">' +
+        '<div class="review-meta"><span>' + escapeProse(t('mockBlockN').replace('{n}','1')) + '</span><span class="acc">50%</span></div>' +
+        '<div class="review-diff"><span class="case-err">T</span><span class="correct">' + escapeProse(t('mockPsalmDiffCorrect2')) + '</span></div>' +
+      '</div>' +
+    '</div>',
+  },
+  {
+    titleKey: 'tourS5Title', ledeKey: 'tourS5Lede',
+    bulletKeys: ['tourS5B1', 'tourS5B2', 'tourS5B3'],
+    mock: () => '<div class="mock-frame">' +
+      '<div class="mock-label">' + escapeProse(t('library')) + '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<div style="flex:0 0 45%;">' +
+          '<div class="tree-row" style="background:color-mix(in srgb, var(--gold) 14%, transparent);color:var(--gold);border-radius:2px;">▾ <span style="color:var(--gold)">●</span> ' + escapeProse(t('mockScripture')) + '</div>' +
+          '<div class="tree-row" style="padding-left:16px;color:var(--ink);">▾ <span style="color:var(--correct)">●</span> ' + escapeProse(t('mockPsalms')) + '</div>' +
+          '<div class="tree-row" style="padding-left:16px;color:var(--dim);">▸ <span style="color:var(--punct-err)">●</span> ' + escapeProse(t('mockPoetry')) + '</div>' +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<div class="lib-item" style="padding:7px 9px;border-radius:2px;"><div class="t" style="font-size:11px;">' + escapeProse(t('samplePsalm23')) + '</div><div class="meta">' + escapeProse(t('mockNBlocks').replace('{n}','5')) + ' · psalms</div></div>' +
+          '<div class="lib-item" style="padding:7px 9px;border-radius:2px;margin-top:5px;border-color:color-mix(in srgb, var(--gold) 45%, var(--rule));"><div class="t" style="font-size:11px;">' + escapeProse(t('mockPsalm1')) + '</div><div class="meta">' + escapeProse(t('mockNBlocks').replace('{n}','3')) + '</div></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>',
+  },
+  {
+    titleKey: 'tourS6Title', ledeKey: 'tourS6Lede',
+    bulletKeys: ['tourS6B1', 'tourS6B2', 'tourS6B3'],
+    mock: () => '<div class="mock-frame" style="text-align:center;padding:30px 10px;">' +
+      '<div style="font-family:var(--serif);font-size:46px;font-weight:600;color:var(--ink);line-height:1;">V<span style="color:var(--gold);font-style:italic;">.</span></div>' +
+      '<div style="font-family:var(--serif);font-size:14px;color:var(--ink);margin-top:14px;">Verbatim.</div>' +
+      '<div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);margin-top:6px;">' + escapeProse(t('mockTagline')) + '</div>' +
+      '<div class="tour-samples" style="margin-top:18px;">' +
+        '<button class="tour-sample" data-tour-sample="psalm23"><div class="ts-title"></div><div class="ts-blurb"></div></button>' +
+      '</div>' +
+    '</div>',
+  },
+];
+
+const tourState = { step: 0, open: false };
+function tourOpen(){
+  tourState.open = true;
+  tourState.step = 0;
+  byId('tourCard').hidden = false;
+  byId('tourBackdrop').classList.add('open');
+  // force reflow then add open class for the transition
+  void byId('tourCard').offsetWidth;
+  byId('tourCard').classList.add('open');
+  tourRender();
+}
+function tourClose(){
+  tourState.open = false;
+  byId('tourCard').classList.remove('open');
+  byId('tourBackdrop').classList.remove('open');
+  try{ localStorage.setItem('verbatim-toured','1'); }catch(e){}
+  setTimeout(() => { if(!tourState.open) byId('tourCard').hidden = true; }, 220);
+}
+function tourRender(){
+  const i = tourState.step;
+  const s = TOUR_STEPS[i];
+  const last = i === TOUR_STEPS.length - 1;
+  byId('tourStepNum').textContent = t('tourStepOf').replace('{n}', (i+1)).replace('{t}', TOUR_STEPS.length);
+  byId('tourTitle').textContent = t(s.titleKey);
+  byId('tourLede').textContent = t(s.ledeKey);
+  byId('tourMock').innerHTML = s.mock();
+  byId('tourBullets').innerHTML = s.bulletKeys.map(k => '<li>' + escapeProse(t(k)) + '</li>').join('');
+  // dots
+  byId('tourDots').innerHTML = TOUR_STEPS.map((_, idx) =>
+    '<i class="' + (idx === i ? 'on' : '') + '" data-tour-dot="' + idx + '"></i>').join('');
+  // nav
+  byId('btnTourPrev').style.visibility = i > 0 ? '' : 'hidden';
+  const nextBtn = byId('btnTourNext');
+  nextBtn.textContent = last ? t('tourTry') : t('tourNext');
+  nextBtn.classList.toggle('primary', true);
+  // populate sample card titles/blurbs/previews (empty in the HTML template, filled here)
+  byId('tourMock').querySelectorAll('[data-tour-sample]').forEach(btn => {
+    const key = btn.dataset.tourSample;
+    const sample = TOUR_SAMPLES[key];
+    if(sample){
+      const titleEl = btn.querySelector('.ts-title');
+      const blurbEl = btn.querySelector('.ts-blurb');
+      const prevEl = btn.querySelector('.ts-preview');
+      if(titleEl) titleEl.textContent = (i === TOUR_STEPS.length - 1) ? (t(sample.titleKey) + ' →') : t(sample.titleKey);
+      if(blurbEl) blurbEl.textContent = (i === TOUR_STEPS.length - 1) ? t('tourTryBlurb') : t(sample.blurbKey);
+      if(prevEl) prevEl.textContent = t(sample.previewKey);
+    }
+    btn.addEventListener('click', () => tourLoadSample(key));
+  });
+}
+function tourLoadSample(key){
+  const sample = TOUR_SAMPLES[key];
+  if(!sample) return;
+  tourClose();
+  try{
+    sourceText.value = sample.source;
+    setActiveMode(sample.mode);
+    if(sample.mode === 'lines') chunkText.value = splitLines(sample.source).join('\n');
+    else if(sample.mode === 'sentences') chunkText.value = splitSentences(sample.source).join('\n');
+    else if(sample.mode === 'verse') chunkText.value = pairsToChunkText(splitVerse(sample.source));
+    else if(sample.mode === 'qa') chunkText.value = pairsToChunkText(splitQA(sample.source));
+    updateChunkCount();
+    byId('setup').classList.remove('hidden');
+    byId('practice').classList.add('hidden');
+    byId('summary').classList.add('hidden');
+    sourceText.scrollIntoView({behavior:'smooth', block:'center'});
+    notify(t('tourLoaded').replace('{t}', t(sample.titleKey)));
+  }catch(e){ console.error(e); }
+}
+function tourNext(){
+  if(tourState.step < TOUR_STEPS.length - 1){
+    tourState.step++;
+    tourRender();
+  } else {
+    // "Try it" — load Psalm 23 into setup and close
+    tourLoadSample('psalm23');
+  }
+}
+function tourPrev(){
+  if(tourState.step > 0){ tourState.step--; tourRender(); }
+}
+function initTour(){
+  byId('btnTour').addEventListener('click', tourOpen);
+  byId('btnTourNext').addEventListener('click', tourNext);
+  byId('btnTourPrev').addEventListener('click', tourPrev);
+  byId('tourBackdrop').addEventListener('click', tourClose);
+  byId('tourDots').addEventListener('click', (e) => {
+    const dot = e.target.closest('[data-tour-dot]');
+    if(dot){ tourState.step = parseInt(dot.dataset.tourDot,10); tourRender(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if(!tourState.open) return;
+    if(e.key === 'Escape') tourClose();
+    else if(e.key === 'ArrowRight') tourNext();
+    else if(e.key === 'ArrowLeft') tourPrev();
+  });
+  // first-visit coachmark
+  let coached = false;
+  try{ coached = localStorage.getItem('verbatim-toured') === '1'; }catch(e){}
+  if(!coached){
+    const c = document.createElement('div');
+    c.className = 'tour-coach';
+    c.innerHTML = '<span>' + escapeProse(t('tourCoach')) + '</span>' +
+      '<button class="micro-btn primary" id="btnCoachStart">' + escapeProse(t('tourCoachCta')) + '</button>' +
+      '<button class="coach-x" id="btnCoachX" aria-label="Dismiss">✕</button>';
+    document.body.appendChild(c);
+    requestAnimationFrame(() => c.classList.add('show'));
+    byId('btnCoachStart').addEventListener('click', () => { c.remove(); tourOpen(); });
+    byId('btnCoachX').addEventListener('click', () => {
+      c.remove();
+      try{ localStorage.setItem('verbatim-toured','1'); }catch(e){}
+    });
+  }
+}
+
 applyLang();
 initLibrary();
+initTour();
 handleIncomingHash();
 // Also catch a share link pasted into the address bar of an already-open tab.
 window.addEventListener('hashchange', handleIncomingHash);
