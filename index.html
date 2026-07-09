@@ -120,7 +120,14 @@
   }
   .wrap{max-width:880px;margin:0 auto;}
   header.top{margin-bottom:28px;position:relative;}
-  .header-actions{position:absolute;top:0;right:0;display:flex;gap:8px;align-items:center;}
+  .header-actions{position:absolute;top:0;right:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+  /* On narrow screens, the header becomes a flex row: wordmark left, buttons right,
+     aligned on the same baseline — no overlap with the eyebrow. */
+  @media (max-width:640px){
+    header.top{display:flex;flex-direction:column;gap:10px;}
+    .header-actions{position:static;align-self:flex-end;}
+    .eyebrow{padding-right:0;}
+  }
   .header-btn{
     height:38px;padding:0 16px;border-radius:19px;
     background:var(--panel);border:1px solid var(--rule);color:var(--gold);
@@ -156,6 +163,9 @@
   h1 a#brandLink:hover .mark{color:var(--ink);}
   h1 a#brandLink:hover{color:var(--gold);}
   .subtitle{color:var(--dim);font-size:14.5px;margin:0;max-width:560px;line-height:1.5;}
+  /* The subtitle paragraphs (intro + handwriting note) belong on the setup
+     screen only — hide them during practice and on the summary page. */
+  body.section-practice .subtitle, body.section-summary .subtitle{display:none;}
   .eyebrow{
     font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
     color:var(--dim-2);margin:0 0 6px;padding-right:132px;
@@ -608,8 +618,16 @@
     overflow:hidden;
   }
   .dlg-tour.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);}
-  .tour-body{display:flex;flex-direction:column;}
+  .tour-body{display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden;}
   @media(min-width:760px){ .tour-body{flex-direction:row;} }
+  /* On mobile: the mock and the side panel both scroll inside the modal so
+     nothing is cut off — the nav buttons (Next/Back) at the bottom of the
+     side panel are always reachable. */
+  @media(max-width:759px){
+    .tour-body{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+    .tour-mock{flex:0 0 auto;max-height:50vh;}
+    .tour-side{min-height:0;flex-shrink:0;}
+  }
   .tour-mock{
     flex:0 0 58%;background:var(--bg-2);border-bottom:1px solid var(--rule);
     padding:28px;display:flex;align-items:center;justify-content:center;overflow-y:auto;
@@ -812,7 +830,7 @@
       <button id="btnLang" class="lang-toggle" title="Language / 语言 / Idioma" aria-label="Change language">🌐︎</button>
       <button id="btnTheme" class="theme-toggle" data-i18n-title="ttTheme" title="Switch between light and dark mode" aria-label="Toggle theme">☾</button>
     </div>
-    <p class="eyebrow" data-i18n="tag">memorization &amp; typing-accuracy trainer</p>
+    <p class="eyebrow" data-i18n="tag">memorization &amp; accuracy trainer</p>
     <h1><a href="." id="brandLink" data-i18n-title="ttReload" title="Reload Verbatim — clear everything and start fresh">Verbatim<span class="mark">.</span></a></h1>
     <p class="subtitle" data-i18n="sub1">Paste a text, split it into blocks, and type each one against the original.
     Every character is checked exactly as written — case, punctuation, and all. Upcoming text stays hidden behind dots until you choose to reveal it, so you can actually test recall.</p>
@@ -1770,6 +1788,8 @@ document.getElementById('btnBegin').addEventListener('click', () => {
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('summary').classList.add('hidden');
   document.getElementById('practice').classList.remove('hidden');
+  document.body.classList.remove('section-setup','section-summary');
+  document.body.classList.add('section-practice');
   document.getElementById('totalCount').textContent = blocks.length;
   buildRail();
   applyBoxMode();
@@ -2316,6 +2336,8 @@ function showSummary(){
   stopTimer();
   document.getElementById('practice').classList.add('hidden');
   document.getElementById('summary').classList.remove('hidden');
+  document.body.classList.remove('section-setup','section-practice');
+  document.body.classList.add('section-summary');
   // leaving practice: drop the keyboard dock so the summary scrolls normally
   document.body.classList.remove('kb-open');
 
@@ -2368,6 +2390,8 @@ function showSummary(){
 document.getElementById('btnBackToPractice').addEventListener('click', () => {
   document.getElementById('summary').classList.add('hidden');
   document.getElementById('practice').classList.remove('hidden');
+  document.body.classList.remove('section-setup','section-summary');
+  document.body.classList.add('section-practice');
   // resuming work: clear the recorded end time and let the clock run again
   state.endTime = null;
   startTimer();
@@ -2377,6 +2401,8 @@ document.getElementById('btnRestart').addEventListener('click', () => {
   document.getElementById('summary').classList.add('hidden');
   document.getElementById('practice').classList.add('hidden');
   document.getElementById('setup').classList.remove('hidden');
+  document.body.classList.remove('section-practice','section-summary');
+  document.body.classList.add('section-setup');
   // brand-new session: reset the timer entirely
   stopTimer();
   state.startTime = null;
@@ -3243,6 +3269,8 @@ function loadEntryIntoSetup(data){
     byId('practice').classList.add('hidden');
     byId('summary').classList.add('hidden');
     byId('setup').classList.remove('hidden');
+    document.body.classList.remove('section-practice','section-summary');
+    document.body.classList.add('section-setup');
     document.body.classList.remove('kb-open');
     stopTimer();
     state.startTime = null;
@@ -5099,7 +5127,7 @@ const LANGS = {
     encWarnEntry:'If you forget this password, this entry cannot be recovered. There is no reset, no recovery e-mail, and no server copy — that is the point of the encryption.',
     unlockHint:'Entries saved under this password will appear in the list. Nothing shows which passwords exist — a wrong password simply reveals nothing.',
     shareHint:'The text rides inside the link or card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).',
-    tag:'memorization & typing-accuracy trainer',
+    tag:'memorization & accuracy trainer',
     refText:'01 · Reference text', blocksHdr:'02 · Practice blocks (one per line — edit freely)',
     modeLines:'Split into lines', modeSent:'Split into sentences', modeVerse:'Verse (cue → recall)', modeQA:'Q & A',
     begin:'Begin practice →', saveLib:'Save to library…', share:'Share…', openShare:'Open a share…',
@@ -5410,7 +5438,7 @@ const LANGS = {
     encWarnEntry:'如果忘记此密码，此条目将无法恢复。没有重置、没有找回邮件、也没有服务器副本——这正是加密的意义所在。',
     unlockHint:'以此密码保存的条目将出现在列表中。任何地方都不会显示存在哪些密码——密码错误只会什么都不显示。',
     shareHint:'文字就藏在链接或卡片本身之中——它从不经过任何服务器。有效期也一并随附，在打开分享时检查：这是一个礼节性期限，而非服务器强制执行（本就没有服务器）。',
-    tag:'背诵与打字准确度训练',
+    tag:'背诵与准确度训练',
     refText:'01 · 原文', blocksHdr:'02 · 练习块（每行一块，可自由编辑）',
     modeLines:'按行拆分', modeSent:'按句拆分', modeVerse:'经节（提示 → 回忆）', modeQA:'问答',
     begin:'开始练习 →', saveLib:'保存到书库…', share:'分享…', openShare:'打开分享…',
@@ -5720,7 +5748,7 @@ const LANGS = {
     encWarnEntry:'如果唔記得呢個密碼，呢個條目就無法復原。冇重設、冇找回電郵、亦都冇伺服器副本——呢個正正就係加密嘅用意。',
     unlockHint:'用呢個密碼儲存嘅條目會喺清單度出現。任何地方都唔會顯示有邊啲密碼存在——密碼錯咗就淨係乜都唔顯示。',
     shareHint:'文字就藏喺連結或者卡本身入面——佢從來唔會經過任何伺服器。限期都一齊隨附，喺打開分享時檢查：呢個係禮貌性嘅限期，而唔係伺服器強制執行（根本冇伺服器）。',
-    tag:'背誦同打字準確度訓練',
+    tag:'背誦同準確度訓練',
     refText:'01 · 原文', blocksHdr:'02 · 練習段（每行一段，可以自由改）',
     modeLines:'按行拆開', modeSent:'按句拆開', modeVerse:'經節（提示 → 回憶）', modeQA:'問答',
     begin:'開始練習 →', saveLib:'儲存到書庫…', share:'分享…', openShare:'打開分享…',
@@ -6347,7 +6375,7 @@ const LANGS = {
     encWarnEntry:'Wenn Sie dieses Passwort vergessen, kann dieser Eintrag nicht wiederhergestellt werden. Es gibt kein Zurücksetzen, keine Wiederherstellungs-E-Mail und keine Serverkopie — das ist der Sinn der Verschlüsselung.',
     unlockHint:'Unter diesem Passwort gespeicherte Einträge erscheinen in der Liste. Nichts zeigt an, welche Passwörter existieren — ein falsches Passwort offenbart schlicht nichts.',
     shareHint:'Der Text reist im Link oder in der Karte selbst mit — er berührt nie einen Server. Das Ablaufdatum reist ebenfalls mit und wird beim Öffnen geprüft: eine Frist aus Höflichkeit, nicht von einem Server erzwungen (es gibt keinen).',
-    tag:'Trainer für Auswendiglernen & Tippgenauigkeit',
+    tag:'Trainer für Auswendiglernen & Genauigkeit',
     refText:'01 · Referenztext', blocksHdr:'02 · Übungsblöcke (einer pro Zeile — frei bearbeitbar)',
     modeLines:'In Zeilen teilen', modeSent:'In Sätze teilen', modeVerse:'Vers (Hinweis → Abruf)', modeQA:'Frage & Antwort',
     begin:'Übung beginnen →', saveLib:'In Bibliothek speichern…', share:'Teilen…', openShare:'Geteiltes öffnen…',
@@ -6658,7 +6686,7 @@ const LANGS = {
     encWarnEntry:'यदि आप यह पासवर्ड भूल जाते हैं, तो यह प्रविष्टि पुनर्प्राप्त नहीं की जा सकती। कोई रीसेट नहीं, कोई पुनर्प्राप्ति ई-मेल नहीं, और कोई सर्वर प्रति नहीं — यही एन्क्रिप्शन का उद्देश्य है।',
     unlockHint:'इस पासवर्ड के अंतर्गत सहेजी गई प्रविष्टियाँ सूची में दिखाई देंगी। कहीं यह नहीं दिखता कि कौन-से पासवर्ड मौजूद हैं — ग़लत पासवर्ड बस कुछ भी प्रकट नहीं करता।',
     shareHint:'पाठ लिंक या कार्ड के भीतर ही यात्रा करता है — यह कभी किसी सर्वर को नहीं छूता। समाप्ति भी साथ चलती है और साझा खोलते समय जाँची जाती है: एक शिष्टाचार-समय-सीमा, कोई सर्वर इसे लागू नहीं करता (कोई है ही नहीं)।',
-    tag:'कंठस्थ करने और टंकण-शुद्धता का अभ्यास',
+    tag:'कंठस्थ करने और शुद्धता का अभ्यास',
     refText:'01 · मूल पाठ', blocksHdr:'02 · अभ्यास खंड (प्रति पंक्ति एक — स्वतंत्र रूप से संपादित करें)',
     modeLines:'पंक्तियों में बाँटें', modeSent:'वाक्यों में बाँटें', modeVerse:'श्लोक (संकेत → स्मरण)', modeQA:'प्रश्नोत्तर',
     begin:'अभ्यास शुरू करें →', saveLib:'पुस्तकालय में सहेजें…', share:'साझा करें…', openShare:'साझा खोलें…',
@@ -7278,7 +7306,7 @@ const LANGS = {
     encWarnEntry:'このパスワードを忘れると、この項目は復元できません。リセットも、復旧メールも、サーバー上の控えもありません——それが暗号化の目的です。',
     unlockHint:'このパスワードで保存した項目が一覧に表示されます。どのパスワードが存在するかはどこにも示されません——間違ったパスワードでは何も現れないだけです。',
     shareHint:'テキストはリンクやカード自体の中を運ばれます——サーバーには一切触れません。有効期限も一緒に運ばれ、共有を開くときに確認されます：これは礼儀としての期限で、サーバーが強制するものではありません（そもそも存在しません）。',
-    tag:'暗記とタイピング精度のトレーナー',
+    tag:'暗記と精度のトレーナー',
     refText:'01 · 原文', blocksHdr:'02 · 練習ブロック（1行に1つ・自由に編集可）',
     modeLines:'行で分割', modeSent:'文で分割', modeVerse:'節（ヒント → 想起）', modeQA:'一問一答',
     begin:'練習を始める →', saveLib:'ライブラリに保存…', share:'共有…', openShare:'共有を開く…',
@@ -7588,7 +7616,7 @@ const LANGS = {
     encWarnEntry:'이 비밀번호를 잊으면 이 항목은 복구할 수 없습니다. 재설정도, 복구 이메일도, 서버 사본도 없습니다 — 그것이 암호화의 목적입니다.',
     unlockHint:'이 비밀번호로 저장한 항목이 목록에 나타납니다. 어떤 비밀번호가 있는지는 어디에도 표시되지 않습니다 — 틀린 비밀번호는 아무것도 드러내지 않을 뿐입니다.',
     shareHint:'텍스트는 링크나 카드 자체 안에 실려 이동합니다 — 어떤 서버에도 닿지 않습니다. 만료 역시 함께 실려 공유를 열 때 확인됩니다: 서버가 강제하는 것이 아니라 예의상의 기한입니다(서버는 아예 없습니다).',
-    tag:'암기·타이핑 정확도 훈련기',
+    tag:'암기·정확도 훈련기',
     refText:'01 · 원문', blocksHdr:'02 · 연습 블록 (한 줄에 하나 — 자유롭게 편집)',
     modeLines:'줄 단위로 나누기', modeSent:'문장 단위로 나누기', modeVerse:'절 (힌트 → 회상)', modeQA:'문답',
     begin:'연습 시작 →', saveLib:'서재에 저장…', share:'공유…', openShare:'공유 열기…',
@@ -8281,7 +8309,7 @@ const LANGS = {
     encWarnEntry:'Если вы забудете этот пароль, эту запись нельзя восстановить. Нет сброса, нет письма для восстановления и нет копии на сервере — в этом и смысл шифрования.',
     unlockHint:'Записи, сохранённые под этим паролем, появятся в списке. Нигде не показано, какие пароли существуют — неверный пароль просто ничего не открывает.',
     shareHint:'Текст едет внутри самой ссылки или карточки — он никогда не касается сервера. Срок действия едет вместе с ним и проверяется при открытии: это срок из вежливости, а не принуждение со стороны сервера (его попросту нет).',
-    tag:'тренажёр запоминания и точности набора',
+    tag:'тренажёр запоминания и точности',
     refText:'01 · Исходный текст', blocksHdr:'02 · Блоки для практики (по одному в строке — редактируйте свободно)',
     modeLines:'Разбить по строкам', modeSent:'Разбить по предложениям', modeVerse:'Стих (подсказка → воспроизведение)', modeQA:'Вопрос–ответ',
     begin:'Начать практику →', saveLib:'Сохранить в библиотеку…', share:'Поделиться…', openShare:'Открыть общий доступ…',
@@ -8902,7 +8930,7 @@ const LANGS = {
     encWarnEntry:'Bu parolayı unutursanız bu kayıt kurtarılamaz. Sıfırlama yok, kurtarma e-postası yok ve sunucu kopyası yok — şifrelemenin amacı da budur.',
     unlockHint:'Bu parolayla kaydedilen kayıtlar listede görünür. Hangi parolaların var olduğunu hiçbir şey göstermez — yanlış parola yalnızca hiçbir şey açığa çıkarmaz.',
     shareHint:'Metin, bağlantının veya kartın kendi içinde taşınır — hiçbir sunucuya değmez. Son kullanma da onunla taşınır ve paylaşım açılırken denetlenir: bir nezaket süresidir, bir sunucunun dayattığı bir şey değil (zaten yok).',
-    tag:'ezber ve yazım doğruluğu antrenörü',
+    tag:'ezber ve doğruluk antrenörü',
     refText:'01 · Kaynak metin', blocksHdr:'02 · Alıştırma blokları (her satıra bir tane — serbestçe düzenleyin)',
     modeLines:'Satırlara böl', modeSent:'Cümlelere böl', modeVerse:'Ayet (ipucu → hatırlama)', modeQA:'Soru-cevap',
     begin:'Alıştırmaya başla →', saveLib:'Kitaplığa kaydet…', share:'Paylaş…', openShare:'Paylaşım aç…',
@@ -9212,7 +9240,7 @@ const LANGS = {
     encWarnEntry:'Якщо ви забудете цей пароль, цей запис неможливо відновити. Немає скидання, немає листа для відновлення й немає копії на сервері — у цьому й сенс шифрування.',
     unlockHint:'Записи, збережені під цим паролем, з\'являться у списку. Ніде не показано, які паролі існують — неправильний пароль просто нічого не відкриває.',
     shareHint:'Текст їде всередині самого посилання чи картки — він ніколи не торкається сервера. Термін дії їде разом із ним і перевіряється під час відкриття: це термін із ввічливості, а не примус із боку сервера (його немає).',
-    tag:'тренажер запам\u2019ятовування та точності набору',
+    tag:'тренажер запам\u2019ятовування та точності',
     refText:'01 · Вихідний текст', blocksHdr:'02 · Блоки для практики (по одному в рядку — редагуйте вільно)',
     modeLines:'Розбити на рядки', modeSent:'Розбити на речення', modeVerse:'Вірш (підказка → відтворення)', modeQA:'Питання–відповідь',
     begin:'Почати практику →', saveLib:'Зберегти до бібліотеки…', share:'Поділитися…', openShare:'Відкрити надіслане…',
@@ -9588,6 +9616,7 @@ function initTour(){
 }
 
 applyLang();
+document.body.classList.add('section-setup'); // initial section
 initLibrary();
 initTour();
 handleIncomingHash();
