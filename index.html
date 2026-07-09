@@ -36,8 +36,17 @@
     if(q.has('app')) app = true;
     else if(q.has('web')) app = false;
     else app = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ||
-               (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+               (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: window-controls-overlay)').matches)) ||
                (window.navigator && navigator.standalone === true);
+    /* A user who previously enabled library mode (e.g. their PWA install didn't
+       set display-mode: standalone because icons were missing) stays in app
+       mode on subsequent visits. ?web=1 clears it. */
+    if(!app && !q.has('web')){
+      try{ if(localStorage.getItem('verbatim-force-app') === '1') app = true; }catch(_){}
+    }
+    if(q.has('web')){
+      try{ localStorage.removeItem('verbatim-force-app'); }catch(_){}
+    }
     document.documentElement.classList.add(app ? 'app-mode' : 'web-mode');
   }catch(e){
     document.documentElement.classList.add('web-mode');
@@ -1130,9 +1139,11 @@
     </div>
     <div class="btnrow">
       <button id="btnInstallCheck" data-i18n="instCheck">Run install check</button>
+      <button id="btnForceApp" class="primary" data-i18n="forceApp" data-i18n-title="ttForceApp" title="Enable the library on this device without a full PWA install">Enable library</button>
       <button id="btnCloseInstall" data-i18n="close">Close</button>
     </div>
     <div class="hint" id="installCheckOut" style="white-space:pre-wrap;line-height:1.7;"></div>
+    <p class="hint" id="forceAppNote" style="display:none;margin-top:10px;color:var(--correct);" data-i18n="forceAppDone">Library enabled. Reload to see the Library button in the header.</p>
   </dialog>
 
   <dialog id="dlgLang" class="dlg">
@@ -4651,6 +4662,12 @@ async function runInstallCheck(){
   out.textContent = lines.join('\n');
 }
 byId('btnInstallCheck').addEventListener('click', runInstallCheck);
+byId('btnForceApp').addEventListener('click', () => {
+  try{ localStorage.setItem('verbatim-force-app', '1'); }catch(_){}
+  byId('forceAppNote').style.display = '';
+  notify(t('forceAppToast'));
+  setTimeout(() => { location.reload(); }, 1200);
+});
 
 /* ---------- languages ----------
    The core UI in 20 locales. Design: every string has a key; t(key) resolves
@@ -4713,6 +4730,10 @@ const LANGS = {
     instNow:'Install now',
     instOneClick:'Your browser supports one-click install.',
     instCheck:'Run install check',
+    forceApp:'Enable library',
+    ttForceApp:'Enable the library on this device without a full PWA install',
+    forceAppDone:'Library enabled. Reloading…',
+    forceAppToast:'Library enabled — reloading…',
     instIntro:'Installing adds Verbatim to your device like a normal app — its own icon, its own window, fully offline — and unlocks the private on-device library. Nothing goes through an app store, and nothing changes about privacy: it\'s this same page, kept on your device.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (desktop)</b><br>Look at the right end of the address bar for an install icon and click it — or open the browser menu ⋮ and choose “Install page as app…” (Chrome) / “Install this site as an app” (Edge). Verbatim then opens in its own window, with the Library available.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>With Verbatim open, choose File → “Add to Dock…”. It appears in your Dock as an app.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Tap the Share button, then “Add to Home Screen”. Open Verbatim from the new icon.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Open the menu ⋮ and tap “Install app” (or “Add to Home screen”).<br><br><b style="color:var(--gold);">Firefox (desktop)</b><br>Firefox doesn\'t install web apps on desktop. Use one of the browsers above — the website still works here for practice and sharing.<br><br><span style="color:var(--dim-2);">After installing, open Verbatim from its own icon — that\'s where the Library lives.</span>',
     langTip:'Language: ',
@@ -5015,6 +5036,10 @@ const LANGS = {
     instNow:'立即安装',
     instOneClick:'你的浏览器支持一键安装。',
     instCheck:'运行安装检查',
+    forceApp:'启用书库',
+    ttForceApp:'无需完整 PWA 安装即可在此设备上启用书库',
+    forceAppDone:'书库已启用。正在重新加载…',
+    forceAppToast:'书库已启用 — 正在重新加载…',
     instIntro:'安装会像普通应用一样把 Verbatim 添加到你的设备——独立图标、独立窗口、完全离线——并解锁仅存于本机的私人书库。不经过任何应用商店，隐私也毫无改变：还是同一个页面，保存在你的设备上。',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave（桌面）</b><br>在地址栏右端查找安装图标并点击——或打开浏览器菜单 ⋮ 选择“将页面安装为应用…”（Chrome）/“将此站点安装为应用”（Edge）。Verbatim 随后会在独立窗口中打开，并可使用书库。<br><br><b style="color:var(--gold);">Safari（Mac）</b><br>在 Verbatim 打开时，选择“文件 →“添加到程序坞…””。它会作为应用出现在你的程序坞中。<br><br><b style="color:var(--gold);">iPhone / iPad（Safari）</b><br>点按“分享”按钮，然后“添加到主屏幕”。从新图标打开 Verbatim。<br><br><b style="color:var(--gold);">Android（Chrome）</b><br>打开菜单 ⋮ 并点按“安装应用”（或“添加到主屏幕”）。<br><br><b style="color:var(--gold);">Firefox（桌面）</b><br>Firefox 在桌面端不安装网页应用。请使用上述浏览器之一——此网站在这里仍可用于练习和分享。<br><br><span style="color:var(--dim-2);">安装后，从 Verbatim 自己的图标打开——书库就在那里。</span>',
     langTip:'语言：',
@@ -5316,6 +5341,10 @@ const LANGS = {
     instNow:'即刻安裝',
     instOneClick:'你嘅瀏覽器支援一鍵安裝。',
     instCheck:'執行安裝檢查',
+    forceApp:'啟用書庫',
+    ttForceApp:'無需完整 PWA 安裝即可在此裝置上啟用書庫',
+    forceAppDone:'書庫已啟用。正在重新載入…',
+    forceAppToast:'書庫已啟用 — 正在重新載入…',
     instIntro:'安裝會好似普通 app 噉將 Verbatim 加入你部裝置——獨立圖示、獨立視窗、完全離線——並解鎖淨係存喺本機嘅私人書庫。唔經過任何應用程式商店，私隱亦冇任何改變：仲係同一個頁面，存喺你部裝置度。',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave（桌面）</b><br>喺網址列右端搵安裝圖示撳落去——或者打開瀏覽器選單 ⋮ 揀「將頁面安裝為應用程式…」（Chrome）/「將此網站安裝為應用程式」（Edge）。跟住 Verbatim 會喺獨立視窗打開，並可用書庫。<br><br><b style="color:var(--gold);">Safari（Mac）</b><br>喺 Verbatim 開住嗰陣，揀「檔案 →「加入 Dock…」」。佢會做一個 app 出現喺你嘅 Dock。<br><br><b style="color:var(--gold);">iPhone / iPad（Safari）</b><br>撳「分享」掣，然後「加入主畫面」。喺新圖示打開 Verbatim。<br><br><b style="color:var(--gold);">Android（Chrome）</b><br>打開選單 ⋮ 撳「安裝應用程式」（或者「加入主畫面」）。<br><br><b style="color:var(--gold);">Firefox（桌面）</b><br>Firefox 喺桌面唔安裝網頁應用程式。請用上面其中一個瀏覽器——呢個網站喺度仍然可以練習同分享。<br><br><span style="color:var(--dim-2);">安裝之後，喺 Verbatim 自己嘅圖示打開——書庫就喺嗰度。</span>',
     langTip:'語言：',
@@ -5617,6 +5646,10 @@ const LANGS = {
     instNow:'Installer maintenant',
     instOneClick:'Votre navigateur permet une installation en un clic.',
     instCheck:'Lancer la vérification d\'installation',
+    forceApp:'Activer la bibliothèque',
+    ttForceApp:'Activer la bibliothèque sur cet appareil sans installation PWA complète',
+    forceAppDone:'Bibliothèque activée. Rechargement…',
+    forceAppToast:'Bibliothèque activée — rechargement…',
     instIntro:'Installer ajoute Verbatim à votre appareil comme une application normale — sa propre icône, sa propre fenêtre, entièrement hors ligne — et débloque la bibliothèque privée locale. Rien ne passe par une boutique d\'applications, et rien ne change côté confidentialité : c\'est cette même page, conservée sur votre appareil.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (ordinateur)</b><br>Cherchez une icône d\'installation à droite de la barre d\'adresse et cliquez dessus — ou ouvrez le menu ⋮ et choisissez « Installer la page en tant qu\'application… » (Chrome) / « Installer ce site en tant qu\'application » (Edge). Verbatim s\'ouvre alors dans sa propre fenêtre, avec la bibliothèque.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Avec Verbatim ouvert, choisissez Fichier → « Ajouter au Dock… ». Il apparaît dans votre Dock comme une app.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Touchez le bouton Partager, puis « Sur l\'écran d\'accueil ». Ouvrez Verbatim depuis la nouvelle icône.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Ouvrez le menu ⋮ et touchez « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »).<br><br><b style="color:var(--gold);">Firefox (ordinateur)</b><br>Firefox n\'installe pas les applications web sur ordinateur. Utilisez l\'un des navigateurs ci-dessus — le site fonctionne toujours ici pour la pratique et le partage.<br><br><span style="color:var(--dim-2);">Après l\'installation, ouvrez Verbatim depuis sa propre icône — c\'est là que se trouve la bibliothèque.</span>',
     langTip:'Langue : ',
@@ -5921,6 +5954,14 @@ const LANGS = {
     instNow:'Jetzt installieren',
     instOneClick:'Ihr Browser unterstützt die Installation mit einem Klick.',
     instCheck:'Installationsprüfung ausführen',
+    forceApp:'Bibliothek aktivieren',
+    ttForceApp:'Bibliothek auf diesem Gerät ohne vollständige PWA-Installation aktivieren',
+    forceAppDone:'Bibliothek aktiviert. Neu laden…',
+    forceAppToast:'Bibliothek aktiviert — neu laden…',
+    forceApp:'Bibliothek aktivieren',
+    ttForceApp:'Bibliothek auf diesem Gerät ohne vollständige PWA-Installation aktivieren',
+    forceAppDone:'Bibliothek aktiviert. Neu laden…',
+    forceAppToast:'Bibliothek aktiviert — neu laden…',
     instIntro:'Die Installation fügt Verbatim wie eine normale App zu Ihrem Gerät hinzu — eigenes Symbol, eigenes Fenster, vollständig offline — und schaltet die private lokale Bibliothek frei. Nichts läuft über einen App-Store, und an der Privatsphäre ändert sich nichts: Es ist dieselbe Seite, auf Ihrem Gerät behalten.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (Desktop)</b><br>Achten Sie am rechten Ende der Adressleiste auf ein Installationssymbol und klicken Sie darauf — oder öffnen Sie das Browsermenü ⋮ und wählen Sie „Seite als App installieren…“ (Chrome) / „Diese Website als App installieren“ (Edge). Verbatim öffnet sich dann im eigenen Fenster, mit verfügbarer Bibliothek.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Wählen Sie bei geöffnetem Verbatim Ablage → „Zum Dock hinzufügen…“. Es erscheint als App in Ihrem Dock.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Tippen Sie auf „Teilen“, dann „Zum Home-Bildschirm“. Öffnen Sie Verbatim über das neue Symbol.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Öffnen Sie das Menü ⋮ und tippen Sie auf „App installieren“ (oder „Zum Startbildschirm hinzufügen“).<br><br><b style="color:var(--gold);">Firefox (Desktop)</b><br>Firefox installiert keine Web-Apps auf dem Desktop. Nutzen Sie einen der obigen Browser — die Website funktioniert hier weiterhin zum Üben und Teilen.<br><br><span style="color:var(--dim-2);">Öffnen Sie Verbatim nach der Installation über das eigene Symbol — dort liegt die Bibliothek.</span>',
     langTip:'Sprache: ',
@@ -6223,6 +6264,10 @@ const LANGS = {
     instNow:'अभी इंस्टॉल करें',
     instOneClick:'आपका ब्राउज़र एक-क्लिक इंस्टॉल का समर्थन करता है।',
     instCheck:'इंस्टॉल जाँच चलाएँ',
+    forceApp:'पुस्तकालय सक्षम करें',
+    ttForceApp:'पूर्ण PWA स्थापना के बिना इस डिवाइस पर पुस्तकालय सक्षम करें',
+    forceAppDone:'पुस्तकालय सक्षम हुआ। पुनः लोड हो रहा है…',
+    forceAppToast:'पुस्तकालय सक्षम हुआ — पुनः लोड हो रहा है…',
     instIntro:'इंस्टॉल करने पर Verbatim एक सामान्य ऐप की तरह आपके डिवाइस में जुड़ जाता है — अपना आइकन, अपनी विंडो, पूरी तरह ऑफ़लाइन — और निजी डिवाइस-स्थित पुस्तकालय खुल जाता है। कुछ भी किसी ऐप स्टोर से नहीं जाता, और गोपनीयता में कोई बदलाव नहीं: यह वही पृष्ठ है, आपके डिवाइस पर रखा हुआ।',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (डेस्कटॉप)</b><br>पता-पट्टी के दाएँ छोर पर इंस्टॉल आइकन देखें और उस पर क्लिक करें — या ब्राउज़र मेनू ⋮ खोलकर “पृष्ठ को ऐप के रूप में इंस्टॉल करें…” (Chrome) / “इस साइट को ऐप के रूप में इंस्टॉल करें” (Edge) चुनें। फिर Verbatim अपनी विंडो में खुलता है, पुस्तकालय उपलब्ध रहता है।<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Verbatim खुला रखते हुए, File → “Add to Dock…” चुनें। यह आपके Dock में एक ऐप के रूप में दिखता है।<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>शेयर बटन दबाएँ, फिर “Add to Home Screen”। नए आइकन से Verbatim खोलें।<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>मेनू ⋮ खोलें और “Install app” (या “Add to Home screen”) दबाएँ।<br><br><b style="color:var(--gold);">Firefox (डेस्कटॉप)</b><br>Firefox डेस्कटॉप पर वेब ऐप इंस्टॉल नहीं करता। ऊपर दिए किसी ब्राउज़र का उपयोग करें — यह वेबसाइट यहाँ अभ्यास और साझा करने के लिए फिर भी काम करती है।<br><br><span style="color:var(--dim-2);">इंस्टॉल के बाद, Verbatim को उसके अपने आइकन से खोलें — पुस्तकालय वहीं रहता है।</span>',
     langTip:'भाषा: ',
@@ -6524,6 +6569,10 @@ const LANGS = {
     instNow:'Installa ora',
     instOneClick:'Il tuo browser supporta l\'installazione con un clic.',
     instCheck:'Esegui il controllo d\'installazione',
+    forceApp:'Attiva libreria',
+    ttForceApp:'Attiva la libreria su questo dispositivo senza un\'installazione PWA completa',
+    forceAppDone:'Libreria attivata. Ricaricamento…',
+    forceAppToast:'Libreria attivata — ricaricamento…',
     instIntro:'Installare aggiunge Verbatim al tuo dispositivo come una normale app — icona propria, finestra propria, del tutto offline — e sblocca la libreria privata locale. Nulla passa da uno store, e nulla cambia sulla privacy: è questa stessa pagina, conservata sul tuo dispositivo.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (desktop)</b><br>Cerca un\'icona di installazione all\'estremità destra della barra degli indirizzi e cliccala — oppure apri il menu ⋮ e scegli «Installa pagina come app…» (Chrome) / «Installa questo sito come app» (Edge). Verbatim si apre poi nella propria finestra, con la libreria disponibile.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Con Verbatim aperto, scegli File → «Aggiungi al Dock…». Comparirà nel Dock come app.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Tocca il pulsante Condividi, poi «Aggiungi a Home». Apri Verbatim dalla nuova icona.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Apri il menu ⋮ e tocca «Installa app» (o «Aggiungi a schermata Home»).<br><br><b style="color:var(--gold);">Firefox (desktop)</b><br>Firefox non installa app web su desktop. Usa uno dei browser qui sopra — il sito funziona comunque qui per esercitarti e condividere.<br><br><span style="color:var(--dim-2);">Dopo l\'installazione, apri Verbatim dalla sua icona — è lì che risiede la libreria.</span>',
     langTip:'Lingua: ',
@@ -6825,6 +6874,10 @@ const LANGS = {
     instNow:'今すぐインストール',
     instOneClick:'お使いのブラウザはワンクリックインストールに対応しています。',
     instCheck:'インストール確認を実行',
+    forceApp:'ライブラリを有効化',
+    ttForceApp:'完全なPWAインストールなしでこのデバイスでライブラリを有効化',
+    forceAppDone:'ライブラリが有効になりました。リロード中…',
+    forceAppToast:'ライブラリが有効になりました — リロード中…',
     instIntro:'インストールすると Verbatim が通常のアプリのように端末に追加され——独自のアイコン、独自のウィンドウ、完全オフライン——端末内の非公開ライブラリが使えるようになります。アプリストアを一切通さず、プライバシーも変わりません。同じこのページを端末に保持するだけです。',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave（デスクトップ）</b><br>アドレスバー右端のインストールアイコンを探してクリック——またはブラウザメニュー ⋮ を開き「ページをアプリとしてインストール…」（Chrome）/「このサイトをアプリとしてインストール」（Edge）を選びます。すると Verbatim は独自のウィンドウで開き、ライブラリが使えます。<br><br><b style="color:var(--gold);">Safari（Mac）</b><br>Verbatim を開いた状態で、ファイル →「Dock に追加…」を選びます。アプリとして Dock に表示されます。<br><br><b style="color:var(--gold);">iPhone / iPad（Safari）</b><br>共有ボタンをタップし、「ホーム画面に追加」。新しいアイコンから Verbatim を開きます。<br><br><b style="color:var(--gold);">Android（Chrome）</b><br>メニュー ⋮ を開き「アプリをインストール」（または「ホーム画面に追加」）をタップします。<br><br><b style="color:var(--gold);">Firefox（デスクトップ）</b><br>Firefox はデスクトップで Web アプリをインストールしません。上記のいずれかのブラウザをお使いください——この Web サイトは練習と共有には引き続き使えます。<br><br><span style="color:var(--dim-2);">インストール後は Verbatim 自身のアイコンから開いてください——そこにライブラリがあります。</span>',
     langTip:'言語：',
@@ -7126,6 +7179,10 @@ const LANGS = {
     instNow:'지금 설치',
     instOneClick:'브라우저가 원클릭 설치를 지원합니다.',
     instCheck:'설치 점검 실행',
+    forceApp:'서재 활성화',
+    ttForceApp:'완전한 PWA 설치 없이 이 기기에서 서재 활성화',
+    forceAppDone:'서재가 활성화되었습니다. 새로고침 중…',
+    forceAppToast:'서재가 활성화되었습니다 — 새로고침 중…',
     instIntro:'설치하면 Verbatim이 일반 앱처럼 기기에 추가되고 — 자체 아이콘, 자체 창, 완전 오프라인 — 기기 내 비공개 서재가 열립니다. 어떤 앱 스토어도 거치지 않으며 개인정보도 전혀 바뀌지 않습니다. 같은 이 페이지를 기기에 보관할 뿐입니다.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (데스크톱)</b><br>주소창 오른쪽 끝의 설치 아이콘을 찾아 클릭하거나 — 브라우저 메뉴 ⋮ 를 열고 “페이지를 앱으로 설치…”(Chrome) / “이 사이트를 앱으로 설치”(Edge)를 선택하세요. 그러면 Verbatim이 자체 창으로 열리고 서재를 쓸 수 있습니다.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Verbatim이 열린 상태에서 파일 → “Dock에 추가…”를 선택하세요. 앱으로 Dock에 나타납니다.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>공유 버튼을 누른 뒤 “홈 화면에 추가”. 새 아이콘에서 Verbatim을 여세요.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>메뉴 ⋮ 를 열고 “앱 설치”(또는 “홈 화면에 추가”)를 누르세요.<br><br><b style="color:var(--gold);">Firefox (데스크톱)</b><br>Firefox는 데스크톱에서 웹 앱을 설치하지 않습니다. 위 브라우저 중 하나를 쓰세요 — 이 웹사이트는 여기서 연습과 공유에 계속 쓸 수 있습니다.<br><br><span style="color:var(--dim-2);">설치 후에는 Verbatim의 자체 아이콘에서 여세요 — 서재는 거기에 있습니다.</span>',
     langTip:'언어: ',
@@ -7427,6 +7484,10 @@ const LANGS = {
     instNow:'Instalar agora',
     instOneClick:'O seu navegador suporta instalação com um clique.',
     instCheck:'Executar verificação de instalação',
+    forceApp:'Ativar biblioteca',
+    ttForceApp:'Ativar a biblioteca neste dispositivo sem instalação PWA completa',
+    forceAppDone:'Biblioteca ativada. Recarregando…',
+    forceAppToast:'Biblioteca ativada — recarregando…',
     instIntro:'Instalar adiciona o Verbatim ao seu dispositivo como uma app normal — ícone próprio, janela própria, totalmente offline — e desbloqueia a biblioteca privada local. Nada passa por uma loja de apps, e nada muda quanto à privacidade: é esta mesma página, mantida no seu dispositivo.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (computador)</b><br>Procure um ícone de instalação na extremidade direita da barra de endereço e clique nele — ou abra o menu ⋮ e escolha «Instalar página como app…» (Chrome) / «Instalar este site como app» (Edge). O Verbatim abre então na sua própria janela, com a biblioteca disponível.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Com o Verbatim aberto, escolha Ficheiro → «Adicionar à Dock…». Aparece na Dock como uma app.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Toque no botão Partilhar e depois «Adicionar ao ecrã principal». Abra o Verbatim a partir do novo ícone.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Abra o menu ⋮ e toque em «Instalar app» (ou «Adicionar ao ecrã principal»).<br><br><b style="color:var(--gold);">Firefox (computador)</b><br>O Firefox não instala apps web no computador. Use um dos navegadores acima — o site continua a funcionar aqui para praticar e partilhar.<br><br><span style="color:var(--dim-2);">Após instalar, abra o Verbatim pelo seu próprio ícone — é lá que fica a biblioteca.</span>',
     langTip:'Idioma: ',
@@ -7800,6 +7861,10 @@ const LANGS = {
     instNow:'Установить сейчас',
     instOneClick:'Ваш браузер поддерживает установку в один клик.',
     instCheck:'Запустить проверку установки',
+    forceApp:'Включить библиотеку',
+    ttForceApp:'Включить библиотеку на этом устройстве без полной PWA-установки',
+    forceAppDone:'Библиотека включена. Перезагрузка…',
+    forceAppToast:'Библиотека включена — перезагрузка…',
     instIntro:'Установка добавляет Verbatim на устройство как обычное приложение — свой значок, своё окно, полностью офлайн — и открывает приватную локальную библиотеку. Ничего не проходит через магазин приложений, и приватность не меняется: это та же страница, сохранённая на вашем устройстве.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (компьютер)</b><br>Найдите значок установки в правом конце адресной строки и нажмите его — или откройте меню браузера ⋮ и выберите «Установить страницу как приложение…» (Chrome) / «Установить этот сайт как приложение» (Edge). Verbatim откроется в отдельном окне, с доступной библиотекой.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>При открытом Verbatim выберите «Файл → Добавить в Dock…». Он появится в Dock как приложение.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Нажмите кнопку «Поделиться», затем «На экран «Домой»». Откройте Verbatim с нового значка.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Откройте меню ⋮ и нажмите «Установить приложение» (или «Добавить на главный экран»).<br><br><b style="color:var(--gold);">Firefox (компьютер)</b><br>Firefox не устанавливает веб-приложения на компьютере. Используйте один из браузеров выше — сайт по-прежнему работает здесь для практики и обмена.<br><br><span style="color:var(--dim-2);">После установки открывайте Verbatim с его собственного значка — библиотека находится там.</span>',
     langTip:'Язык: ',
@@ -8101,6 +8166,10 @@ const LANGS = {
     instNow:'Instalar ahora',
     instOneClick:'Tu navegador admite la instalación con un clic.',
     instCheck:'Ejecutar comprobación de instalación',
+    forceApp:'Activar biblioteca',
+    ttForceApp:'Activar la biblioteca en este dispositivo sin instalación PWA completa',
+    forceAppDone:'Biblioteca activada. Recargando…',
+    forceAppToast:'Biblioteca activada — recargando…',
     instIntro:'Instalar añade Verbatim a tu dispositivo como una app normal — su propio icono, su propia ventana, totalmente sin conexión — y desbloquea la biblioteca privada local. Nada pasa por una tienda de apps, y nada cambia en la privacidad: es esta misma página, guardada en tu dispositivo.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (escritorio)</b><br>Busca un icono de instalación en el extremo derecho de la barra de direcciones y haz clic — o abre el menú ⋮ y elige «Instalar página como aplicación…» (Chrome) / «Instalar este sitio como aplicación» (Edge). Verbatim se abre entonces en su propia ventana, con la biblioteca disponible.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Con Verbatim abierto, elige Archivo → «Añadir al Dock…». Aparece en tu Dock como una app.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Toca el botón Compartir y luego «Añadir a inicio». Abre Verbatim desde el nuevo icono.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Abre el menú ⋮ y toca «Instalar aplicación» (o «Añadir a pantalla de inicio»).<br><br><b style="color:var(--gold);">Firefox (escritorio)</b><br>Firefox no instala apps web en escritorio. Usa uno de los navegadores anteriores — el sitio sigue funcionando aquí para practicar y compartir.<br><br><span style="color:var(--dim-2);">Tras instalar, abre Verbatim desde su propio icono — ahí es donde vive la biblioteca.</span>',
     langTip:'Idioma: ',
@@ -8403,6 +8472,10 @@ const LANGS = {
     instNow:'Şimdi kur',
     instOneClick:'Tarayıcınız tek tıkla kurulumu destekliyor.',
     instCheck:'Kurulum denetimini çalıştır',
+    forceApp:'Kitaplığı etkinleştir',
+    ttForceApp:'Tam PWA kurulumu olmadan bu cihazda kitaplığı etkinleştir',
+    forceAppDone:'Kitaplık etkinleştirildi. Yeniden yükleniyor…',
+    forceAppToast:'Kitaplık etkinleştirildi — yeniden yükleniyor…',
     instIntro:'Kurmak, Verbatim\'i normal bir uygulama gibi cihazınıza ekler — kendi simgesi, kendi penceresi, tamamen çevrimdışı — ve cihazdaki özel kitaplığın kilidini açar. Hiçbir şey bir uygulama mağazasından geçmez ve gizlilik açısından hiçbir şey değişmez: bu aynı sayfa, cihazınızda tutulur.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (masaüstü)</b><br>Adres çubuğunun sağ ucunda bir kurulum simgesi arayıp tıklayın — ya da tarayıcı menüsü ⋮ açıp “Sayfayı uygulama olarak kur…” (Chrome) / “Bu siteyi uygulama olarak kur” (Edge) seçin. Verbatim ardından kendi penceresinde açılır, kitaplık kullanılabilir.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>Verbatim açıkken Dosya → “Dock\'a Ekle…” seçin. Dock\'unuzda bir uygulama olarak görünür.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Paylaş düğmesine, sonra “Ana Ekrana Ekle”ye dokunun. Verbatim\'i yeni simgeden açın.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Menüyü ⋮ açıp “Uygulamayı yükle” (veya “Ana ekrana ekle”) dokunun.<br><br><b style="color:var(--gold);">Firefox (masaüstü)</b><br>Firefox masaüstünde web uygulaması kurmaz. Yukarıdaki tarayıcılardan birini kullanın — site burada alıştırma ve paylaşım için yine çalışır.<br><br><span style="color:var(--dim-2);">Kurduktan sonra Verbatim\'i kendi simgesinden açın — kitaplık oradadır.</span>',
     langTip:'Dil: ',
@@ -8704,6 +8777,10 @@ const LANGS = {
     instNow:'Установити зараз',
     instOneClick:'Ваш браузер підтримує встановлення одним кліком.',
     instCheck:'Запустити перевірку встановлення',
+    forceApp:'Увімкнути бібліотеку',
+    ttForceApp:'Увімкнути бібліотеку на цьому пристрої без повного PWA-встановлення',
+    forceAppDone:'Бібліотеку увімкнено. Перезавантаження…',
+    forceAppToast:'Бібліотеку увімкнено — перезавантаження…',
     instIntro:'Встановлення додає Verbatim на пристрій як звичайний застосунок — власний значок, власне вікно, повністю офлайн — і відкриває приватну локальну бібліотеку. Ніщо не проходить через крамницю застосунків, і приватність не змінюється: це та сама сторінка, збережена на вашому пристрої.',
     instSteps:'<b style="color:var(--gold);">Chrome / Edge / Brave (комп\'ютер)</b><br>Знайдіть значок встановлення праворуч в адресному рядку й натисніть його — або відкрийте меню браузера ⋮ й виберіть «Установити сторінку як застосунок…» (Chrome) / «Установити цей сайт як застосунок» (Edge). Verbatim відкриється в окремому вікні, з доступною бібліотекою.<br><br><b style="color:var(--gold);">Safari (Mac)</b><br>За відкритого Verbatim виберіть «Файл → Додати в Dock…». Він з\'явиться в Dock як застосунок.<br><br><b style="color:var(--gold);">iPhone / iPad (Safari)</b><br>Торкніться кнопки «Поділитися», потім «На екран «Початок»». Відкрийте Verbatim з нового значка.<br><br><b style="color:var(--gold);">Android (Chrome)</b><br>Відкрийте меню ⋮ й торкніться «Установити застосунок» (або «Додати на головний екран»).<br><br><b style="color:var(--gold);">Firefox (комп\'ютер)</b><br>Firefox не встановлює вебзастосунки на комп\'ютері. Скористайтеся одним із браузерів вище — сайт тут і далі працює для практики та поширення.<br><br><span style="color:var(--dim-2);">Після встановлення відкривайте Verbatim з його власного значка — бібліотека знаходиться там.</span>',
     langTip:'Мова: ',
