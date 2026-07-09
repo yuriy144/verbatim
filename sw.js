@@ -19,7 +19,7 @@
 */
 'use strict';
 
-const CACHE_VERSION = 'v5.0.0';
+const CACHE_VERSION = 'v5.0.1';
 const CACHE_NAME = 'verbatim-' + CACHE_VERSION;
 
 const PRECACHE = [
@@ -49,6 +49,12 @@ self.addEventListener('activate', (event) => {
       ))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if(event.data && event.data.type === 'SKIP_WAITING'){
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
