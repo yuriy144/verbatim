@@ -51,10 +51,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// The page can ask a freshly-installed (waiting) worker to take over at once,
+// so an update applies on the visit it was downloaded instead of the next one.
 self.addEventListener('message', (event) => {
-  if(event.data && event.data.type === 'SKIP_WAITING'){
-    self.skipWaiting();
-  }
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
