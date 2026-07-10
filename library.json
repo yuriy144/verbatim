@@ -1,0 +1,51 @@
+{
+  "verbatim_backup": 2,
+  "enc": 0,
+  "exported": "2026-01-01T00:00:00.000Z",
+  "folders": [
+    { "id": "f-scripture", "name": "Scripture", "parentId": null, "accent": 0, "createdAt": 1735689600000 },
+    { "id": "f-psalms", "name": "Psalms", "parentId": "f-scripture", "accent": 1, "createdAt": 1735689600000 },
+    { "id": "f-poetry", "name": "Poetry", "parentId": null, "accent": 2, "createdAt": 1735689600000 }
+  ],
+  "entries": [
+    {
+      "id": "e-psalm23",
+      "enc": 0,
+      "title": "Psalm 23 (vv. 1–3)",
+      "tags": ["psalms", "week 1"],
+      "folderId": "f-psalms",
+      "splitMode": "verse",
+      "source": "v1 The Lord is my shepherd; I shall not want.\nv2 He makes me lie down in green pastures. He leads me beside still waters.\nv3 He restores my soul. He leads me in paths of righteousness for his name's sake.",
+      "chunkText": "v1 → The Lord is my shepherd; I shall not want.\nv2 → He makes me lie down in green pastures. He leads me beside still waters.\nv3 → He restores my soul. He leads me in paths of righteousness for his name's sake.",
+      "order": 1,
+      "createdAt": 1735689600000,
+      "updatedAt": 1735689600000
+    },
+    {
+      "id": "e-sonnet18",
+      "enc": 0,
+      "title": "Sonnet 18 — opening",
+      "tags": ["shakespeare"],
+      "folderId": "f-poetry",
+      "splitMode": "lines",
+      "source": "Shall I compare thee to a summer's day?\nThou art more lovely and more temperate:\nRough winds do shake the darling buds of May,\nAnd summer's lease hath all too short a date.",
+      "chunkText": "Shall I compare thee to a summer's day?\nThou art more lovely and more temperate:\nRough winds do shake the darling buds of May,\nAnd summer's lease hath all too short a date.",
+      "order": 1,
+      "createdAt": 1735689600000,
+      "updatedAt": 1735689600000
+    },
+    {
+      "id": "e-gettysburg",
+      "enc": 0,
+      "title": "Gettysburg Address — opening",
+      "tags": ["speech"],
+      "folderId": null,
+      "splitMode": "sentences",
+      "source": "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation can long endure.",
+      "chunkText": "Four score and seven years ago our fathers brought forth on this continent a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.\nNow we are engaged in a great civil war, testing whether that nation can long endure.",
+      "order": 1,
+      "createdAt": 1735689600000,
+      "updatedAt": 1735689600000
+    }
+  ]
+}
