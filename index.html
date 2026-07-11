@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.4
+  Version 5.0.5
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.4">
+<meta name="app-version" content="5.0.5">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -576,15 +576,27 @@
   .tree-root{font-weight:600;}
   .tree-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .tree-count{font-family:var(--mono);font-size:10px;color:var(--dim-2);}
-  .tree-grip{cursor:grab;color:var(--dim-2);opacity:0;transition:opacity .12s;font-size:12px;}
-  .tree-row:hover .tree-grip{opacity:.7;}
+  .tree-grip{cursor:grab;color:var(--dim-2);font-size:12px;}
   .tree-grip:active{cursor:grabbing;}
   .tree-menu{
     font-family:var(--mono);font-size:11px;color:var(--dim-2);background:none;border:none;cursor:pointer;
-    padding:0 2px;opacity:0;transition:opacity .12s;
+    padding:0 2px;
   }
-  .tree-row:hover .tree-menu{opacity:.8;}
   .tree-menu:hover{color:var(--gold);}
+  /* Reveal-on-hover ONLY where hover exists. On touch (iOS Safari), a tap on a
+     row whose :hover state reveals hidden content is treated as "show the hover
+     state" — the click needs a SECOND tap. Keeping the grip/menu statically
+     visible on touch devices makes folder rows open on a single tap. */
+  @media (hover:hover){
+    .tree-grip{opacity:0;transition:opacity .12s;}
+    .tree-row:hover .tree-grip{opacity:.7;}
+    .tree-menu{opacity:0;transition:opacity .12s;}
+    .tree-row:hover .tree-menu{opacity:.8;}
+  }
+  @media (hover:none){
+    .tree-grip{opacity:.45;}
+    .tree-menu{opacity:.6;}
+  }
   .tree-name-input{
     flex:1;min-width:0;background:var(--bg-2);border:1px solid var(--gold);border-radius:2px;
     color:var(--ink);font-family:var(--serif);font-size:13px;padding:2px 5px;outline:none;
@@ -722,6 +734,11 @@
 
   /* ---------- responsive: tablets & phones ---------- */
   @media (max-width: 720px){
+    /* iOS auto-zooms the page when focusing any control with font-size < 16px —
+       and does NOT zoom back out on blur, leaving the layout cropped sideways.
+       Forcing 16px on every focusable text control prevents the zoom entirely
+       (the !important deliberately beats the more-specific desktop sizings). */
+    input:not([type="checkbox"]):not([type="radio"]), textarea, select{font-size:16px !important;}
     body{padding:20px 14px 48px;}
     h1{font-size:26px;}
     .eyebrow{font-size:10px;letter-spacing:.1em;}
@@ -1235,7 +1252,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.4';
+const APP_VERSION = '5.0.5';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2106,12 +2123,34 @@ const vvFeed = { lastMsgAt: 0 };
 const outerFeedActive = () => (Date.now() - vvFeed.lastMsgAt) < 2000;
 
 const vvPin = { top: null, bottomGap: null };  // last applied values (px)
+/* The dock must only stay engaged while the keyboard is actually MEASURABLE.
+   iOS occasionally leaves visualViewport stale after a programmatic focus()
+   (e.g. Begin practice): the keyboard is up but the reported gap is ~0. With a
+   focus-driven dock that meant a full-height frame with all content hidden
+   behind the keyboard — a blank screen. Instead: focusing engages the dock
+   optimistically (grace window covers the open animation), and the poll then
+   reconciles every frame — no measurable keyboard after the grace period means
+   we drop back to normal page flow, where iOS natively scrolls the input into
+   view. The moment a real gap appears, the dock re-engages. */
+const KB_MIN_GAP = 150;       // a bottom inset this big means a keyboard
+const KB_FOCUS_GRACE_MS = 900; // covers the keyboard's opening animation
+let kbFocusAt = 0;
+function reconcileKbOpen(){
+  const focused = document.activeElement === typeInput;
+  const withinGrace = (Date.now() - kbFocusAt) < KB_FOCUS_GRACE_MS;
+  const open = focused && isPhone() && ((vvPin.bottomGap || 0) > KB_MIN_GAP || withinGrace);
+  if(open !== document.body.classList.contains('kb-open')){
+    document.body.classList.toggle('kb-open', open);
+    if(open) keepDiffInView();
+  }
+}
 function applyViewportVars(top, bottomGap){
   if(top === vvPin.top && bottomGap === vvPin.bottomGap) return; // steady state: no style churn
   const gapChanged = bottomGap !== vvPin.bottomGap;
   vvPin.top = top; vvPin.bottomGap = bottomGap;
   document.documentElement.style.setProperty('--vv-top', top + 'px');
   document.documentElement.style.setProperty('--vv-bottom-gap', bottomGap + 'px');
+  reconcileKbOpen();
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
   // the dock just changed height → keep the diff hugging the typing box
   if(gapChanged && document.body.classList.contains('kb-open')) keepDiffInView();
@@ -2150,7 +2189,7 @@ function adjustBottomGap(raw){
 let vvPollId = null;
 function startVvPoll(){
   if(vvPollId != null) return;
-  const tick = () => { syncViewportVars(); vvPollId = requestAnimationFrame(tick); };
+  const tick = () => { syncViewportVars(); reconcileKbOpen(); vvPollId = requestAnimationFrame(tick); };
   vvPollId = requestAnimationFrame(tick);
 }
 function stopVvPoll(){
@@ -2171,8 +2210,9 @@ if(vv){
   syncViewportVars();
 }
 typeInput.addEventListener('focus', () => {
-  // engage the dock immediately on phones so the buttons don't flash in;
-  // geometry then tracks the keyboard animation frame-by-frame via the poll
+  // engage the dock immediately on phones so the buttons don't flash in
+  // (grace window); the poll then reconciles against the real keyboard gap
+  kbFocusAt = Date.now();
   if(isPhone()) document.body.classList.add('kb-open');
   syncViewportVars();
   keepDiffInView();
@@ -3256,6 +3296,22 @@ function idbOpen(){
     rq.onerror = () => reject(rq.error);
   });
 }
+async function idbOpenRetry(){
+  // WebKit quirk: in an installed (home-screen) app launched OFFLINE or cold,
+  // the FIRST indexedDB.open() sometimes rejects even though the database is
+  // fine — a retry moments later succeeds. Without this, the whole library
+  // (and backup import) looked "unavailable" exactly when offline access
+  // mattered most. Five attempts, doubling backoff, ~4s worst case.
+  let delay = 250;
+  for(let attempt = 1; ; attempt++){
+    try { return await idbOpen(); }
+    catch(err){
+      if(attempt >= 5) throw err;
+      await new Promise(r => setTimeout(r, delay));
+      delay *= 2;
+    }
+  }
+}
 function metaGet(key){
   return new Promise((resolve, reject) => {
     const rq = lib.db.transaction('meta','readonly').objectStore('meta').get(key);
@@ -3579,9 +3635,9 @@ async function doSave(){
     st.textContent = t('saveFailed');
   }
 }
-byId('btnSaveLib').addEventListener('click', () => {
+byId('btnSaveLib').addEventListener('click', async () => {
   if(!APP_MODE) return;
-  if(!lib.ok){ notify(t('msgLibUnavail')); return; }
+  if(!(await ensureLib())){ notify(t('msgLibUnavail')); return; }
   if(parseChunkLines(chunkText.value).length === 0){ chunkText.focus(); notify(t('nothingToSave')); return; }
   openSaveDialog({ title: '', source: sourceText.value, chunkText: chunkText.value, splitMode: state.splitMode });
 });
@@ -4516,8 +4572,8 @@ function showShareBanner(payload, expired){
     chunkText.focus();
   });
   if(APP_MODE){
-    byId('bnSave').addEventListener('click', () => {
-      if(!lib.ok){ notify(t('msgLibUnavail')); return; }
+    byId('bnSave').addEventListener('click', async () => {
+      if(!(await ensureLib())){ notify(t('msgLibUnavail')); return; }
       // banner stays visible so cancelling the dialog doesn't lose the share
       openSaveDialog({ title: payload.t || '', source: '', chunkText: payload.c, splitMode: payload.m, shareId: payload.i });
     });
@@ -4575,7 +4631,7 @@ async function openIncomingFile(file){
     }
     if(data && (data.verbatim_backup === 1 || data.verbatim_backup === 2)){
       if(!APP_MODE){ notify(t('msgBackupsInstalled')); return; }
-      if(!lib.ok){ notify(t('msgLibUnavail')); return; }
+      if(!(await ensureLib())){ notify(t('msgLibUnavail')); return; }
       await importBackupData(data);
       return;
     }
@@ -9622,28 +9678,45 @@ byId('langList').addEventListener('click', (e) => {
 curLang = detectLang();
 
 /* ---------- init ---------- */
+let _libWired = false;    // listeners are attached exactly once across retries
+let _libIniting = null;   // concurrent callers share one in-flight attempt
 async function initLibrary(){
   if(!APP_MODE) return; // the website is the stripped version: no library at all
+  if(lib.ok) return;
+  if(_libIniting) return _libIniting;
   if(!('indexedDB' in window)){
     libStatus(t('msgNoIdb'));
     return;
   }
-  try {
-    lib.db = await idbOpen();
-    lib.entries = await idbGetAll();
-    lib.ok = true;
-    try { lib.folders = (await metaGet('folders')) || []; } catch(e){ lib.folders = []; }
-    repairOrphans(); // dangling folderId/parentId would make entries unreachable
-    initFolders();
-    refreshLibList();
-    libStatus(lib.entries.filter(r => !r.enc).length === 0
-      ? t('libStatusEmpty')
-      : t('libStatusSome'));
-    initSync();
-  } catch(err){
-    console.error(err);
-    libStatus(t('msgLibBlocked'));
-  }
+  _libIniting = (async () => {
+    try {
+      lib.db = await idbOpenRetry();
+      lib.entries = await idbGetAll();
+      lib.ok = true;
+      try { lib.folders = (await metaGet('folders')) || []; } catch(e){ lib.folders = []; }
+      repairOrphans(); // dangling folderId/parentId would make entries unreachable
+      if(!_libWired){ initFolders(); _libWired = true; }
+      refreshLibTree();
+      refreshLibList();
+      libStatus(lib.entries.filter(r => !r.enc).length === 0
+        ? t('libStatusEmpty')
+        : t('libStatusSome'));
+      initSync();
+    } catch(err){
+      console.error(err);
+      libStatus(t('msgLibBlocked'));
+    } finally {
+      _libIniting = null;
+    }
+  })();
+  return _libIniting;
+}
+/* Lazy recovery: if the boot-time init failed (see idbOpenRetry's comment),
+   any library action gets one more chance to bring it up before refusing. */
+async function ensureLib(){
+  if(lib.ok) return true;
+  await initLibrary();
+  return lib.ok;
 }
 if(!cryptoOK){
   byId('saveEnc').disabled = true;
