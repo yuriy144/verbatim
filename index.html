@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.5
+  Version 5.0.6
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.5">
+<meta name="app-version" content="5.0.6">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1252,7 +1252,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.5';
+const APP_VERSION = '5.0.6';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2135,10 +2135,32 @@ const vvPin = { top: null, bottomGap: null };  // last applied values (px)
 const KB_MIN_GAP = 150;       // a bottom inset this big means a keyboard
 const KB_FOCUS_GRACE_MS = 900; // covers the keyboard's opening animation
 let kbFocusAt = 0;
+let vvNudged = false; // one automatic recovery attempt per stale episode
+/* iOS sometimes never refreshes visualViewport for an already-open keyboard
+   (see reconcileKbOpen below). Blurring and refocusing the box forces iOS to
+   recompute — it's exactly the manual fix (tap away, tap back) users
+   discovered, automated. Caret position is preserved; the keyboard stays up
+   because the refocus happens within the same frame. Guarded to run once per
+   episode so a hopelessly stale environment degrades instead of loops. */
+function nudgeViewport(){
+  vvNudged = true;
+  const selS = typeInput.selectionStart, selE = typeInput.selectionEnd;
+  typeInput.blur();
+  requestAnimationFrame(() => {
+    typeInput.focus({ preventScroll: true });
+    try { typeInput.setSelectionRange(selS, selE); } catch(_){}
+  });
+}
 function reconcileKbOpen(){
   const focused = document.activeElement === typeInput;
   const withinGrace = (Date.now() - kbFocusAt) < KB_FOCUS_GRACE_MS;
-  const open = focused && isPhone() && ((vvPin.bottomGap || 0) > KB_MIN_GAP || withinGrace);
+  const gap = vvPin.bottomGap || 0;
+  if(gap > KB_MIN_GAP) vvNudged = false; // healthy measurement: re-arm the nudge
+  if(focused && isPhone() && !withinGrace && gap <= KB_MIN_GAP && !vvNudged){
+    nudgeViewport(); // stale viewport: try the blur/refocus kick before degrading
+    return;
+  }
+  const open = focused && isPhone() && (gap > KB_MIN_GAP || withinGrace);
   if(open !== document.body.classList.contains('kb-open')){
     document.body.classList.toggle('kb-open', open);
     if(open) keepDiffInView();
@@ -2160,29 +2182,12 @@ function syncViewportVars(){
   if(outerFeedActive()) return; // an embedding page is feeding real numbers — don't fight it
   // Distance from the LAYOUT viewport's bottom edge to the visible area's
   // bottom edge — exactly what fixed-position `bottom` measures against.
-  const bottomGap = adjustBottomGap(Math.max(0, window.innerHeight - vv.offsetTop - vv.height));
+  const bottomGap = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
   applyViewportVars(vv.offsetTop, bottomGap);
 }
 function keepDiffInView(){
   const ls = document.getElementById('liveScroll');
   if(ls) ls.scrollTop = ls.scrollHeight;   // diff sits at the bottom, hugging the box
-}
-/* iPhone Safari (browser tab, NOT the installed app): with the keyboard up,
-   Safari collapses its address bar into a floating pill above the keyboard's
-   form-assistant bar, and visualViewport.height excludes that entire band —
-   leaving a dead strip between the dock and the keyboard. The pill FLOATS
-   over content (pages legitimately render beneath it), so the strip is
-   reclaimable: when the keyboard is clearly open, pull the dock down by the
-   pill band's height, landing the typing box on the assistant bar's top edge.
-   The installed app shows no address pill and gets no adjustment. If Apple
-   resizes its chrome, this one constant is the knob. */
-const IS_IPHONE = /iPhone|iPod/.test(navigator.userAgent);
-const IN_BROWSER_TAB = () => !(navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches);
-const IOS_URL_PILL_BAND = 92;   // px: floating address pill + its margins
-const KB_OPEN_MIN_GAP = 220;    // a bottom gap this large can only be a keyboard
-function adjustBottomGap(raw){
-  if(IS_IPHONE && IN_BROWSER_TAB() && raw > KB_OPEN_MIN_GAP) return Math.max(0, raw - IOS_URL_PILL_BAND);
-  return raw;
 }
 /* Poll while the dock is open. Events still help (they fire during the
    animation), but the poll is what guarantees the FINAL geometry is applied. */
@@ -2200,7 +2205,7 @@ window.addEventListener('message', (e) => {
   const d = e.data;
   if(d && d.type === 'verbatim-vv' && typeof d.top === 'number' && typeof d.bottomGap === 'number'){
     vvFeed.lastMsgAt = Date.now();
-    applyViewportVars(d.top, adjustBottomGap(Math.max(0, d.bottomGap)));
+    applyViewportVars(d.top, Math.max(0, d.bottomGap));
   }
 });
 if(vv){
@@ -2264,18 +2269,26 @@ function typeCaretX(){
 }
 function centerTypeCaret(){
   if(state.typeMode !== 'scroll') return;
-  if(typeInput.scrollWidth <= typeInput.clientWidth){ typeInput.scrollLeft = 0; return; }
-  const padLeft = 34; // matches #typeInput's padding-left
-  const x = padLeft + typeCaretX();
-  const maxScroll = typeInput.scrollWidth - typeInput.clientWidth;
-  typeInput.scrollLeft = Math.max(0, Math.min(maxScroll, x - typeInput.clientWidth / 2));
+  // Write on the NEXT frame: the browser applies its own keep-caret-visible
+  // scroll after input/selection events, and a same-tick write loses to it.
+  requestAnimationFrame(() => {
+    if(typeInput.scrollWidth <= typeInput.clientWidth){ typeInput.scrollLeft = 0; return; }
+    const padLeft = 34; // matches #typeInput's padding-left
+    const x = padLeft + typeCaretX();
+    const maxScroll = typeInput.scrollWidth - typeInput.clientWidth;
+    typeInput.scrollLeft = Math.max(0, Math.min(maxScroll, x - typeInput.clientWidth / 2));
+  });
 }
 // Re-center when the caret moves WITHOUT input: arrow keys, taps, selection.
+// On iOS, pointerup fires BEFORE the tap actually moves the caret, so the
+// measurement is deferred a tick to read the settled selection.
+const centerSoon = () => setTimeout(centerTypeCaret, 0);
 document.addEventListener('selectionchange', () => {
   if(document.activeElement === typeInput) centerTypeCaret();
 });
-typeInput.addEventListener('keyup', centerTypeCaret);
-typeInput.addEventListener('pointerup', centerTypeCaret);
+typeInput.addEventListener('keyup', centerSoon);
+typeInput.addEventListener('pointerup', centerSoon);
+typeInput.addEventListener('click', centerSoon);
 
 function followScroll(typed){
   // Keep each box (whichever is in scroll mode) scrolled so the position the user
