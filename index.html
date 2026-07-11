@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.6
+  Version 5.0.7
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.6">
+<meta name="app-version" content="5.0.7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -190,6 +190,12 @@
     padding-left:34px;
   }
   #typeInput.nowrap{white-space:pre;overflow-x:auto;overflow-y:hidden;}
+  /* Breathing room past the last character (only once there's content, so the
+     placeholder stays fully visible). Without it, a caret at the END of the
+     text can never be centered — the box can't scroll past the content edge —
+     so it stayed pinned at the right border. The blank half also gives a big
+     tap target for putting the caret back at the end of the sentence. */
+  #typeInput.nowrap:not(:placeholder-shown){padding-right:50%;}
 
   button{
     font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
@@ -1252,7 +1258,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.6';
+const APP_VERSION = '5.0.7';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2071,6 +2077,7 @@ function renderDiff(typed, isFinal){
 let _diffRaf = 0;
 typeInput.addEventListener('input', (e) => {
   noteActivity();
+  typedSinceFocus = true;
   state.drafts[state.index] = e.target.value;
   state.currentIsFinal = false; // actively editing again, even if this line was committed before
   // Coalesce diff renders to one per frame: on fast typing (or key repeat) the
@@ -2132,16 +2139,21 @@ const vvPin = { top: null, bottomGap: null };  // last applied values (px)
    reconciles every frame — no measurable keyboard after the grace period means
    we drop back to normal page flow, where iOS natively scrolls the input into
    view. The moment a real gap appears, the dock re-engages. */
-const KB_MIN_GAP = 150;       // a bottom inset this big means a keyboard
+const KB_MIN_GAP = 150;        // a bottom inset this big means a keyboard
 const KB_FOCUS_GRACE_MS = 900; // covers the keyboard's opening animation
+const KB_LOW_SUSTAIN_MS = 300; // a low gap must persist this long to mean anything
+const KB_NUDGE_WINDOW_MS = 3500; // nudging is a FOCUS-TIME recovery only
 let kbFocusAt = 0;
-let vvNudged = false; // one automatic recovery attempt per stale episode
-/* iOS sometimes never refreshes visualViewport for an already-open keyboard
-   (see reconcileKbOpen below). Blurring and refocusing the box forces iOS to
-   recompute — it's exactly the manual fix (tap away, tap back) users
-   discovered, automated. Caret position is preserved; the keyboard stays up
-   because the refocus happens within the same frame. Guarded to run once per
-   episode so a hopelessly stale environment degrades instead of loops. */
+let kbLowSince = 0;        // when the gap first went unmeasurably low while focused
+let typedSinceFocus = false;
+let vvNudged = false;      // one automatic recovery attempt per stale episode
+/* iOS sometimes never refreshes visualViewport for a keyboard opened by a
+   programmatic focus (Begin practice). Blurring and refocusing forces a
+   recompute — the manual fix users discovered, automated. But the blur/focus
+   cycle plays the keyboard dismiss+present animation, so it must NEVER fire
+   during typing: it runs only in a short window after focus, before the first
+   keystroke, and only once the staleness has persisted (single-frame viewport
+   blips happen mid-session and must not trigger anything). */
 function nudgeViewport(){
   vvNudged = true;
   const selS = typeInput.selectionStart, selE = typeInput.selectionEnd;
@@ -2153,14 +2165,21 @@ function nudgeViewport(){
 }
 function reconcileKbOpen(){
   const focused = document.activeElement === typeInput;
-  const withinGrace = (Date.now() - kbFocusAt) < KB_FOCUS_GRACE_MS;
+  const nowT = Date.now();
+  const withinGrace = (nowT - kbFocusAt) < KB_FOCUS_GRACE_MS;
   const gap = vvPin.bottomGap || 0;
-  if(gap > KB_MIN_GAP) vvNudged = false; // healthy measurement: re-arm the nudge
-  if(focused && isPhone() && !withinGrace && gap <= KB_MIN_GAP && !vvNudged){
-    nudgeViewport(); // stale viewport: try the blur/refocus kick before degrading
+  const low = gap <= KB_MIN_GAP;
+  if(!low){ kbLowSince = 0; vvNudged = false; } // healthy: clear stale tracking, re-arm
+  else if(focused && !kbLowSince) kbLowSince = nowT;
+  const sustainedLow = kbLowSince !== 0 && (nowT - kbLowSince) > KB_LOW_SUSTAIN_MS;
+  if(focused && isPhone() && !withinGrace && sustainedLow && !vvNudged &&
+     !typedSinceFocus && (nowT - kbFocusAt) < KB_NUDGE_WINDOW_MS){
+    nudgeViewport(); // stale right after focus, nothing typed yet: kick once
     return;
   }
-  const open = focused && isPhone() && (gap > KB_MIN_GAP || withinGrace);
+  // Hysteresis: the dock drops only on SUSTAINED unmeasurability (or blur) —
+  // a one-frame gap blip mid-typing must not flicker the layout.
+  const open = focused && isPhone() && (withinGrace || !sustainedLow);
   if(open !== document.body.classList.contains('kb-open')){
     document.body.classList.toggle('kb-open', open);
     if(open) keepDiffInView();
@@ -2218,6 +2237,7 @@ typeInput.addEventListener('focus', () => {
   // engage the dock immediately on phones so the buttons don't flash in
   // (grace window); the poll then reconciles against the real keyboard gap
   kbFocusAt = Date.now();
+  typedSinceFocus = false;
   if(isPhone()) document.body.classList.add('kb-open');
   syncViewportVars();
   keepDiffInView();
@@ -2226,6 +2246,7 @@ typeInput.addEventListener('focus', () => {
 typeInput.addEventListener('blur', () => {
   // keyboard gone -> drop the dock so the normal page (with buttons) returns
   stopVvPoll();
+  kbLowSince = 0;
   document.body.classList.remove('kb-open');
   setTimeout(syncViewportVars, 60);
 });
