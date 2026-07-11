@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.3
+  Version 5.0.4
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.3">
+<meta name="app-version" content="5.0.4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1235,7 +1235,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.3';
+const APP_VERSION = '5.0.4';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2121,12 +2121,29 @@ function syncViewportVars(){
   if(outerFeedActive()) return; // an embedding page is feeding real numbers — don't fight it
   // Distance from the LAYOUT viewport's bottom edge to the visible area's
   // bottom edge — exactly what fixed-position `bottom` measures against.
-  const bottomGap = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  const bottomGap = adjustBottomGap(Math.max(0, window.innerHeight - vv.offsetTop - vv.height));
   applyViewportVars(vv.offsetTop, bottomGap);
 }
 function keepDiffInView(){
   const ls = document.getElementById('liveScroll');
   if(ls) ls.scrollTop = ls.scrollHeight;   // diff sits at the bottom, hugging the box
+}
+/* iPhone Safari (browser tab, NOT the installed app): with the keyboard up,
+   Safari collapses its address bar into a floating pill above the keyboard's
+   form-assistant bar, and visualViewport.height excludes that entire band —
+   leaving a dead strip between the dock and the keyboard. The pill FLOATS
+   over content (pages legitimately render beneath it), so the strip is
+   reclaimable: when the keyboard is clearly open, pull the dock down by the
+   pill band's height, landing the typing box on the assistant bar's top edge.
+   The installed app shows no address pill and gets no adjustment. If Apple
+   resizes its chrome, this one constant is the knob. */
+const IS_IPHONE = /iPhone|iPod/.test(navigator.userAgent);
+const IN_BROWSER_TAB = () => !(navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches);
+const IOS_URL_PILL_BAND = 92;   // px: floating address pill + its margins
+const KB_OPEN_MIN_GAP = 220;    // a bottom gap this large can only be a keyboard
+function adjustBottomGap(raw){
+  if(IS_IPHONE && IN_BROWSER_TAB() && raw > KB_OPEN_MIN_GAP) return Math.max(0, raw - IOS_URL_PILL_BAND);
+  return raw;
 }
 /* Poll while the dock is open. Events still help (they fire during the
    animation), but the poll is what guarantees the FINAL geometry is applied. */
@@ -2144,7 +2161,7 @@ window.addEventListener('message', (e) => {
   const d = e.data;
   if(d && d.type === 'verbatim-vv' && typeof d.top === 'number' && typeof d.bottomGap === 'number'){
     vvFeed.lastMsgAt = Date.now();
-    applyViewportVars(d.top, Math.max(0, d.bottomGap));
+    applyViewportVars(d.top, adjustBottomGap(Math.max(0, d.bottomGap)));
   }
 });
 if(vv){
@@ -3294,7 +3311,9 @@ function openDrawer(){
   byId('libDrawer').classList.add('open');
   byId('libDrawer').setAttribute('aria-hidden','false');
   byId('drawerBackdrop').classList.add('open');
-  byId('libSearch').focus();
+  // Focus the search box only where a physical keyboard is likely: on phones,
+  // auto-focusing a text field pops the on-screen keyboard over the library.
+  if(window.matchMedia('(hover:hover) and (pointer:fine)').matches) byId('libSearch').focus();
 }
 function closeDrawer(){
   byId('libDrawer').classList.remove('open');
@@ -3773,8 +3792,10 @@ function onTreeClick(e){
     refreshLibTree(); refreshLibList();
     return;
   }
-  // folder row: select it (don't toggle off — click the root row to go back)
+  // folder row: one tap both selects it AND expands it (collapsing stays on
+  // the twisty, so browsing into a folder never requires a second tap)
   lib.selectedFolder = id;
+  if(lib.expandedFolders[id] === false) lib.expandedFolders[id] = true;
   byId('libSearch').value = '';
   refreshLibTree(); refreshLibList();
 }
