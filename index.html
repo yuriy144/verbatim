@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.2
+  Version 5.0.3
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.2">
+<meta name="app-version" content="5.0.3">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -806,7 +806,7 @@
       bottom:calc(var(--vv-bottom-gap, 0px) + var(--kb-clearance));
       z-index:9;background:var(--bg);
       display:flex;flex-direction:column;
-      margin:0;padding:8px 14px;
+      margin:0;padding:8px 14px 2px; /* nearly no bottom padding: the typing box IS the bottom edge */
       overflow:hidden;
     }
     body.kb-open #stageTop{flex:0 0 auto;}
@@ -1235,7 +1235,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.2';
+const APP_VERSION = '5.0.3';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2095,13 +2095,15 @@ window.addEventListener('resize', () => {
    a value actually changed, so the steady-state cost is nil. */
 const vv = window.visualViewport;
 const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
-/* CRITICAL — iframe embedding: visualViewport only reports the keyboard to the
-   TOP-LEVEL document. Inside the site's iframe wrapper the inner viewport never
-   shrinks, so measuring locally computes a zero (or garbage) bottom gap. When
-   embedded, the OUTER page measures its own visualViewport and posts
-   {type:'verbatim-vv', top, bottomGap} in; those numbers win. Standalone
-   (GitHub Pages / installed app), the local visualViewport is authoritative. */
-const EMBEDDED = (() => { try { return window.self !== window.top; } catch(_) { return true; } })();
+/* Iframe embedding: visualViewport only reports the keyboard to the TOP-LEVEL
+   document, so an outer wrapper page can measure its own visualViewport and
+   post {type:'verbatim-vv', top, bottomGap} in. Those numbers take priority —
+   but ONLY while they're actively arriving. Local measurement stays on as the
+   default everywhere else (this is what the original mobile fix did, and it's
+   what keeps the pin correct in installed apps, in-app browsers, and any
+   context where a top-vs-self check would misfire with nobody feeding us). */
+const vvFeed = { lastMsgAt: 0 };
+const outerFeedActive = () => (Date.now() - vvFeed.lastMsgAt) < 2000;
 
 const vvPin = { top: null, bottomGap: null };  // last applied values (px)
 function applyViewportVars(top, bottomGap){
@@ -2115,7 +2117,8 @@ function applyViewportVars(top, bottomGap){
   if(gapChanged && document.body.classList.contains('kb-open')) keepDiffInView();
 }
 function syncViewportVars(){
-  if(EMBEDDED || !vv) return; // embedded: the outer page's messages are authoritative
+  if(!vv) return;
+  if(outerFeedActive()) return; // an embedding page is feeding real numbers — don't fight it
   // Distance from the LAYOUT viewport's bottom edge to the visible area's
   // bottom edge — exactly what fixed-position `bottom` measures against.
   const bottomGap = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
@@ -2140,10 +2143,11 @@ window.addEventListener('message', (e) => {
   if(e.origin !== location.origin) return;
   const d = e.data;
   if(d && d.type === 'verbatim-vv' && typeof d.top === 'number' && typeof d.bottomGap === 'number'){
+    vvFeed.lastMsgAt = Date.now();
     applyViewportVars(d.top, Math.max(0, d.bottomGap));
   }
 });
-if(vv && !EMBEDDED){
+if(vv){
   // fire as the keyboard animates in/out and as the visible area shifts
   vv.addEventListener('resize', syncViewportVars);
   vv.addEventListener('scroll', syncViewportVars);
@@ -2155,7 +2159,7 @@ typeInput.addEventListener('focus', () => {
   if(isPhone()) document.body.classList.add('kb-open');
   syncViewportVars();
   keepDiffInView();
-  if(!EMBEDDED) startVvPoll();
+  startVvPoll();
 });
 typeInput.addEventListener('blur', () => {
   // keyboard gone -> drop the dock so the normal page (with buttons) returns
@@ -2190,11 +2194,39 @@ typeInput.addEventListener('blur', () => {
   document.addEventListener('touchmove', onMove, {passive:true});
 })();
 
+/* Measure where the caret sits inside the typing box (in px from the text
+   start) so scrolling can CENTER it. A hidden canvas measures the text up to
+   the caret with the box's own font — no DOM mirror element needed. */
+const caretMeas = document.createElement('canvas').getContext('2d');
+function typeCaretX(){
+  const cs = getComputedStyle(typeInput);
+  caretMeas.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+  if('letterSpacing' in caretMeas) caretMeas.letterSpacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+  const caret = typeInput.selectionEnd == null ? typeInput.value.length : typeInput.selectionEnd;
+  return caretMeas.measureText(typeInput.value.slice(0, caret)).width;
+}
+function centerTypeCaret(){
+  if(state.typeMode !== 'scroll') return;
+  if(typeInput.scrollWidth <= typeInput.clientWidth){ typeInput.scrollLeft = 0; return; }
+  const padLeft = 34; // matches #typeInput's padding-left
+  const x = padLeft + typeCaretX();
+  const maxScroll = typeInput.scrollWidth - typeInput.clientWidth;
+  typeInput.scrollLeft = Math.max(0, Math.min(maxScroll, x - typeInput.clientWidth / 2));
+}
+// Re-center when the caret moves WITHOUT input: arrow keys, taps, selection.
+document.addEventListener('selectionchange', () => {
+  if(document.activeElement === typeInput) centerTypeCaret();
+});
+typeInput.addEventListener('keyup', centerTypeCaret);
+typeInput.addEventListener('pointerup', centerTypeCaret);
+
 function followScroll(typed){
   // Keep each box (whichever is in scroll mode) scrolled so the position the user
   // is typing stays in view, instead of the text growing past the visible edge.
+  // The typing box centers the CARET (not the end of the text), so moving back
+  // into the middle of a line to edit keeps context visible on both sides.
   if(state.typeMode === 'scroll'){
-    typeInput.scrollLeft = typeInput.scrollWidth;
+    centerTypeCaret();
   }
   if(state.diffMode === 'scroll' && diffBox.scrollWidth > diffBox.clientWidth){
     // Req 6: center the current typing position in the diff box so the user sees
