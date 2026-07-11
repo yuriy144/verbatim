@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.1
+  Version 5.0.2
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,12 +17,12 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.1">
+<meta name="app-version" content="5.0.2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Verbatim">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="Icons/apple-touch-icon.png">
 <script>
 /* Decide app-vs-web mode before anything paints, so the stripped website never
    flashes app-only controls. Installed app (standalone / home-screen) = full;
@@ -785,11 +785,12 @@
      so the frame stays matched and the box never drifts up leaving a gap.
 
      We do NOT lock body scroll (that made Safari pin its address bar); the fixed
-     frame simply covers the page. --kb-clearance cushions the iOS accessory bar
-     (the up/down/done bar that web pages can't remove); bump it if a device needs
-     more. */
+     frame simply covers the page. --kb-clearance is an escape hatch: modern iOS
+     reports the keyboard INCLUDING its accessory bar through visualViewport, so
+     the default is 0 (flush against the keyboard); if a device's accessory bar
+     ever overlaps the typing box, bump this to ~44px. */
   @media (max-width: 720px){
-    :root{--kb-clearance:44px;}
+    :root{--kb-clearance:0px;}
     /* lock the page behind the frame so the intro/disclaimer text can't scroll
        into view while typing */
     body.kb-open{overflow:hidden;}
@@ -1234,7 +1235,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.1';
+const APP_VERSION = '5.0.2';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -1785,30 +1786,40 @@ function pairsToChunkText(pairs){
   // using " → " only where a cue is present.
   return pairs.map(p => p.prompt ? (p.prompt + CUE_SEP + p.answer) : p.answer).join('\n');
 }
-modeLine.addEventListener('click', () => {
-  setActiveMode('lines');
-  chunkText.value = splitLines(sourceText.value).join('\n');
-  updateChunkCount();
-});
-modeSentence.addEventListener('click', () => {
-  setActiveMode('sentences');
-  chunkText.value = splitSentences(sourceText.value).join('\n');
-  updateChunkCount();
-});
-modeVerse.addEventListener('click', () => {
-  setActiveMode('verse');
-  chunkText.value = pairsToChunkText(splitVerse(sourceText.value));
-  updateChunkCount();
-});
-modeQA.addEventListener('click', () => {
-  setActiveMode('qa');
-  chunkText.value = pairsToChunkText(splitQA(sourceText.value));
-  updateChunkCount();
-});
+/* One registry owns the mode → splitter → editable-text pipeline, so the mode
+   buttons, the tour's live demos, and the sample loader all run the SAME code
+   path — a splitter change can never leave one of them behind. */
+const SPLIT_MODES = {
+  lines:     { split: splitLines,     render: (parts) => parts.join('\n') },
+  sentences: { split: splitSentences, render: (parts) => parts.join('\n') },
+  verse:     { split: splitVerse,     render: pairsToChunkText },
+  qa:        { split: splitQA,        render: pairsToChunkText },
+};
+function splitToChunkText(mode, source){
+  const m = SPLIT_MODES[mode] || SPLIT_MODES.lines;
+  return m.render(m.split(source));
+}
+function splitBlockCount(mode, source){
+  return (SPLIT_MODES[mode] || SPLIT_MODES.lines).split(source).length;
+}
+for(const mode of Object.keys(MODE_BTNS)){
+  MODE_BTNS[mode].addEventListener('click', () => {
+    setActiveMode(mode);
+    chunkText.value = splitToChunkText(mode, sourceText.value);
+    updateChunkCount();
+  });
+}
 chunkText.addEventListener('input', updateChunkCount);
 function updateChunkCount(){
   const n = parseChunkLines(chunkText.value).length;
   chunkCount.textContent = n + ' ' + (n===1 ? t('blockOne') : t('blockMany'));
+}
+
+/* The app has exactly three top-level screens; exactly one is ever visible.
+   Every transition goes through here so no call site can half-switch. */
+const SCREENS = ['setup', 'practice', 'summary'];
+function showScreen(name){
+  for(const s of SCREENS) document.getElementById(s).classList.toggle('hidden', s !== name);
 }
 
 document.getElementById('btnBegin').addEventListener('click', () => {
@@ -1821,9 +1832,7 @@ document.getElementById('btnBegin').addEventListener('click', () => {
   state.results = new Array(blocks.length).fill(null);
   state.drafts = new Array(blocks.length).fill('');
   state.index = 0;
-  document.getElementById('setup').classList.add('hidden');
-  document.getElementById('summary').classList.add('hidden');
-  document.getElementById('practice').classList.remove('hidden');
+  showScreen('practice');
   document.getElementById('totalCount').textContent = blocks.length;
   buildRail();
   applyBoxMode();
@@ -2071,45 +2080,69 @@ window.addEventListener('resize', () => {
 });
 
 /* ----- mobile keyboard handling -----
-   On phones the practice stage becomes a content-height dock pinned to the
-   keyboard's top edge (see CSS). Here we keep the pin geometry in sync with the
-   visible area reported by the visualViewport API, flag the keyboard as open the
-   instant the box is focused (so the buttons never flash back), keep the diff in
-   view, and dismiss the keyboard on a scroll gesture so the buttons can be used. */
+   On phones the practice stage becomes a full-height dock pinned to the
+   keyboard's top edge (see CSS). The dock is pinned by BOTH edges (top +
+   bottom) so the browser derives its height live; this module's only job is
+   keeping the two CSS pin variables (--vv-top / --vv-bottom-gap) matched to
+   the visual viewport.
+
+   THE CRITICAL PIECE IS THE POLLING. iOS does not reliably fire a final
+   visualViewport resize as the keyboard finishes animating (or when the
+   keyboard changes height: emoji panel, dictation, orientation), so listening
+   for events alone leaves the pin variables STALE — the dock floats above the
+   keyboard with a gap under it. While the dock is open we poll the viewport
+   once per frame; each poll is two property reads and writes styles only when
+   a value actually changed, so the steady-state cost is nil. */
 const vv = window.visualViewport;
 const isPhone = () => window.matchMedia('(max-width: 720px)').matches;
 /* CRITICAL — iframe embedding: visualViewport only reports the keyboard to the
    TOP-LEVEL document. Inside the site's iframe wrapper the inner viewport never
-   shrinks, so the old code computed a zero (or garbage) bottom gap and the
-   stage floated above the keyboard with a hole under it — with the diff clipped
-   at the top. When embedded, the OUTER page measures its own visualViewport and
-   posts {type:'verbatim-vv', top, bottomGap} in; those numbers win. Standalone
-   (GitHub Pages / installed app), the local visualViewport works as before. */
+   shrinks, so measuring locally computes a zero (or garbage) bottom gap. When
+   embedded, the OUTER page measures its own visualViewport and posts
+   {type:'verbatim-vv', top, bottomGap} in; those numbers win. Standalone
+   (GitHub Pages / installed app), the local visualViewport is authoritative. */
 const EMBEDDED = (() => { try { return window.self !== window.top; } catch(_) { return true; } })();
+
+const vvPin = { top: null, bottomGap: null };  // last applied values (px)
 function applyViewportVars(top, bottomGap){
+  if(top === vvPin.top && bottomGap === vvPin.bottomGap) return; // steady state: no style churn
+  const gapChanged = bottomGap !== vvPin.bottomGap;
+  vvPin.top = top; vvPin.bottomGap = bottomGap;
   document.documentElement.style.setProperty('--vv-top', top + 'px');
   document.documentElement.style.setProperty('--vv-bottom-gap', bottomGap + 'px');
   if(!document.getElementById('practice').classList.contains('hidden')) autoGrow(typeInput);
+  // the dock just changed height → keep the diff hugging the typing box
+  if(gapChanged && document.body.classList.contains('kb-open')) keepDiffInView();
 }
 function syncViewportVars(){
   if(EMBEDDED || !vv) return; // embedded: the outer page's messages are authoritative
-  // Pin the frame to the visible area by BOTH edges (top + bottom), so the browser
-  // derives the height live and there's no measured height that can go stale.
+  // Distance from the LAYOUT viewport's bottom edge to the visible area's
+  // bottom edge — exactly what fixed-position `bottom` measures against.
   const bottomGap = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
   applyViewportVars(vv.offsetTop, bottomGap);
+}
+function keepDiffInView(){
+  const ls = document.getElementById('liveScroll');
+  if(ls) ls.scrollTop = ls.scrollHeight;   // diff sits at the bottom, hugging the box
+}
+/* Poll while the dock is open. Events still help (they fire during the
+   animation), but the poll is what guarantees the FINAL geometry is applied. */
+let vvPollId = null;
+function startVvPoll(){
+  if(vvPollId != null) return;
+  const tick = () => { syncViewportVars(); vvPollId = requestAnimationFrame(tick); };
+  vvPollId = requestAnimationFrame(tick);
+}
+function stopVvPoll(){
+  if(vvPollId != null){ cancelAnimationFrame(vvPollId); vvPollId = null; }
 }
 window.addEventListener('message', (e) => {
   if(e.origin !== location.origin) return;
   const d = e.data;
   if(d && d.type === 'verbatim-vv' && typeof d.top === 'number' && typeof d.bottomGap === 'number'){
     applyViewportVars(d.top, Math.max(0, d.bottomGap));
-    if(document.body.classList.contains('kb-open')) keepDiffInView();
   }
 });
-function keepDiffInView(){
-  const ls = document.getElementById('liveScroll');
-  if(ls) ls.scrollTop = ls.scrollHeight;   // diff sits at the bottom, hugging the box
-}
 if(vv && !EMBEDDED){
   // fire as the keyboard animates in/out and as the visible area shifts
   vv.addEventListener('resize', syncViewportVars);
@@ -2117,16 +2150,16 @@ if(vv && !EMBEDDED){
   syncViewportVars();
 }
 typeInput.addEventListener('focus', () => {
-  // engage the dock immediately on phones so the buttons don't flash in; geometry
-  // then catches up as the keyboard animates open
+  // engage the dock immediately on phones so the buttons don't flash in;
+  // geometry then tracks the keyboard animation frame-by-frame via the poll
   if(isPhone()) document.body.classList.add('kb-open');
-  const settle = () => { syncViewportVars(); keepDiffInView(); };
-  settle();
-  setTimeout(settle, 120);
-  setTimeout(settle, 350);
+  syncViewportVars();
+  keepDiffInView();
+  if(!EMBEDDED) startVvPoll();
 });
 typeInput.addEventListener('blur', () => {
   // keyboard gone -> drop the dock so the normal page (with buttons) returns
+  stopVvPoll();
   document.body.classList.remove('kb-open');
   setTimeout(syncViewportVars, 60);
 });
@@ -2395,8 +2428,7 @@ function computeSessionStats(){
 /* ====================== summary screen ====================== */
 function showSummary(){
   stopTimer();
-  document.getElementById('practice').classList.add('hidden');
-  document.getElementById('summary').classList.remove('hidden');
+  showScreen('summary');
   // leaving practice: drop the keyboard dock so the summary scrolls normally
   document.body.classList.remove('kb-open');
 
@@ -2447,17 +2479,14 @@ function showSummary(){
 }
 
 document.getElementById('btnBackToPractice').addEventListener('click', () => {
-  document.getElementById('summary').classList.add('hidden');
-  document.getElementById('practice').classList.remove('hidden');
+  showScreen('practice');
   // resuming work: clear the recorded end time and let the clock run again
   state.endTime = null;
   startTimer();
   renderPractice();
 });
 document.getElementById('btnRestart').addEventListener('click', () => {
-  document.getElementById('summary').classList.add('hidden');
-  document.getElementById('practice').classList.add('hidden');
-  document.getElementById('setup').classList.remove('hidden');
+  showScreen('setup');
   // brand-new session: reset the timer entirely
   stopTimer();
   state.startTime = null;
@@ -3321,9 +3350,7 @@ function loadEntryIntoSetup(data){
   const summaryOpen = !byId('summary').classList.contains('hidden');
   if(practiceOpen || summaryOpen){
     if(!confirm(t('cfLeaveSession', {t: data.title || t('untitled')}))) return;
-    byId('practice').classList.add('hidden');
-    byId('summary').classList.add('hidden');
-    byId('setup').classList.remove('hidden');
+    showScreen('setup');
     document.body.classList.remove('kb-open');
     stopTimer();
     state.startTime = null;
@@ -3407,6 +3434,32 @@ function syncSaveEncUi(){
     ? (lib.saveCtx ? t('pwNoteReuse') : t('pwNoteChoose'))
     : '';
 }
+/* Resolve which salt+key pair an encrypted save should use, in priority order:
+   an already-encrypted entry keeps its existing password group; a typed
+   password starts (and remembers) a new group; otherwise the session's last
+   group is reused. Returns {salt, key}, or null after putting the reason in
+   the dialog's status line — the caller just aborts. */
+async function resolveSaveCipherCtx(wasEnc, st){
+  if(wasEnc){
+    const salt = editTarget.rec.salt;
+    const key = lib.keys.get(salt);
+    if(!key){ st.textContent = t('unlockFirstEdit'); return null; }
+    return { salt, key };
+  }
+  const pw = byId('savePw').value;
+  if(pw){
+    st.textContent = t('derivingKey');
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await deriveKey(pw, salt);
+    const ctx = { salt: bufToB64u(salt), key };
+    lib.keys.set(ctx.salt, key);
+    lib.saveCtx = ctx;
+    return ctx;
+  }
+  if(lib.saveCtx) return lib.saveCtx;
+  st.textContent = t('enterPwOrUnlock');
+  return null;
+}
 async function doSave(){
   if(!APP_MODE || !saveTarget) return;
   const st = byId('saveStatus');
@@ -3439,29 +3492,8 @@ async function doSave(){
   try {
     if(wantEnc){
       if(!cryptoOK){ st.textContent = t('encUnavailable'); return; }
-      let ctx = null;
-      if(wasEnc){
-        // an already-encrypted entry stays in its existing password group
-        const salt = editTarget.rec.salt;
-        const key = lib.keys.get(salt);
-        if(!key){ st.textContent = t('unlockFirstEdit'); return; }
-        ctx = { salt, key };
-      } else {
-        const pw = byId('savePw').value;
-        if(pw){
-          st.textContent = t('derivingKey');
-          const salt = crypto.getRandomValues(new Uint8Array(16));
-          const key = await deriveKey(pw, salt);
-          ctx = { salt: bufToB64u(salt), key };
-          lib.keys.set(ctx.salt, key);
-          lib.saveCtx = ctx;
-        } else if(lib.saveCtx){
-          ctx = lib.saveCtx;
-        } else {
-          st.textContent = t('enterPwOrUnlock');
-          return;
-        }
-      }
+      const ctx = await resolveSaveCipherCtx(wasEnc, st);
+      if(!ctx) return; // reason already shown in the status line
       const { iv, blob } = await encryptJson(fields, ctx.key);
       // folderId + order live OUTSIDE the encrypted blob so the tree can
       // filter/reorder without decrypting.
@@ -9733,34 +9765,30 @@ function tourRender(){
   byId('btnTourPrev').style.visibility = i > 0 ? '' : 'hidden';
   const nextBtn = byId('btnTourNext');
   nextBtn.textContent = last ? t('tourTry') : t('tourNext');
-  // populate sample card titles/blurbs/previews (empty in the HTML template, filled here)
-  byId('tourMock').querySelectorAll('[data-tour-sample]').forEach(btn => {
-    const key = btn.dataset.tourSample;
-    const sample = TOUR_SAMPLES[key];
-    if(sample){
-      const titleEl = btn.querySelector('.ts-title');
-      const blurbEl = btn.querySelector('.ts-blurb');
-      const prevEl = btn.querySelector('.ts-preview');
-      if(titleEl) titleEl.textContent = (i === TOUR_STEPS.length - 1) ? (t(sample.titleKey) + ' →') : t(sample.titleKey);
-      if(blurbEl) blurbEl.textContent = (i === TOUR_STEPS.length - 1) ? t('tourTryBlurb') : t(sample.blurbKey);
-      if(prevEl) prevEl.textContent = t(sample.previewKey);
-    }
-    btn.addEventListener('click', () => tourLoadSample(key));
-  });
   bindTourInteractions();
 }
 /* The tour's live pieces run the app's REAL machinery — the same splitters and
    the same diff engine — so what people play with in the tour is exactly what
    the app does, not an animation of it. */
 const TOUR_MODE_SAMPLE = { lines:'sonnet18', sentences:'gettysburg', verse:'psalm23', qa:'qa' };
-function tourSplitCount(mode, source){
-  if(mode === 'lines') return splitLines(source).length;
-  if(mode === 'sentences') return splitSentences(source).length;
-  if(mode === 'verse') return splitVerse(source).length;
-  return splitQA(source).length;
-}
 function bindTourInteractions(){
   const mock = byId('tourMock');
+  const lastStep = tourState.step === TOUR_STEPS.length - 1;
+  // sample cards: titles/blurbs/previews are empty in the HTML template and
+  // filled here so they re-localize on every render; tapping one loads it
+  mock.querySelectorAll('[data-tour-sample]').forEach(btn => {
+    const key = btn.dataset.tourSample;
+    const sample = TOUR_SAMPLES[key];
+    if(sample){
+      const titleEl = btn.querySelector('.ts-title');
+      const blurbEl = btn.querySelector('.ts-blurb');
+      const prevEl = btn.querySelector('.ts-preview');
+      if(titleEl) titleEl.textContent = lastStep ? (t(sample.titleKey) + ' →') : t(sample.titleKey);
+      if(blurbEl) blurbEl.textContent = lastStep ? t('tourTryBlurb') : t(sample.blurbKey);
+      if(prevEl) prevEl.textContent = t(sample.previewKey);
+    }
+    btn.addEventListener('click', () => tourLoadSample(key));
+  });
   // step 1: mode chips swap in a matching sample + show the real block count
   const box = mock.querySelector('[data-tour-splitbox]');
   const count = mock.querySelector('[data-tour-splitcount]');
@@ -9769,7 +9797,7 @@ function bindTourInteractions(){
     const show = (mode) => {
       const sample = TOUR_SAMPLES[TOUR_MODE_SAMPLE[mode]];
       box.value = sample.source;
-      const n = tourSplitCount(mode, sample.source);
+      const n = splitBlockCount(mode, sample.source);
       if(count) count.textContent = '→ ' + n + ' ' + (n === 1 ? t('blockOne') : t('blockMany'));
       chips.forEach(c => c.classList.toggle('active', c.dataset.tourMode === mode));
     };
@@ -9800,14 +9828,9 @@ function tourLoadSample(key){
   try{
     sourceText.value = sample.source;
     setActiveMode(sample.mode);
-    if(sample.mode === 'lines') chunkText.value = splitLines(sample.source).join('\n');
-    else if(sample.mode === 'sentences') chunkText.value = splitSentences(sample.source).join('\n');
-    else if(sample.mode === 'verse') chunkText.value = pairsToChunkText(splitVerse(sample.source));
-    else if(sample.mode === 'qa') chunkText.value = pairsToChunkText(splitQA(sample.source));
+    chunkText.value = splitToChunkText(sample.mode, sample.source);
     updateChunkCount();
-    byId('setup').classList.remove('hidden');
-    byId('practice').classList.add('hidden');
-    byId('summary').classList.add('hidden');
+    showScreen('setup');
     sourceText.scrollIntoView({behavior:'smooth', block:'center'});
     notify(t('tourLoaded', {t: t(sample.titleKey)}));
   }catch(e){ console.error(e); }
