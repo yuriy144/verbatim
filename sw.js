@@ -8,35 +8,54 @@
   reach this worker's fetch handler in a request URL).
 
   Update strategy:
-  - Navigations (opening the app): NETWORK-FIRST, falling back to the cached
-    copy when offline. This means a deployed update is picked up on the very
-    next online visit — no stale-version confusion — while offline still works.
+  - Navigations (opening the app): CACHE-FIRST with a background refresh. The
+    app paints instantly from cache (and always works offline); the fresh copy
+    downloaded in the background lands in the cache for next time. Version
+    releases still apply on the SAME visit they're deployed: the browser
+    re-checks sw.js on every navigation, and a changed CACHE_VERSION installs
+    a new worker that re-caches everything and (via the page's SKIP_WAITING /
+    controllerchange handshake in index.html) reloads the page once.
   - Assets (icons, manifest): STALE-WHILE-REVALIDATE — served instantly from
     cache, refreshed in the background.
+
+  Install resilience: only './' and './index.html' are REQUIRED for install to
+  succeed. Icons and the manifest are cached best-effort — a renamed or missing
+  icon must never be able to break offline support for the whole app. (It did
+  once: the repo folder is 'Icons/' with a capital I, GitHub Pages is
+  case-sensitive, and a lowercase 'icons/…' precache list 404'd, which made
+  cache.addAll() reject and the worker never installed at all.)
 
   Releasing a new version: bump CACHE_VERSION below. Old caches are deleted on
   activation, so devices never accumulate stale copies.
 */
 'use strict';
 
-const CACHE_VERSION = 'v5.0.1';
+const CACHE_VERSION = 'v5.0.2';
 const CACHE_NAME = 'verbatim-' + CACHE_VERSION;
 
-const PRECACHE = [
+// Must match the repository layout exactly — GitHub Pages URLs are
+// case-sensitive ('Icons/' ≠ 'icons/').
+const PRECACHE_CRITICAL = [
   './',
   './index.html',
+];
+const PRECACHE_OPTIONAL = [
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/maskable-512.png',
-  './icons/apple-touch-icon.png',
+  './Icons/icon-192.png',
+  './Icons/icon-512.png',
+  './Icons/maskable-512.png',
+  './Icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) =>
+      // The app shell must cache or the install fails (offline would be a lie).
+      cache.addAll(PRECACHE_CRITICAL).then(() =>
+        // Everything else is best-effort: a missing icon is cosmetic, not fatal.
+        Promise.allSettled(PRECACHE_OPTIONAL.map((url) => cache.add(url)))
+      )
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -57,6 +76,20 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
+// Fetch the request and quietly keep a copy. Failures (offline) resolve to
+// null so callers can fall back without try/catch pyramids.
+function fetchAndCache(req, cacheKey) {
+  return fetch(req)
+    .then((res) => {
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(cacheKey || req, copy)).catch(() => {});
+      }
+      return res;
+    })
+    .catch(() => null);
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -64,17 +97,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // never touch other origins
 
-  // Opening the app: network-first so updates land immediately; cache = offline.
+  // Opening the app: instant from cache (works offline, no network wait);
+  // a background refresh keeps the cached copy current for the next launch.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match('./index.html', { cacheName: CACHE_NAME })
-          .then((hit) => hit || caches.match('./index.html')))
+      caches.match('./index.html').then((cached) => {
+        const fresh = fetchAndCache(req, './index.html');
+        // No cached copy yet (very first visit): we must wait for the network.
+        return cached || fresh.then((res) => res || Response.error());
+      })
     );
     return;
   }
@@ -82,15 +113,7 @@ self.addEventListener('fetch', (event) => {
   // Static assets: instant from cache, refreshed quietly in the background.
   event.respondWith(
     caches.match(req).then((cached) => {
-      const refreshed = fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => cached); // offline: fall back to whatever we had
+      const refreshed = fetchAndCache(req).then((res) => res || cached);
       return cached || refreshed;
     })
   );
