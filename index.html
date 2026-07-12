@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 5.0.7
+  Version 5.0.8
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="5.0.7">
+<meta name="app-version" content="5.0.8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -189,12 +189,15 @@
     resize:none;overflow:hidden;font-family:var(--serif);font-size:16px;line-height:1.75;min-height:1.75em;letter-spacing:.01em;
     padding-left:34px;
   }
-  #typeInput.nowrap{white-space:pre;overflow-x:auto;overflow-y:hidden;}
+  #typeInput.nowrap{white-space:pre;overflow:hidden;width:max-content;min-width:100%;}
   /* Breathing room past the last character (only once there's content, so the
-     placeholder stays fully visible). Without it, a caret at the END of the
-     text can never be centered — the box can't scroll past the content edge —
-     so it stayed pinned at the right border. The blank half also gives a big
-     tap target for putting the caret back at the end of the sentence. */
+     placeholder stays fully visible). Percentages here resolve against
+     #typeWrap's width (the containing block), not the textarea's own
+     max-content size, so this is a fixed fraction of the visible box either
+     way. Without it, a caret at the END of the text could never be centered
+     — nothing to slide past — so it stayed pinned at the right border. The
+     blank half also gives a big tap target for putting the caret back at the
+     end of the sentence. */
   #typeInput.nowrap:not(:placeholder-shown){padding-right:50%;}
 
   button{
@@ -384,7 +387,7 @@
   .legend span{display:inline-flex;align-items:center;gap:6px;}
   .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
 
-  #typeWrap{margin-top:16px;}
+  #typeWrap{margin-top:16px;overflow-x:hidden;}
 
   /* ---------- summary ---------- */
   table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;}
@@ -1258,7 +1261,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '5.0.7';
+const APP_VERSION = '5.0.8';
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
      - mobile keyboard handling
@@ -2003,6 +2006,7 @@ function setTypedValue(text, isFinal){
   state.drafts[state.index] = text;
   renderDiff(text, isFinal);
   autoGrow(typeInput);
+  resetTypeTransform();
 }
 
 function renderCue(){
@@ -2027,7 +2031,7 @@ function renderPractice(){
   state.currentIsFinal = !!committed;
   setTypedValue(priorTyped, state.currentIsFinal);
   diffBox.scrollLeft = 0;       // reset sideways scroll from the previous block
-  typeInput.scrollLeft = 0;
+  resetTypeTransform();
   refreshAllRail();
   updateRunningAccuracy();
   typeInput.focus();
@@ -2288,16 +2292,34 @@ function typeCaretX(){
   const caret = typeInput.selectionEnd == null ? typeInput.value.length : typeInput.selectionEnd;
   return caretMeas.measureText(typeInput.value.slice(0, caret)).width;
 }
+const typeWrapEl = document.getElementById('typeWrap');
+function resetTypeTransform(){ typeInput.style.transform = ''; }
+/* CENTERING MECHANISM — deliberately NOT scrollLeft. WebKit's textarea is
+   backed by an internal shadow-DOM text editor, and that internal scrollable
+   region reliably CLIPS trailing (right) padding — so a scrollLeft-based
+   approach can never actually reach a blank margin past the last character;
+   the caret stays pinned to the box's edge no matter what padding is set.
+   This is a native-control quirk, not something fixable with more CSS.
+   Instead: in scroll mode the textarea is sized to `max-content` (so its own
+   rendered width — including its own padding, which DOES count toward
+   intrinsic sizing) can exceed the visible box, #typeWrap clips it via
+   overflow-hidden, and a CSS transform slides the (fully laid-out) textarea
+   left/right within that clip. transform positioning has no scrollable-region
+   involved at all, so nothing can clip it away. */
 function centerTypeCaret(){
   if(state.typeMode !== 'scroll') return;
-  // Write on the NEXT frame: the browser applies its own keep-caret-visible
-  // scroll after input/selection events, and a same-tick write loses to it.
+  // Write on the NEXT frame: layout (offsetWidth) must reflect the just-typed
+  // character before we measure it.
   requestAnimationFrame(() => {
-    if(typeInput.scrollWidth <= typeInput.clientWidth){ typeInput.scrollLeft = 0; return; }
+    if(!typeWrapEl) return;
+    const wrapWidth = typeWrapEl.clientWidth;
+    const fullWidth = typeInput.offsetWidth; // full max-content width, incl. padding
+    const maxTranslate = Math.max(0, fullWidth - wrapWidth);
+    if(maxTranslate <= 0){ resetTypeTransform(); return; }
     const padLeft = 34; // matches #typeInput's padding-left
     const x = padLeft + typeCaretX();
-    const maxScroll = typeInput.scrollWidth - typeInput.clientWidth;
-    typeInput.scrollLeft = Math.max(0, Math.min(maxScroll, x - typeInput.clientWidth / 2));
+    const translate = Math.max(0, Math.min(maxTranslate, x - wrapWidth / 2));
+    typeInput.style.transform = 'translateX(' + (-translate) + 'px)';
   });
 }
 // Re-center when the caret moves WITHOUT input: arrow keys, taps, selection.
@@ -2438,6 +2460,7 @@ function toggleBoxMode(which){
     state.diffMode = state.diffMode === 'wrap' ? 'scroll' : 'wrap';
   } else {
     state.typeMode = state.typeMode === 'wrap' ? 'scroll' : 'wrap';
+    resetTypeTransform(); // leaving scroll mode: centerTypeCaret's guard won't clear this
   }
   applyBoxMode();
   renderDiff(typeInput.value, state.currentIsFinal);
