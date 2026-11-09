@@ -1863,6 +1863,24 @@ for(const mode of Object.keys(MODE_BTNS)){
   });
 }
 chunkText.addEventListener('input', updateChunkCount);
+
+/* "->" and a space become "→ " as they are typed: the arrow cues are written with
+   ("v5 → text", "question → answer"). Every text box but the typing box, which is graded
+   against the original and must keep what was typed. Capture phase, so each box's own
+   input listener already sees the arrow. */
+function arrowAt(text, caret){
+  if(text.slice(caret - 3, caret) !== '-> ') return null;
+  return { text: text.slice(0, caret - 3) + '\u2192 ' + text.slice(caret), caret: caret - 1 };
+}
+document.addEventListener('input', (e) => {
+  const box = e.target;
+  if(!(box instanceof HTMLTextAreaElement) || box.readOnly || box.id === 'typeInput' || box.hasAttribute('data-tour-type')) return;
+  if(e.inputType !== 'insertText' || e.data !== ' ' || box.selectionStart !== box.selectionEnd) return;
+  const after = arrowAt(box.value, box.selectionStart);
+  if(!after) return;
+  box.value = after.text;
+  box.setSelectionRange(after.caret, after.caret);
+}, true);
 function updateChunkCount(){
   const n = parseChunkLines(chunkText.value).length;
   chunkCount.textContent = n + ' ' + (n===1 ? t('blockOne') : t('blockMany'));
