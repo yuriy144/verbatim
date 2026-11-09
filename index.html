@@ -230,6 +230,11 @@
   .cue-box .cue-num{font-family:var(--mono);font-weight:600;}
   .split-modes button.active{border-color:var(--gold);color:var(--gold);}
   .sentence-opts{margin-top:8px;}
+  .cue-modes{align-items:center;margin:0 0 10px;}
+  .cue-modes button{padding:4px 10px;font-size:11px;}
+  .cue-levels{display:flex;gap:8px;align-items:center;margin-left:8px;}
+  .cue-levels[hidden]{display:none;}
+  .diff-box span.pending.cue-shown{color:var(--dim);}
   .sentence-opts[hidden]{display:none;}
 
   /* ---------- practice layout ---------- */
@@ -983,6 +988,19 @@
               </span>
             </span>
           </div>
+        </div>
+        <div class="split-modes cue-modes" id="cueModes" role="group" aria-labelledby="cueLegend">
+          <span class="hint" id="cueLegend" data-i18n="cueLegend">Cue</span>
+          <button data-cue="none" class="active" aria-pressed="true" data-i18n="cueNone">No cue</button>
+          <button data-cue="firstLetters" aria-pressed="false" data-i18n="cueFirstLetters">First letters</button>
+          <button data-cue="firstWords" aria-pressed="false" data-i18n="cueFirstWords">First words</button>
+          <button data-cue="keyWords" aria-pressed="false" data-i18n="cueKeyWords">Key words</button>
+          <span class="cue-levels" id="cueLevels" role="group" aria-labelledby="cueLevelLegend" hidden>
+            <span class="hint" id="cueLevelLegend" data-i18n="cueLevel">Level</span>
+            <button data-level="easy" class="active" aria-pressed="true" data-i18n="cueEasy">Easy</button>
+            <button data-level="medium" aria-pressed="false" data-i18n="cueMedium">Medium</button>
+            <button data-level="hard" aria-pressed="false" data-i18n="cueHard">Hard</button>
+          </span>
         </div>
         <div class="live-scroll" id="liveScroll">
           <div class="live-inner" id="liveInner">
@@ -2119,7 +2137,14 @@ function renderPractice(){
   followScroll(priorTyped);     // if a draft was restored, keep its end in view
 }
 
-function buildDiffHtml(cells, maskPending){
+function buildDiffHtml(cells, maskPending, cue, target){
+  // cue (from Verbatim): per character of the target, what shows in place of the mask,
+  // or null. Pending cells are the target's not-yet-typed tail, in order.
+  let pendingAt = 0;
+  if(cue && target){
+    const pending = cells.reduce((n, c) => n + (c.cls === 'pending' ? 1 : 0), 0);
+    pendingAt = target.length - pending;
+  }
   // Group consecutive non-space character-spans into a .word wrapper that won't
   // break internally, so wrapping happens at spaces (real word boundaries) rather
   // than mid-word. Whitespace cells are emitted between words as breakable spaces.
@@ -2132,9 +2157,15 @@ function buildDiffHtml(cells, maskPending){
     const isSpace = /\s/.test(c.ch);
     let cls = c.cls;
     let displayChar = c.ch;
+    const at = c.cls === 'pending' && cue ? pendingAt++ : -1;
     if(c.cls === 'pending' && maskPending){
-      displayChar = isSpace ? c.ch : '\u00b7';
-      cls = 'pending placeholder';
+      if(at >= 0 && cue[at] != null && target[at] === c.ch){
+        displayChar = cue[at];
+        cls = 'pending cue-shown';
+      } else {
+        displayChar = isSpace ? c.ch : '\u00b7';
+        cls = 'pending placeholder';
+      }
     }
     if(isSpace){
       closeWord();
@@ -2152,10 +2183,125 @@ function buildDiffHtml(cells, maskPending){
 function renderDiff(typed, isFinal){
   const target = state.chunks[state.index];
   const d = computeDiff(target, typed, isFinal);
-  diffBox.innerHTML = buildDiffHtml(d.cells, !(state.revealPending || state.peeking));
+  diffBox.innerHTML = buildDiffHtml(d.cells, !(state.revealPending || state.peeking), cueForBlock(state.index), target);
   liveAcc.textContent = d.accuracy + '%';
   liveLen.textContent = typed.length;
 }
+
+/* ---------- cues while typing (from Verbatim) ----------
+   What part of a block shows in place of the mask: first letters, the first words of
+   each sentence, or the key words on an Easy / Medium / Hard ladder. Grading never
+   changes. English filler words decide what a key word is; another language's words
+   all count as key words. The list: stopwords-iso 1.1.0 (MIT,
+   https://github.com/stopwords-iso/stopwords-iso), its 219 English function words. */
+const CUE_FILLER_EN = new Set("a an the i me my mine myself we us our ours ourselves you your yours yourself yourselves he him his himself she her hers herself it its itself they them their theirs themselves thou ye this that these those who whom whose which what whoever whatever whichever am is are was were be been being have has had having do does did doing done will would shall should can could may might must ought and but or nor so yet if then than because as since while whilst though although unless until till whether either neither both of at by for with about against between into through during before after above below to from up down in out on off over under again further once upon onto unto within without among amongst across along around behind beside besides beyond near toward towards via per not no there here when where why how all any each every few more most other some such only own same too very just also even still don't doesn't didn't isn't aren't wasn't weren't hasn't haven't hadn't won't wouldn't can't cannot couldn't shouldn't mustn't shan't i'm i've i'll i'd you're you've you'll you'd he's he'll he'd she's she'll she'd it's it'll we're we've we'll we'd they're they've they'll they'd that's there's let's what's who's".split(' '));
+const CUE_HIDDEN_SHARE = { easy: 0.4, medium: 0.75, hard: 1 };
+state.cueMode = 'none';
+state.cueLevel = 'easy';
+state.cueSeed = 1;
+const cueIsWordChar = (ch) => /[\p{L}\p{N}]/u.test(ch);
+const cueIsPunct = (ch) => /[\p{P}\p{S}]/u.test(ch);
+const cueCoreOf = (w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+const cueEndsSentence = (w) => /[.!?\u3002\uff01\uff1f]["'\u2019\u201d)\]\u300d\u300f]*$/.test(w);
+const CUE_NO_SPACES = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}]/u;
+function cueRng(seed){
+  let a = seed >>> 0;  // mulberry32 (public domain), so Retry shows the same blanks
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Words with where each starts (UTF-16, as the diff's cells count); a run written
+// without spaces is split by Intl.Segmenter where the browser has it.
+function cueTokens(text){
+  const out = [];
+  const seg = (typeof Intl !== 'undefined' && Intl.Segmenter) ? new Intl.Segmenter(undefined, { granularity: 'word' }) : null;
+  for(const m of text.matchAll(/\S+/g)){
+    if(!seg || !CUE_NO_SPACES.test(m[0])){ out.push({ start: m.index, word: m[0] }); continue; }
+    for(const sg of seg.segment(m[0])) out.push({ start: m.index + sg.index, word: sg.segment });
+  }
+  return out;
+}
+function cueFor(text, mode, level, seed, split){
+  const out = new Array(text.length).fill(null);
+  if(mode === 'none') return out;
+  const tokens = cueTokens(text);
+  const showAll = (start, word, only) => { for(let k = 0; k < word.length; k++) if(only(word[k])) out[start + k] = word[k]; };
+  if(mode === 'firstLetters'){
+    for(const { start, word } of tokens){
+      let first = true;
+      for(let k = 0; k < word.length; k++){
+        const ch = word[k];
+        if(first && cueIsWordChar(ch)){ out[start + k] = ch; first = false; }
+        else if(cueIsPunct(ch)) out[start + k] = ch;
+      }
+    }
+    return out;
+  }
+  if(mode === 'firstWords'){
+    // The first word of each sentence (of each verse or answer), with the filler
+    // words before it, so "A great" shows, never "A" alone.
+    const perBlock = split === 'verse' || split === 'qa';
+    let showing = true;
+    tokens.forEach(({ start, word }, i) => {
+      if(showing){
+        showAll(start, word, () => true);
+        const core = cueCoreOf(word);
+        if(core && !CUE_FILLER_EN.has(core)) showing = false;
+      }
+      if(i < tokens.length - 1 && cueEndsSentence(word)) showing = !perBlock;
+    });
+    return out;
+  }
+  // Key words: each level hides a share of the words that are not filler words, picked
+  // by weight (length, a name, a number); Easy never hides two neighbours, Hard hides all.
+  const candidates = [];
+  tokens.forEach(({ word }, i) => {
+    const core = cueCoreOf(word);
+    if(!core || CUE_FILLER_EN.has(core)) return;
+    const name = /^\p{Lu}/u.test(word.replace(/^[^\p{L}\p{N}]+/u, '')) && i > 0 && !cueEndsSentence(tokens[i - 1].word);
+    candidates.push({ i, weight: 1 + Math.min(core.length, 12) / 4 + (name ? 2 : 0) + (/\p{N}/u.test(core) ? 2 : 0) });
+  });
+  const count = candidates.length ? Math.max(1, Math.round(CUE_HIDDEN_SHARE[level] * candidates.length)) : 0;
+  const r = cueRng(seed);
+  const order = candidates.map(c => ({ ...c, key: Math.pow(r(), 1 / c.weight) })).sort((a, b) => b.key - a.key);
+  const hidden = new Set();
+  for(const c of order){
+    if(hidden.size >= count) break;
+    if(level === 'easy' && (hidden.has(c.i - 1) || hidden.has(c.i + 1))) continue;
+    hidden.add(c.i);
+  }
+  tokens.forEach(({ start, word }, i) => showAll(start, word, ch => !hidden.has(i) || !cueIsWordChar(ch)));
+  return out;
+}
+function cueForBlock(i){
+  if(state.cueMode === 'none' || !state.chunks || state.chunks[i] == null) return null;
+  return cueFor(state.chunks[i], state.cueMode, state.cueLevel, state.cueSeed + i, state.splitMode);
+}
+function setCuePressed(group, attr, value){
+  group.querySelectorAll('button[' + attr + ']').forEach(b => {
+    const on = b.getAttribute(attr) === value;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+document.getElementById('cueModes').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if(!b) return;
+  if(b.dataset.cue){
+    state.cueMode = b.dataset.cue;
+    setCuePressed(document.getElementById('cueModes'), 'data-cue', state.cueMode);
+    document.getElementById('cueLevels').hidden = state.cueMode !== 'keyWords';
+  } else if(b.dataset.level){
+    state.cueLevel = b.dataset.level;
+    setCuePressed(document.getElementById('cueLevels'), 'data-level', state.cueLevel);
+  }
+  renderDiff(typeInput.value, state.currentIsFinal);
+  typeInput.focus();
+});
 
 let _diffRaf = 0;
 typeInput.addEventListener('input', (e) => {
@@ -5173,6 +5319,7 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    cueLegend:"Cue", cueNone:"No cue", cueFirstLetters:"First letters", cueFirstWords:"First words", cueKeyWords:"Key words", cueLevel:"Level", cueEasy:"Easy", cueMedium:"Medium", cueHard:"Hard",
     scPeek:"peek (Cmd+/ on a Mac)", peekedOnce:"peeked once", peekedN:"peeked {n} times",
     sentSemi:"Sentence ends at ;", sentColon:"Sentence ends at :",
     cardBefore:'before',
@@ -5496,6 +5643,7 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    cueLegend:"提示", cueNone:"无提示", cueFirstLetters:"首字母", cueFirstWords:"首词", cueKeyWords:"关键词", cueLevel:"等级", cueEasy:"简单", cueMedium:"中等", cueHard:"困难",
     scPeek:"短暂查看（Mac 上为 Cmd+/）", peekedOnce:"查看过一次", peekedN:"查看过 {n} 次",
     sentSemi:"句子在 ; 处结束", sentColon:"句子在 : 处结束",
     cardBefore:'有效期至',
@@ -5818,6 +5966,7 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    cueLegend:"提示", cueNone:"冇提示", cueFirstLetters:"首個字母", cueFirstWords:"首幾個詞", cueKeyWords:"關鍵詞", cueLevel:"程度", cueEasy:"容易", cueMedium:"中等", cueHard:"困難",
     scPeek:"偷睇（Mac 用 Cmd+/）", peekedOnce:"偷睇過一次", peekedN:"偷睇過 {n} 次",
     sentSemi:"句子喺 ; 完結", sentColon:"句子喺 : 完結",
     cardBefore:'有效期至',
@@ -6140,6 +6289,7 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    cueLegend:"Indice", cueNone:"Aucun indice", cueFirstLetters:"Premières lettres", cueFirstWords:"Premiers mots", cueKeyWords:"Mots clés", cueLevel:"Niveau", cueEasy:"Facile", cueMedium:"Moyen", cueHard:"Difficile",
     scPeek:"coup d’œil (Cmd+/ sur Mac)", peekedOnce:"coup d’œil une fois", peekedN:"coup d’œil {n} fois",
     sentSemi:"La phrase finit à ;", sentColon:"La phrase finit à :",
     cardBefore:'avant le',
@@ -6465,6 +6615,7 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    cueLegend:"Hinweis", cueNone:"Kein Hinweis", cueFirstLetters:"Anfangsbuchstaben", cueFirstWords:"Anfangswörter", cueKeyWords:"Schlüsselwörter", cueLevel:"Stufe", cueEasy:"Leicht", cueMedium:"Mittel", cueHard:"Schwer",
     scPeek:"kurz ansehen (Cmd+/ auf dem Mac)", peekedOnce:"einmal kurz angesehen", peekedN:"{n}-mal kurz angesehen",
     sentSemi:"Satz endet bei ;", sentColon:"Satz endet bei :",
     cardBefore:'vor dem',
@@ -6788,6 +6939,7 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    cueLegend:"संकेत", cueNone:"कोई संकेत नहीं", cueFirstLetters:"पहले अक्षर", cueFirstWords:"पहले शब्द", cueKeyWords:"मुख्य शब्द", cueLevel:"स्तर", cueEasy:"आसान", cueMedium:"मध्यम", cueHard:"कठिन",
     scPeek:"झलक (Mac पर Cmd+/)", peekedOnce:"एक बार झलक ली", peekedN:"{n} बार झलक ली",
     sentSemi:"वाक्य ; पर समाप्त होता है", sentColon:"वाक्य : पर समाप्त होता है",
     cardBefore:'इससे पहले',
@@ -7110,6 +7262,7 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    cueLegend:"Indizio", cueNone:"Nessun indizio", cueFirstLetters:"Prime lettere", cueFirstWords:"Prime parole", cueKeyWords:"Parole chiave", cueLevel:"Livello", cueEasy:"Facile", cueMedium:"Medio", cueHard:"Difficile",
     scPeek:"sbirciata (Cmd+/ su Mac)", peekedOnce:"sbirciato una volta", peekedN:"sbirciato {n} volte",
     sentSemi:"La frase finisce con ;", sentColon:"La frase finisce con :",
     cardBefore:'prima del',
@@ -7432,6 +7585,7 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    cueLegend:"ヒント", cueNone:"ヒントなし", cueFirstLetters:"頭文字", cueFirstWords:"冒頭の語", cueKeyWords:"キーワード", cueLevel:"段階", cueEasy:"やさしい", cueMedium:"ふつう", cueHard:"難しい",
     scPeek:"ちら見（Mac では Cmd+/）", peekedOnce:"ちら見 1 回", peekedN:"ちら見 {n} 回",
     sentSemi:"文の終わりを ; にする", sentColon:"文の終わりを : にする",
     cardBefore:'期限:',
@@ -7754,6 +7908,7 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    cueLegend:"단서", cueNone:"단서 없음", cueFirstLetters:"첫 글자", cueFirstWords:"첫 단어", cueKeyWords:"핵심 단어", cueLevel:"수준", cueEasy:"쉬움", cueMedium:"보통", cueHard:"어려움",
     scPeek:"잠깐 보기 (Mac에서는 Cmd+/)", peekedOnce:"한 번 잠깐 봄", peekedN:"{n}번 잠깐 봄",
     sentSemi:"문장은 ;에서 끝납니다", sentColon:"문장은 :에서 끝납니다",
     cardBefore:'기한:',
@@ -8076,6 +8231,7 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    cueLegend:"Pista", cueNone:"Sem pista", cueFirstLetters:"Primeiras letras", cueFirstWords:"Primeiras palavras", cueKeyWords:"Palavras-chave", cueLevel:"Nível", cueEasy:"Fácil", cueMedium:"Médio", cueHard:"Difícil",
     scPeek:"espreitadela (Cmd+/ num Mac)", peekedOnce:"espreitado uma vez", peekedN:"espreitado {n} vezes",
     sentSemi:"A frase termina em ;", sentColon:"A frase termina em :",
     cardBefore:'antes de',
@@ -8467,6 +8623,7 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    cueLegend:"Подсказка", cueNone:"Без подсказки", cueFirstLetters:"Первые буквы", cueFirstWords:"Первые слова", cueKeyWords:"Ключевые слова", cueLevel:"Уровень", cueEasy:"Лёгкий", cueMedium:"Средний", cueHard:"Сложный",
     scPeek:"подсмотреть (Cmd+/ на Mac)", peekedOnce:"подсмотрено один раз", peekedN:"подсмотрено: {n}",
     sentSemi:"Предложение заканчивается на ;", sentColon:"Предложение заканчивается на :",
     cardBefore:'до',
@@ -8789,6 +8946,7 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    cueLegend:"Pista", cueNone:"Sin pista", cueFirstLetters:"Primeras letras", cueFirstWords:"Primeras palabras", cueKeyWords:"Palabras clave", cueLevel:"Nivel", cueEasy:"Fácil", cueMedium:"Medio", cueHard:"Difícil",
     scPeek:"vistazo (Cmd+/ en Mac)", peekedOnce:"un vistazo", peekedN:"{n} vistazos",
     sentSemi:"La frase termina en ;", sentColon:"La frase termina en :",
     cardBefore:'antes del',
@@ -9112,6 +9270,7 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    cueLegend:"İpucu", cueNone:"İpucu yok", cueFirstLetters:"İlk harfler", cueFirstWords:"İlk kelimeler", cueKeyWords:"Anahtar kelimeler", cueLevel:"Düzey", cueEasy:"Kolay", cueMedium:"Orta", cueHard:"Zor",
     scPeek:"kısa bakış (Mac’te Cmd+/)", peekedOnce:"bir kez kısa bakıldı", peekedN:"{n} kez kısa bakıldı",
     sentSemi:"Cümle ; işaretinde biter", sentColon:"Cümle : işaretinde biter",
     cardBefore:'şu tarihe kadar:',
@@ -9434,6 +9593,7 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    cueLegend:"Підказка", cueNone:"Без підказки", cueFirstLetters:"Перші літери", cueFirstWords:"Перші слова", cueKeyWords:"Ключові слова", cueLevel:"Рівень", cueEasy:"Легкий", cueMedium:"Середній", cueHard:"Складний",
     scPeek:"підгляд (Cmd+/ на Mac)", peekedOnce:"підглянуто один раз", peekedN:"підглянуто: {n}",
     sentSemi:"Речення закінчується на ;", sentColon:"Речення закінчується на :",
     cardBefore:'до',
