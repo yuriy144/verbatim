@@ -946,8 +946,8 @@
       <div class="btnrow">
         <button id="btnBegin" class="primary" data-i18n="begin">Begin practice →</button>
         <button id="btnSaveLib" class="app-only" data-i18n="saveLib" data-i18n-title="ttSaveLib" title="Save these blocks to the on-device library">Save to library…</button>
-        <button id="btnShare" data-i18n="share" data-i18n-title="ttShare" title="Share these blocks as a link or a share card — the text never touches a server">Share…</button>
-        <button id="btnOpenShareFile" data-i18n="openShare" data-i18n-title="ttOpenShare" title="Open a Verbatim share card (.png) or share file someone sent you">Open a share…</button>
+        <button id="btnShare" data-i18n="share" data-i18n-title="ttShareCard" title="Share these blocks as a share card — the text never touches a server">Share…</button>
+        <button id="btnOpenShareFile" data-i18n="openShare" data-i18n-title="ttOpenShareCard" title="Open a Verbatim share card (.png) someone sent you">Open a share…</button>
         <span class="hint" id="chunkCount">0 lines</span>
         <span class="time-limit-field">
           <label for="timeLimit" data-i18n="timeLimit">time limit</label>
@@ -1162,15 +1162,11 @@
         <option value="7" data-i18n="exp7">7 days</option>
         <option value="30" data-i18n="exp30">30 days</option>
       </select>
-      <span class="hint" data-i18n="shareHint">The text rides inside the link or card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).</span>
+      <span class="hint" data-i18n="shareHintCard">The text rides inside the card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).</span>
     </div>
     <div class="btnrow" style="margin-top:2px;margin-bottom:12px;">
-      <button id="btnShareLink" class="primary" data-i18n="copyLink">Copy link</button>
-      <button id="btnShareCard" data-i18n="dlCard">Download share card</button>
+      <button id="btnShareCard" class="primary" data-i18n="dlCard">Download share card</button>
       <button id="btnCloseShare" data-i18n="close">Close</button>
-    </div>
-    <div class="field" style="margin-bottom:6px;">
-      <textarea id="shareOut" class="mono" rows="3" readonly data-i18n-ph="shareOutPh" placeholder="Your link will appear here"></textarea>
     </div>
     <div class="hint" id="shareStatus"></div>
   </dialog>
@@ -1289,11 +1285,11 @@
   <div class="drop-overlay">Drop a Verbatim share card or backup file to open it</div>
 
   <input type="file" id="importBackupFile" accept=".json,application/json" class="hidden">
-  <input type="file" id="openShareFileInput" accept=".png,image/png,.json,application/json" class="hidden">
+  <input type="file" id="openShareFileInput" accept=".png,image/png" class="hidden">
 
   <footer>
     <p>
-<span data-i18n="footPrivacy">Verbatim runs entirely in your browser — nothing is collected or sent anywhere, ever. Closing this tab clears the practice session. The optional library is stored only on this device, and share links carry their text in the part of the address that never reaches any server.</span>
+<span data-i18n="footPrivacyCard">Verbatim runs entirely in your browser — nothing is collected or sent anywhere, ever. Closing this tab clears the practice session. The optional library is stored only on this device, and a share card carries its text inside the picture itself.</span>
     </p>
     <p>
       <span data-i18n="footCode1">You can</span>
@@ -3232,8 +3228,7 @@ document.getElementById('btnTheme').addEventListener('click', () => {
 // Bind to the whole <h1> (not just the inner <a>) so the entire title line is a
 // reliable tap target on mobile, where a thin inline link is easy to miss.
 (function(){
-  // Drop any #s1=/#s2= share fragment on reload, so "start fresh" really is a
-  // blank slate rather than re-opening a shared passage.
+  // Drop any fragment on reload, so "start fresh" really is a blank slate.
   const reload = (e) => { e.preventDefault(); location.replace(location.href.split('#')[0]); };
   const h1 = document.querySelector('header.top h1');
   if(h1) h1.addEventListener('click', reload);
@@ -3242,9 +3237,8 @@ document.getElementById('btnTheme').addEventListener('click', () => {
 /* ============================================================================
    PWA · LIBRARY · SHARING — everything below is local-only, by design.
    The server stores nothing, ever: the library lives in this browser's
-   IndexedDB (installed app only); share links carry their text in the URL
-   fragment (after #), which browsers never send to any server; share cards
-   are PNG images with the same encoded payload embedded inside them.
+   IndexedDB (installed app only); share cards are PNG images with the encoded
+   payload embedded inside them, never sent to any server.
    ============================================================================ */
 
 /* ---------- app vs web mode ----------
@@ -3329,13 +3323,13 @@ function notify(msg){
   toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
 }
 
-/* ---------- share codec: text ⇆ URL fragment / share card ----------
+/* ---------- share codec: text ⇆ share card ----------
    Payload: {v:1, t:title, m:splitMode, c:chunkText, x?:expiryEpochMs}
-   Fragment: #s2=<base64url(deflate-raw(JSON))>  (compressed, preferred)
-             #s1=<base64url(JSON)>               (fallback for old browsers)
-   The fragment is never sent over the network — that's the whole trick.
-   Share cards embed the same "s2=…" string inside a PNG, so the card is
-   encoded exactly like the link, not plain text. */
+   Encoded: s2=<base64url(deflate-raw(JSON))>  (compressed, preferred)
+            s1=<base64url(JSON)>               (fallback for old browsers)
+   The share card (a PNG) carries this string in a tEXt chunk; it is the only
+   way a passage is shared. Links and plain share files are no longer written
+   or opened. */
 const canDeflate = (typeof CompressionStream !== 'undefined');
 const canInflate = (typeof DecompressionStream !== 'undefined');
 
@@ -4687,7 +4681,6 @@ function openShareDialog(){
   if(blocks.length === 0){ chunkText.focus(); notify(t('nothingShare')); return; }
   byId('shareTitle').value = autoTitle(chunkText.value);
   byId('shareExpiry').value = '0';
-  byId('shareOut').value = '';
   byId('shareStatus').textContent = blocks.length + ' ' + (blocks.length === 1 ? t('blockOne') : t('blockMany')) + ' ' + t('readyShare');
   byId('dlgShare').showModal();
 }
@@ -4696,29 +4689,6 @@ function shareBasePayload(){
   const days = parseFloat(byId('shareExpiry').value);
   if(isFinite(days) && days > 0) p.x = Date.now() + days * 86400000;
   return p;
-}
-async function doShareLink(){
-  const st = byId('shareStatus');
-  try {
-    const payload = shareBasePayload();
-    const frag = await encodeSharePayload(payload);
-    const url = location.href.split('#')[0].split('?')[0] + '#' + frag;
-    byId('shareOut').value = url;
-    let note = url.length + ' characters' + (payload.x ? (' · expires ' + new Date(payload.x).toLocaleDateString()) : '') + '.';
-    if(url.length > 2000) note += ' Links this long get truncated by some chat apps — the share card is the safer carrier.';
-    try {
-      await navigator.clipboard.writeText(url);
-      note = 'Copied to clipboard — ' + note;
-    } catch(_){
-      note = 'Select and copy the link below — ' + note;
-      byId('shareOut').focus();
-      byId('shareOut').select();
-    }
-    st.textContent = note;
-  } catch(err){
-    console.error(err);
-    st.textContent = t('linkFailed');
-  }
 }
 async function buildShareCardPng(payload, fragText){
   // Deliberately unremarkable: a small square latte-cream card that reads as
@@ -4818,7 +4788,6 @@ async function doShareCard(){
   }
 }
 byId('btnShare').addEventListener('click', openShareDialog);
-byId('btnShareLink').addEventListener('click', doShareLink);
 byId('btnShareCard').addEventListener('click', doShareCard);
 byId('btnCloseShare').addEventListener('click', () => byId('dlgShare').close());
 
@@ -4861,31 +4830,6 @@ function showShareBanner(payload, expired){
   }
   byId('bnDismiss').addEventListener('click', hide);
 }
-function showShareError(){
-  const b = byId('shareBanner');
-  b.innerHTML = '<span class="cue-label">shared passage</span>' +
-    'This link couldn\u2019t be read — it may have been truncated by the app it was pasted into. ' +
-    'Ask the sender to try again, or to send a share card instead (Share… → Download share card).' +
-    '<span class="banner-actions"><button class="micro-btn" id="bnDismiss">Dismiss</button></span>';
-  b.classList.add('show');
-  byId('bnDismiss').addEventListener('click', () => { b.classList.remove('show'); b.innerHTML = ''; });
-}
-async function handleIncomingHash(){
-  if(!/^#s[12]=/.test(location.hash)) return;
-  const rawHash = location.hash;
-  // Tidy the address bar right away — the payload lives on in memory below, and
-  // the giant fragment disappears from view, history, and accidental re-shares.
-  history.replaceState(null, '', location.pathname + location.search);
-  try {
-    const payload = await decodeShareFragment(rawHash);
-    if(!payload) return;
-    if(!MODE_BTNS[payload.m]) payload.m = 'lines';
-    showShareBanner(payload, payloadExpired(payload));
-  } catch(err){
-    console.error(err);
-    showShareError();
-  }
-}
 async function presentSharePayload(payload){
   if(!MODE_BTNS[payload.m]) payload.m = 'lines';
   showShareBanner(payload, payloadExpired(payload));
@@ -4893,7 +4837,7 @@ async function presentSharePayload(payload){
 }
 async function openIncomingFile(file){
   // One entry point for the picker, the drawer's Import, and drag & drop:
-  // routes PNG share cards, legacy JSON shares, and library backups.
+  // routes PNG share cards and library backups.
   try {
     const isPng = file.type === 'image/png' || /\.png$/i.test(file.name || '');
     if(isPng){
@@ -4906,10 +4850,6 @@ async function openIncomingFile(file){
       return;
     }
     const data = JSON.parse(await file.text());
-    if(data && data.verbatim_share === 1 && data.payload && typeof data.payload.c === 'string'){
-      await presentSharePayload(data.payload); // older share files keep opening
-      return;
-    }
     if(data && (data.verbatim_backup === 1 || data.verbatim_backup === 2)){
       if(!APP_MODE){ notify(t('msgBackupsInstalled')); return; }
       if(!(await ensureLib())){ notify(t('msgLibUnavail')); return; }
@@ -5319,6 +5259,7 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    shareHintCard:"The text rides inside the card itself — it never touches a server. The expiry rides along too and is checked when the share is opened: a courtesy deadline, not something a server enforces (there is none).", ttShareCard:"Share these blocks as a share card — the text never touches a server", ttOpenShareCard:"Open a Verbatim share card (.png) someone sent you", footPrivacyCard:"Verbatim runs entirely in your browser — nothing is collected or sent anywhere, ever. Closing this tab clears the practice session. The optional library is stored only on this device, and a share card carries its text inside the picture itself.",
     cueLegend:"Cue", cueNone:"No cue", cueFirstLetters:"First letters", cueFirstWords:"First words", cueKeyWords:"Key words", cueLevel:"Level", cueEasy:"Easy", cueMedium:"Medium", cueHard:"Hard",
     scPeek:"peek (Cmd+/ on a Mac)", peekedOnce:"peeked once", peekedN:"peeked {n} times",
     sentSemi:"Sentence ends at ;", sentColon:"Sentence ends at :",
@@ -5643,6 +5584,7 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    shareHintCard:"文本就藏在卡片本身里——绝不经过服务器。有效期只是打开时核对的礼节性期限。", ttShareCard:"以分享卡分享这些练习块——文字绝不经过服务器", ttOpenShareCard:"打开别人发给你的 Verbatim 分享卡（.png）", footPrivacyCard:"Verbatim 完全在你的浏览器中运行——绝不收集或发送任何内容。关闭此标签页即清除本次练习。可选的书库仅存于本设备，分享卡把文字装在图片本身之内。",
     cueLegend:"提示", cueNone:"无提示", cueFirstLetters:"首字母", cueFirstWords:"首词", cueKeyWords:"关键词", cueLevel:"等级", cueEasy:"简单", cueMedium:"中等", cueHard:"困难",
     scPeek:"短暂查看（Mac 上为 Cmd+/）", peekedOnce:"查看过一次", peekedN:"查看过 {n} 次",
     sentSemi:"句子在 ; 处结束", sentColon:"句子在 : 处结束",
@@ -5966,6 +5908,7 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    shareHintCard:"文字就收埋喺卡片本身入面——永遠唔經伺服器。有效期只係打開時核對嘅禮貌性期限。", ttShareCard:"用分享卡分享呢啲練習段——文字絕對唔會經過伺服器", ttOpenShareCard:"打開人哋發俾你嘅 Verbatim 分享卡（.png）", footPrivacyCard:"Verbatim 完全喺你嘅瀏覽器入面運行——絕對唔會收集或發送任何嘢。閂咗呢個分頁就清除今次練習。可選嘅書庫淨係存喺呢部裝置，分享卡將文字直接放喺圖片入面。",
     cueLegend:"提示", cueNone:"冇提示", cueFirstLetters:"首個字母", cueFirstWords:"首幾個詞", cueKeyWords:"關鍵詞", cueLevel:"程度", cueEasy:"容易", cueMedium:"中等", cueHard:"困難",
     scPeek:"偷睇（Mac 用 Cmd+/）", peekedOnce:"偷睇過一次", peekedN:"偷睇過 {n} 次",
     sentSemi:"句子喺 ; 完結", sentColon:"句子喺 : 完結",
@@ -6289,6 +6232,7 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    shareHintCard:"Le texte voyage dans la carte même — jamais de serveur. L'expiration est un délai de courtoisie vérifié à l'ouverture.", ttShareCard:"Partager ces blocs sous forme de carte — le texte ne touche jamais de serveur", ttOpenShareCard:"Ouvrir une carte de partage Verbatim (.png) reçue", footPrivacyCard:"Verbatim fonctionne entièrement dans votre navigateur — rien n'est collecté ni envoyé où que ce soit, jamais. Fermer cet onglet efface la séance. La bibliothèque facultative n'est stockée que sur cet appareil, et une carte de partage porte son texte à l'intérieur même de l'image.",
     cueLegend:"Indice", cueNone:"Aucun indice", cueFirstLetters:"Premières lettres", cueFirstWords:"Premiers mots", cueKeyWords:"Mots clés", cueLevel:"Niveau", cueEasy:"Facile", cueMedium:"Moyen", cueHard:"Difficile",
     scPeek:"coup d’œil (Cmd+/ sur Mac)", peekedOnce:"coup d’œil une fois", peekedN:"coup d’œil {n} fois",
     sentSemi:"La phrase finit à ;", sentColon:"La phrase finit à :",
@@ -6615,6 +6559,7 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    shareHintCard:"Der Text reist in der Karte selbst — nie über einen Server. Das Ablaufdatum ist eine Höflichkeitsfrist, geprüft beim Öffnen.", ttShareCard:"Diese Blöcke per Karte teilen — der Text berührt nie einen Server", ttOpenShareCard:"Eine erhaltene Verbatim-Teilkarte (.png) öffnen", footPrivacyCard:"Verbatim läuft vollständig in Ihrem Browser — nichts wird gesammelt oder irgendwohin gesendet, niemals. Das Schließen dieses Tabs löscht die Übungssitzung. Die optionale Bibliothek wird nur auf diesem Gerät gespeichert, und eine Teilkarte trägt ihren Text im Bild selbst.",
     cueLegend:"Hinweis", cueNone:"Kein Hinweis", cueFirstLetters:"Anfangsbuchstaben", cueFirstWords:"Anfangswörter", cueKeyWords:"Schlüsselwörter", cueLevel:"Stufe", cueEasy:"Leicht", cueMedium:"Mittel", cueHard:"Schwer",
     scPeek:"kurz ansehen (Cmd+/ auf dem Mac)", peekedOnce:"einmal kurz angesehen", peekedN:"{n}-mal kurz angesehen",
     sentSemi:"Satz endet bei ;", sentColon:"Satz endet bei :",
@@ -6939,6 +6884,7 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    shareHintCard:"टेक्स्ट कार्ड के भीतर ही चलता है — कभी किसी सर्वर से नहीं। समाप्ति केवल खोलते समय जाँची जाने वाली शिष्टाचार-सीमा है।", ttShareCard:"इन खंडों को कार्ड से साझा करें — पाठ कभी किसी सर्वर को नहीं छूता", ttOpenShareCard:"किसी का भेजा Verbatim शेयर कार्ड (.png) खोलें", footPrivacyCard:"Verbatim पूरी तरह आपके ब्राउज़र में चलता है — कुछ भी एकत्र या कहीं भेजा नहीं जाता, कभी नहीं। यह टैब बंद करने से अभ्यास सत्र मिट जाता है। वैकल्पिक पुस्तकालय केवल इसी डिवाइस पर संग्रहित होता है, और शेयर कार्ड अपना पाठ स्वयं चित्र के भीतर रखता है।",
     cueLegend:"संकेत", cueNone:"कोई संकेत नहीं", cueFirstLetters:"पहले अक्षर", cueFirstWords:"पहले शब्द", cueKeyWords:"मुख्य शब्द", cueLevel:"स्तर", cueEasy:"आसान", cueMedium:"मध्यम", cueHard:"कठिन",
     scPeek:"झलक (Mac पर Cmd+/)", peekedOnce:"एक बार झलक ली", peekedN:"{n} बार झलक ली",
     sentSemi:"वाक्य ; पर समाप्त होता है", sentColon:"वाक्य : पर समाप्त होता है",
@@ -7262,6 +7208,7 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    shareHintCard:"Il testo viaggia dentro la card stessa — mai su un server. La scadenza è un termine di cortesia verificato all'apertura.", ttShareCard:"Condividi questi blocchi con una scheda — il testo non tocca mai un server", ttOpenShareCard:"Apri una scheda di condivisione Verbatim (.png) ricevuta", footPrivacyCard:"Verbatim funziona interamente nel tuo browser — nulla viene raccolto o inviato da nessuna parte, mai. Chiudere questa scheda cancella la sessione di pratica. La libreria facoltativa è archiviata solo su questo dispositivo, e la scheda di condivisione porta il testo dentro l'immagine stessa.",
     cueLegend:"Indizio", cueNone:"Nessun indizio", cueFirstLetters:"Prime lettere", cueFirstWords:"Prime parole", cueKeyWords:"Parole chiave", cueLevel:"Livello", cueEasy:"Facile", cueMedium:"Medio", cueHard:"Difficile",
     scPeek:"sbirciata (Cmd+/ su Mac)", peekedOnce:"sbirciato una volta", peekedN:"sbirciato {n} volte",
     sentSemi:"La frase finisce con ;", sentColon:"La frase finisce con :",
@@ -7585,6 +7532,7 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    shareHintCard:"テキストはカードそのものの中を旅します——サーバーは一切通しません。期限は開封時に確認される目安の日付です。", ttShareCard:"これらのブロックをカードで共有——文章はサーバーに一切触れません", ttOpenShareCard:"受け取った Verbatim 共有カード（.png）を開く", footPrivacyCard:"Verbatim は完全にブラウザ内で動作します——何も収集されず、どこにも送信されません、決して。このタブを閉じると練習セッションは消えます。任意のライブラリはこの端末にのみ保存され、共有カードは文章を画像そのものの中に収めます。",
     cueLegend:"ヒント", cueNone:"ヒントなし", cueFirstLetters:"頭文字", cueFirstWords:"冒頭の語", cueKeyWords:"キーワード", cueLevel:"段階", cueEasy:"やさしい", cueMedium:"ふつう", cueHard:"難しい",
     scPeek:"ちら見（Mac では Cmd+/）", peekedOnce:"ちら見 1 回", peekedN:"ちら見 {n} 回",
     sentSemi:"文の終わりを ; にする", sentColon:"文の終わりを : にする",
@@ -7908,6 +7856,7 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    shareHintCard:"텍스트는 카드 자체 안에 실려 이동합니다 — 서버는 절대 거치지 않습니다. 만료일은 열 때 확인되는 예의상의 기한입니다.", ttShareCard:"이 블록들을 카드로 공유 — 텍스트는 서버에 절대 닿지 않음", ttOpenShareCard:"받은 Verbatim 공유 카드(.png) 열기", footPrivacyCard:"Verbatim은 전적으로 브라우저 안에서 동작합니다 — 아무것도 수집하거나 어디로도 보내지 않습니다, 절대로. 이 탭을 닫으면 연습 세션이 지워집니다. 선택적 서재는 이 기기에만 저장되며, 공유 카드는 텍스트를 그림 자체 안에 담습니다.",
     cueLegend:"단서", cueNone:"단서 없음", cueFirstLetters:"첫 글자", cueFirstWords:"첫 단어", cueKeyWords:"핵심 단어", cueLevel:"수준", cueEasy:"쉬움", cueMedium:"보통", cueHard:"어려움",
     scPeek:"잠깐 보기 (Mac에서는 Cmd+/)", peekedOnce:"한 번 잠깐 봄", peekedN:"{n}번 잠깐 봄",
     sentSemi:"문장은 ;에서 끝납니다", sentColon:"문장은 :에서 끝납니다",
@@ -8231,6 +8180,7 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    shareHintCard:"O texto viaja dentro do próprio cartão — nunca por um servidor. A validade é um prazo de cortesia conferido ao abrir.", ttShareCard:"Partilhar estes blocos por cartão — o texto nunca toca num servidor", ttOpenShareCard:"Abrir um cartão de partilha Verbatim (.png) recebido", footPrivacyCard:"O Verbatim funciona inteiramente no seu navegador — nada é recolhido nem enviado para lado nenhum, nunca. Fechar este separador limpa a sessão de prática. A biblioteca opcional é guardada apenas neste dispositivo, e os cartões de partilha levam o seu texto dentro da própria imagem.",
     cueLegend:"Pista", cueNone:"Sem pista", cueFirstLetters:"Primeiras letras", cueFirstWords:"Primeiras palavras", cueKeyWords:"Palavras-chave", cueLevel:"Nível", cueEasy:"Fácil", cueMedium:"Médio", cueHard:"Difícil",
     scPeek:"espreitadela (Cmd+/ num Mac)", peekedOnce:"espreitado uma vez", peekedN:"espreitado {n} vezes",
     sentSemi:"A frase termina em ;", sentColon:"A frase termina em :",
@@ -8623,6 +8573,7 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    shareHintCard:"Текст едет внутри самой карточки — никогда через сервер. Срок действия — вежливый дедлайн, проверяемый при открытии.", ttShareCard:"Поделиться этими блоками карточкой — текст никогда не касается сервера", ttOpenShareCard:"Открыть присланную карточку Verbatim (.png)", footPrivacyCard:"Verbatim работает целиком в вашем браузере — ничего не собирается и никуда не отправляется, никогда. Закрытие этой вкладки стирает сессию практики. Необязательная библиотека хранится только на этом устройстве, а карточки для обмена несут текст внутри самого изображения.",
     cueLegend:"Подсказка", cueNone:"Без подсказки", cueFirstLetters:"Первые буквы", cueFirstWords:"Первые слова", cueKeyWords:"Ключевые слова", cueLevel:"Уровень", cueEasy:"Лёгкий", cueMedium:"Средний", cueHard:"Сложный",
     scPeek:"подсмотреть (Cmd+/ на Mac)", peekedOnce:"подсмотрено один раз", peekedN:"подсмотрено: {n}",
     sentSemi:"Предложение заканчивается на ;", sentColon:"Предложение заканчивается на :",
@@ -8946,6 +8897,7 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    shareHintCard:"El texto viaja dentro de la propia tarjeta — nunca por un servidor. La caducidad es un plazo de cortesía comprobado al abrir.", ttShareCard:"Compartir estos bloques por tarjeta — el texto nunca toca un servidor", ttOpenShareCard:"Abrir una tarjeta de Verbatim (.png) recibida", footPrivacyCard:"Verbatim se ejecuta enteramente en tu navegador — no se recopila ni se envía nada a ninguna parte, nunca. Cerrar esta pestaña borra la sesión de práctica. La biblioteca opcional se guarda solo en este dispositivo, y las tarjetas para compartir llevan su texto dentro de la propia imagen.",
     cueLegend:"Pista", cueNone:"Sin pista", cueFirstLetters:"Primeras letras", cueFirstWords:"Primeras palabras", cueKeyWords:"Palabras clave", cueLevel:"Nivel", cueEasy:"Fácil", cueMedium:"Medio", cueHard:"Difícil",
     scPeek:"vistazo (Cmd+/ en Mac)", peekedOnce:"un vistazo", peekedN:"{n} vistazos",
     sentSemi:"La frase termina en ;", sentColon:"La frase termina en :",
@@ -9270,6 +9222,7 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    shareHintCard:"Metin kartın kendisinin içinde taşınır — asla bir sunucudan geçmez. Son kullanma, açılışta denetlenen nezaket süresidir.", ttShareCard:"Bu blokları kartla paylaş — metin hiçbir sunucuya değmez", ttOpenShareCard:"Alınan bir Verbatim paylaşım kartını (.png) aç", footPrivacyCard:"Verbatim tamamen tarayıcınızda çalışır — hiçbir şey toplanmaz veya hiçbir yere gönderilmez, asla. Bu sekmeyi kapatmak çalışma oturumunu siler. İsteğe bağlı kitaplık yalnızca bu cihazda saklanır ve paylaşım kartı metnini doğrudan resmin içinde taşır.",
     cueLegend:"İpucu", cueNone:"İpucu yok", cueFirstLetters:"İlk harfler", cueFirstWords:"İlk kelimeler", cueKeyWords:"Anahtar kelimeler", cueLevel:"Düzey", cueEasy:"Kolay", cueMedium:"Orta", cueHard:"Zor",
     scPeek:"kısa bakış (Mac’te Cmd+/)", peekedOnce:"bir kez kısa bakıldı", peekedN:"{n} kez kısa bakıldı",
     sentSemi:"Cümle ; işaretinde biter", sentColon:"Cümle : işaretinde biter",
@@ -9593,6 +9546,7 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    shareHintCard:"Текст мандрує всередині самої картки — ніколи через сервер. Термін дії — ввічливий дедлайн, що перевіряється під час відкриття.", ttShareCard:"Поділитися цими блоками карткою — текст ніколи не торкається сервера", ttOpenShareCard:"Відкрити надіслану картку Verbatim (.png)", footPrivacyCard:"Verbatim працює цілком у вашому браузері — нічого не збирається й нікуди не надсилається, ніколи. Закриття цієї вкладки стирає сесію практики. Необов'язкова бібліотека зберігається лише на цьому пристрої, а картки для поширення несуть текст у самому зображенні.",
     cueLegend:"Підказка", cueNone:"Без підказки", cueFirstLetters:"Перші літери", cueFirstWords:"Перші слова", cueKeyWords:"Ключові слова", cueLevel:"Рівень", cueEasy:"Легкий", cueMedium:"Середній", cueHard:"Складний",
     scPeek:"підгляд (Cmd+/ на Mac)", peekedOnce:"підглянуто один раз", peekedN:"підглянуто: {n}",
     sentSemi:"Речення закінчується на ;", sentColon:"Речення закінчується на :",
@@ -10335,9 +10289,6 @@ function initTour(){
 applyLang();
 initLibrary();
 initTour();
-handleIncomingHash();
-// Also catch a share link pasted into the address bar of an already-open tab.
-window.addEventListener('hashchange', handleIncomingHash);
 
 byId('footerVersion').textContent = 'Verbatim v' + APP_VERSION;
 
