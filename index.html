@@ -229,6 +229,8 @@
   }
   .cue-box .cue-num{font-family:var(--mono);font-weight:600;}
   .split-modes button.active{border-color:var(--gold);color:var(--gold);}
+  .sentence-opts{margin-top:8px;}
+  .sentence-opts[hidden]{display:none;}
 
   /* ---------- practice layout ---------- */
   .practice-grid{display:flex;gap:20px;align-items:flex-start;}
@@ -927,6 +929,10 @@
         </span>
       </div>
       <div class="hint" id="splitHint" data-i18n="hint_lines">One block per line — poetry, lyrics, scripture.</div>
+      <div class="split-modes sentence-opts" id="sentenceOpts" hidden>
+        <button id="optSemi" aria-pressed="false" data-i18n="sentSemi">Sentence ends at ;</button>
+        <button id="optColon" aria-pressed="false" data-i18n="sentColon">Sentence ends at :</button>
+      </div>
     </div>
 
     <div class="panel">
@@ -1358,7 +1364,7 @@ function normalizeText(text){
     .replace(/[\u00ab\u00bb\u2039\u203a]/g, '"');              // « » ‹ › -> "
 }
 
-function splitSentences(text){
+function splitSentences(text, opts = {}){
   // Manual scan instead of a single backtracking regex: guarantees no text is ever
   // silently dropped (the old regex could eat whole clauses when a sentence ended
   // with punctuation immediately followed by a closing quote, e.g. `sure?"`).
@@ -1387,6 +1393,15 @@ function splitSentences(text){
       }
       i = j;
       continue;
+    }
+    if((ch === ';' && opts.semicolon) || (ch === ':' && opts.colon)){
+      // the person's choice: ";" or ":" ends a sentence when a space follows
+      if(i + 1 >= text.length || /\s/.test(text[i + 1])){
+        flush(buf);
+        buf = '';
+        i++;
+        continue;
+      }
     }
     if(ch === ':' || ch === ';'){
       // soft boundary: a colon/semicolon ends a chunk ONLY when what follows is a
@@ -1835,6 +1850,7 @@ function setActiveMode(mode){
   Object.values(MODE_BTNS).forEach(b => b.classList.remove('active'));
   MODE_BTNS[mode].classList.add('active');
   splitHint.textContent = modeHint(mode);
+  document.getElementById('sentenceOpts').hidden = mode !== 'sentences';
 }
 function pairsToChunkText(pairs){
   // Render {prompt, answer} blocks into the editable one-per-line format,
@@ -1846,7 +1862,7 @@ function pairsToChunkText(pairs){
    path — a splitter change can never leave one of them behind. */
 const SPLIT_MODES = {
   lines:     { split: splitLines,     render: (parts) => parts.join('\n') },
-  sentences: { split: splitSentences, render: (parts) => parts.join('\n') },
+  sentences: { split: (src) => splitSentences(src, state.sentenceOpts), render: (parts) => parts.join('\n') },
   verse:     { split: splitVerse,     render: pairsToChunkText },
   qa:        { split: splitQA,        render: pairsToChunkText },
 };
@@ -1865,6 +1881,20 @@ for(const mode of Object.keys(MODE_BTNS)){
   });
 }
 chunkText.addEventListener('input', updateChunkCount);
+/* ";" and ":" may end a sentence too, each the person's choice (from Verbatim). */
+state.sentenceOpts = { semicolon: false, colon: false };
+for(const [id, key] of [['optSemi', 'semicolon'], ['optColon', 'colon']]){
+  const btn = document.getElementById(id);
+  btn.addEventListener('click', () => {
+    state.sentenceOpts[key] = !state.sentenceOpts[key];
+    btn.setAttribute('aria-pressed', String(state.sentenceOpts[key]));
+    btn.classList.toggle('active', state.sentenceOpts[key]);
+    if(state.splitMode === 'sentences'){
+      chunkText.value = splitToChunkText('sentences', sourceText.value);
+      updateChunkCount();
+    }
+  });
+}
 
 /* "->" and a space become "→ " as they are typed: the arrow cues are written with
    ("v5 → text", "question → answer"). Every text box but the typing box, which is graded
@@ -5122,6 +5152,7 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    sentSemi:"Sentence ends at ;", sentColon:"Sentence ends at :",
     cardBefore:'before',
     recallThis:'recall this',
     tmLeft:'left',
@@ -5443,6 +5474,7 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    sentSemi:"句子在 ; 处结束", sentColon:"句子在 : 处结束",
     cardBefore:'有效期至',
     recallThis:'回忆这段',
     tmLeft:'剩余',
@@ -5763,6 +5795,7 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    sentSemi:"句子喺 ; 完結", sentColon:"句子喺 : 完結",
     cardBefore:'有效期至',
     recallThis:'回憶呢段',
     tmLeft:'剩返',
@@ -6083,6 +6116,7 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    sentSemi:"La phrase finit à ;", sentColon:"La phrase finit à :",
     cardBefore:'avant le',
     recallThis:'restituez ceci',
     tmLeft:'restant',
@@ -6406,6 +6440,7 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    sentSemi:"Satz endet bei ;", sentColon:"Satz endet bei :",
     cardBefore:'vor dem',
     recallThis:'rufen Sie dies ab',
     tmLeft:'übrig',
@@ -6727,6 +6762,7 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    sentSemi:"वाक्य ; पर समाप्त होता है", sentColon:"वाक्य : पर समाप्त होता है",
     cardBefore:'इससे पहले',
     recallThis:'इसे याद करें',
     tmLeft:'शेष',
@@ -7047,6 +7083,7 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    sentSemi:"La frase finisce con ;", sentColon:"La frase finisce con :",
     cardBefore:'prima del',
     recallThis:'richiama questo',
     tmLeft:'rimanenti',
@@ -7367,6 +7404,7 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    sentSemi:"文の終わりを ; にする", sentColon:"文の終わりを : にする",
     cardBefore:'期限:',
     recallThis:'これを思い出す',
     tmLeft:'残り',
@@ -7687,6 +7725,7 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    sentSemi:"문장은 ;에서 끝납니다", sentColon:"문장은 :에서 끝납니다",
     cardBefore:'기한:',
     recallThis:'이것을 회상하세요',
     tmLeft:'남음',
@@ -8007,6 +8046,7 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    sentSemi:"A frase termina em ;", sentColon:"A frase termina em :",
     cardBefore:'antes de',
     recallThis:'recorde isto',
     tmLeft:'restante',
@@ -8396,6 +8436,7 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    sentSemi:"Предложение заканчивается на ;", sentColon:"Предложение заканчивается на :",
     cardBefore:'до',
     recallThis:'вспомните это',
     tmLeft:'осталось',
@@ -8716,6 +8757,7 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    sentSemi:"La frase termina en ;", sentColon:"La frase termina en :",
     cardBefore:'antes del',
     recallThis:'recuerda esto',
     tmLeft:'restante',
@@ -9037,6 +9079,7 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    sentSemi:"Cümle ; işaretinde biter", sentColon:"Cümle : işaretinde biter",
     cardBefore:'şu tarihe kadar:',
     recallThis:'bunu hatırlayın',
     tmLeft:'kaldı',
@@ -9357,6 +9400,7 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    sentSemi:"Речення закінчується на ;", sentColon:"Речення закінчується на :",
     cardBefore:'до',
     recallThis:'пригадайте це',
     tmLeft:'залишилось',
