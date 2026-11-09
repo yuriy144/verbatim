@@ -1419,7 +1419,9 @@ function splitLines(text){
 // begins a new verse; unmarked lines continue the current one. The marker becomes a
 // recall cue you see, instead of something you have to type.
 function splitVerse(text){
-  text = normalizeText(text);
+  // A "v6" marker inside a line starts a verse too, so a pasted paragraph of verses
+  // splits. Only the v-form: a bare number inside a line stays text.
+  text = normalizeText(text).replace(/(\S)[ \t]+(?=v\.?\s?\d+(?::\d+)?[.):\]]?\s)/gi, '$1\n');
   const markerRe = /^\s*(v\.?\s*\d+(?::\d+)?|\d+(?::\d+)?)[.):\]]?\s*/i;
   const out = [];
   let cur = null;
