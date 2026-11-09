@@ -974,6 +974,7 @@
                   <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> <span data-i18n="scRetry">retry block</span></span>
                   <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd> <span data-i18n="scSkip">skip block</span></span>
                   <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> <span data-i18n="scHide">hide / show text</span></span>
+                  <span><kbd>Ctrl</kbd>+<kbd>/</kbd> <span data-i18n="scPeek">peek (Cmd+/ on a Mac)</span></span>
                   <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>B</kbd> <span data-i18n="scBox">hide / show box</span></span>
                   <span><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>W</kbd> <span data-i18n="scWrap">wrap / scroll box</span></span>
                   <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> <span data-i18n="scFinish">finish &amp; see summary</span></span>
@@ -1934,6 +1935,8 @@ document.getElementById('btnBegin').addEventListener('click', () => {
   state.prompts = blocks.map(b => b.prompt || '');
   state.results = new Array(blocks.length).fill(null);
   state.drafts = new Array(blocks.length).fill('');
+  state.peeks = new Array(blocks.length).fill(0);
+  state.peeking = false;
   state.index = 0;
   showScreen('practice');
   document.getElementById('totalCount').textContent = blocks.length;
@@ -2149,7 +2152,7 @@ function buildDiffHtml(cells, maskPending){
 function renderDiff(typed, isFinal){
   const target = state.chunks[state.index];
   const d = computeDiff(target, typed, isFinal);
-  diffBox.innerHTML = buildDiffHtml(d.cells, !state.revealPending);
+  diffBox.innerHTML = buildDiffHtml(d.cells, !(state.revealPending || state.peeking));
   liveAcc.textContent = d.accuracy + '%';
   liveLen.textContent = typed.length;
 }
@@ -2560,6 +2563,22 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if(document.getElementById('practice').classList.contains('hidden')) return;
 
+  // Peek (from Verbatim): Ctrl+/ or Cmd+/ shows the block until the next key press,
+  // counted in the summary unless the text already shows.
+  if((e.code === 'Slash' || e.key === '/') && (e.ctrlKey || e.metaKey) && !e.altKey){
+    e.preventDefault();
+    if(!state.peeking){
+      state.peeking = true;
+      if(!state.revealPending && state.peeks) state.peeks[state.index] = (state.peeks[state.index] || 0) + 1;
+      renderDiff(typeInput.value, state.currentIsFinal);
+    }
+    return;
+  }
+  if(state.peeking && !['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)){
+    state.peeking = false;
+    renderDiff(typeInput.value, state.currentIsFinal);
+  }
+
   // Ctrl/Cmd+Enter (or Ctrl+Alt+Enter) -> finish & summary
   if((e.code === 'Enter' || e.code === 'NumpadEnter') && (e.ctrlKey || e.metaKey)){
     e.preventDefault();
@@ -2674,8 +2693,10 @@ function showSummary(){
     }
     const d = computeDiff(c, r.typed, true);
     const cls = r.accuracy>=95?'good':r.accuracy>=75?'mid':'low';
+    const n = (state.peeks && state.peeks[i]) || 0;
+    const peeked = n ? ' · ' + escapeProse(n === 1 ? t('peekedOnce') : t('peekedN', { n })) : '';
     return `<div class="review-item ${cls}">
-      <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span class="acc">${r.accuracy}%</span></div>
+      <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span class="acc">${r.accuracy}%${peeked}</span></div>
       <div class="review-diff">${buildDiffHtml(d.cells, false)}</div>
     </div>`;
   }).join('');
@@ -5152,6 +5173,7 @@ byId('btnInstallCheck').addEventListener('click', runInstallCheck);
    'verbatim-lang'; first visit auto-detects from the browser's language. */
 const LANGS = {
   'en':    { label:'English (US)', short:'EN', d:{
+    scPeek:"peek (Cmd+/ on a Mac)", peekedOnce:"peeked once", peekedN:"peeked {n} times",
     sentSemi:"Sentence ends at ;", sentColon:"Sentence ends at :",
     cardBefore:'before',
     recallThis:'recall this',
@@ -5474,6 +5496,7 @@ const LANGS = {
   }},
   'en-GB': { label:'English (UK)', short:'EN·GB', base:'en', d:{} },
   'zh-Hans': { label:'简体中文', short:'中文', d:{
+    scPeek:"短暂查看（Mac 上为 Cmd+/）", peekedOnce:"查看过一次", peekedN:"查看过 {n} 次",
     sentSemi:"句子在 ; 处结束", sentColon:"句子在 : 处结束",
     cardBefore:'有效期至',
     recallThis:'回忆这段',
@@ -5795,6 +5818,7 @@ const LANGS = {
     howInstall:'如何安装？',
   }},
   'yue': { label:'廣東話', short:'粵', d:{
+    scPeek:"偷睇（Mac 用 Cmd+/）", peekedOnce:"偷睇過一次", peekedN:"偷睇過 {n} 次",
     sentSemi:"句子喺 ; 完結", sentColon:"句子喺 : 完結",
     cardBefore:'有效期至',
     recallThis:'回憶呢段',
@@ -6116,6 +6140,7 @@ const LANGS = {
     howInstall:'點樣安裝？',
   }},
   'fr': { label:'Français', short:'FR', d:{
+    scPeek:"coup d’œil (Cmd+/ sur Mac)", peekedOnce:"coup d’œil une fois", peekedN:"coup d’œil {n} fois",
     sentSemi:"La phrase finit à ;", sentColon:"La phrase finit à :",
     cardBefore:'avant le',
     recallThis:'restituez ceci',
@@ -6440,6 +6465,7 @@ const LANGS = {
     fPw:'Mot de passe', howInstall:'Comment l\u2019installer?',
   }},
   'de': { label:'Deutsch', short:'DE', d:{
+    scPeek:"kurz ansehen (Cmd+/ auf dem Mac)", peekedOnce:"einmal kurz angesehen", peekedN:"{n}-mal kurz angesehen",
     sentSemi:"Satz endet bei ;", sentColon:"Satz endet bei :",
     cardBefore:'vor dem',
     recallThis:'rufen Sie dies ab',
@@ -6762,6 +6788,7 @@ const LANGS = {
   }},
   'de-AT': { label:'Deutsch (Österreich)', short:'DE·AT', base:'de', d:{} },
   'hi': { label:'हिन्दी', short:'हिन्दी', d:{
+    scPeek:"झलक (Mac पर Cmd+/)", peekedOnce:"एक बार झलक ली", peekedN:"{n} बार झलक ली",
     sentSemi:"वाक्य ; पर समाप्त होता है", sentColon:"वाक्य : पर समाप्त होता है",
     cardBefore:'इससे पहले',
     recallThis:'इसे याद करें',
@@ -7083,6 +7110,7 @@ const LANGS = {
     howInstall:'इसे कैसे इंस्टॉल करें?',
   }},
   'it': { label:'Italiano', short:'IT', d:{
+    scPeek:"sbirciata (Cmd+/ su Mac)", peekedOnce:"sbirciato una volta", peekedN:"sbirciato {n} volte",
     sentSemi:"La frase finisce con ;", sentColon:"La frase finisce con :",
     cardBefore:'prima del',
     recallThis:'richiama questo',
@@ -7404,6 +7432,7 @@ const LANGS = {
     howInstall:'Come lo installo?',
   }},
   'ja': { label:'日本語', short:'日本語', d:{
+    scPeek:"ちら見（Mac では Cmd+/）", peekedOnce:"ちら見 1 回", peekedN:"ちら見 {n} 回",
     sentSemi:"文の終わりを ; にする", sentColon:"文の終わりを : にする",
     cardBefore:'期限:',
     recallThis:'これを思い出す',
@@ -7725,6 +7754,7 @@ const LANGS = {
     howInstall:'インストール方法は？',
   }},
   'ko': { label:'한국어', short:'한국어', d:{
+    scPeek:"잠깐 보기 (Mac에서는 Cmd+/)", peekedOnce:"한 번 잠깐 봄", peekedN:"{n}번 잠깐 봄",
     sentSemi:"문장은 ;에서 끝납니다", sentColon:"문장은 :에서 끝납니다",
     cardBefore:'기한:',
     recallThis:'이것을 회상하세요',
@@ -8046,6 +8076,7 @@ const LANGS = {
     howInstall:'설치 방법은?',
   }},
   'pt': { label:'Português', short:'PT', d:{
+    scPeek:"espreitadela (Cmd+/ num Mac)", peekedOnce:"espreitado uma vez", peekedN:"espreitado {n} vezes",
     sentSemi:"A frase termina em ;", sentColon:"A frase termina em :",
     cardBefore:'antes de',
     recallThis:'recorde isto',
@@ -8436,6 +8467,7 @@ const LANGS = {
   }},
   'pt-PT': { label:'Português (Portugal)', short:'PT·PT', base:'pt', d:{} },
   'ru': { label:'Русский', short:'RU', d:{
+    scPeek:"подсмотреть (Cmd+/ на Mac)", peekedOnce:"подсмотрено один раз", peekedN:"подсмотрено: {n}",
     sentSemi:"Предложение заканчивается на ;", sentColon:"Предложение заканчивается на :",
     cardBefore:'до',
     recallThis:'вспомните это',
@@ -8757,6 +8789,7 @@ const LANGS = {
     howInstall:'Как установить?',
   }},
   'es': { label:'Español', short:'ES', d:{
+    scPeek:"vistazo (Cmd+/ en Mac)", peekedOnce:"un vistazo", peekedN:"{n} vistazos",
     sentSemi:"La frase termina en ;", sentColon:"La frase termina en :",
     cardBefore:'antes del',
     recallThis:'recuerda esto',
@@ -9079,6 +9112,7 @@ const LANGS = {
   }},
   'es-419': { label:'Español (Latinoamérica)', short:'ES·419', base:'es', d:{} },
   'tr': { label:'Türkçe', short:'TR', d:{
+    scPeek:"kısa bakış (Mac’te Cmd+/)", peekedOnce:"bir kez kısa bakıldı", peekedN:"{n} kez kısa bakıldı",
     sentSemi:"Cümle ; işaretinde biter", sentColon:"Cümle : işaretinde biter",
     cardBefore:'şu tarihe kadar:',
     recallThis:'bunu hatırlayın',
@@ -9400,6 +9434,7 @@ const LANGS = {
     howInstall:'Nasıl kurulur?',
   }},
   'uk': { label:'Українська', short:'UA', d:{
+    scPeek:"підгляд (Cmd+/ на Mac)", peekedOnce:"підглянуто один раз", peekedN:"підглянуто: {n}",
     sentSemi:"Речення закінчується на ;", sentColon:"Речення закінчується на :",
     cardBefore:'до',
     recallThis:'пригадайте це',
