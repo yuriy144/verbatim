@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.3 (2026-11-20)
+
+- **The burn button is monochrome:** a drawn flame in the same gold as the buttons beside it,
+  in both themes, instead of the full-colour 🔥 emoji. For reviewers: an inline SVG in
+  `currentColor` inside `#btnFire`, which loses the button's padding so the SVG is not squeezed
+  to 4 px. The tooltip and spoken name are unchanged. The 🔥 in the confirm button's text and
+  in the what's-new note is unchanged.
+
 ## 6.0.2 (2026-11-20)
 
 Two bugs found on verbatim.run.

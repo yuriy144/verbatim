@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 6.0.2
+  Version 6.0.3
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="6.0.2">
+<meta name="app-version" content="6.0.3">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -109,6 +109,7 @@
     display:flex;align-items:center;justify-content:center;
   }
   .theme-toggle:hover{border-color:var(--gold);}
+  #btnFire{padding:0;} #btnFire svg{flex:none;} /* a drawn flame in the button's own colour, like its neighbours (an emoji is not) */
   h1{
     font-size:30px;margin:0 0 4px;font-weight:600;letter-spacing:.01em;color:var(--ink);
     display:flex;align-items:baseline;gap:10px;
@@ -799,7 +800,7 @@
 
   <header class="top">
     <div class="header-actions">
-      <button id="btnFire" class="theme-toggle" data-i18n-title="ttFire" title="Burn this session: clears the text, the blocks, your progress, marks, timer and summary in this tab" aria-label="Burn this session">🔥</button>
+      <button id="btnFire" class="theme-toggle" data-i18n-title="ttFire" title="Burn this session: clears the text, the blocks, your progress, marks, timer and summary in this tab" aria-label="Burn this session"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 3.2 5 5.4 5 10.2a5 5 0 0 1-10 0c0-2.4 1.3-3.9 2.4-4.9.2 1.6.9 2.5 2 2.8C10.9 8.6 11 5.6 12 3z"/></svg></button>
       <button id="btnTour" class="header-btn" data-i18n="tour" data-i18n-title="ttTour" title="Take a 60-second visual tour">Tour</button>
       <button id="btnLang" class="lang-toggle" title="Language / 语言 / Idioma" aria-label="Change language">🌐︎</button>
       <button id="btnSettings" class="theme-toggle" data-i18n-title="ttSettings" title="Settings" aria-label="Settings">⚙︎</button>
@@ -1137,7 +1138,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '6.0.2';
+const APP_VERSION = '6.0.3';
 const byId = (id) => document.getElementById(id);
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
