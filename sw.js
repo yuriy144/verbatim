@@ -30,7 +30,7 @@
 */
 'use strict';
 
-const CACHE_VERSION = 'v6.0.4';
+const CACHE_VERSION = 'v6.1.0';
 const CACHE_NAME = 'verbatim-' + CACHE_VERSION;
 
 // Must match the repository layout exactly — GitHub Pages URLs are
@@ -99,7 +99,8 @@ self.addEventListener('fetch', (event) => {
 
   // Opening the app: instant from cache (works offline, no network wait);
   // a background refresh keeps the cached copy current for the next launch.
-  if (req.mode === 'navigate') {
+  // Only Tiny's own page: get.html and any other page are fetched as themselves (2026-11-20).
+  if (req.mode === 'navigate' && /\/(index\.html)?$/.test(url.pathname)) {
     event.respondWith(
       caches.match('./index.html').then((cached) => {
         const fresh = fetchAndCache(req, './index.html');

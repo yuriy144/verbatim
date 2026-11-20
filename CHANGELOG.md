@@ -1,5 +1,22 @@
 # Changelog
 
+## 6.1.0 (2026-11-20)
+
+- **The full Verbatim app comes first.** Under the text box and at the top of the footer, a line
+  says what the full app adds and links to its download page (`get.html`, now on this site).
+  Feedback (the Tally form) comes second, Ko-fi third; the privacy and source lines follow.
+- **The install dialog says plainly** that an installed web app is still this page: it keeps
+  nothing once closed, has no library and cannot protect texts as the full app's vault does.
+- **Word bubbles: Up and Down go a row at a time,** to the nearest gap or word above or below,
+  so a long phrase's second row is one key away. Left and Right still walk a line.
+- **The summary names the way a block was done:** "Word bubbles · first time right 80%", or
+  "Scrambled · …".
+- **Fixed:** at phone width, after Next, a press on a cue button (Key words, Scrambled…) did
+  nothing: leaving the typing box closed the docked layout and moved the button away.
+- For reviewers: `rowNeighbour()`; a `mousedown` guard on `#cueModes`; six new strings per
+  language, marked unchecked; `sw.js` answers page visits with Tiny only for `/` and
+  `/index.html`, so `get.html` loads as itself (before, it would have shown Tiny).
+
 ## 6.0.4 (2026-11-20)
 
 - **The burn dialog's confirm button is plain text** ("Burn it"), without the colour 🔥, in

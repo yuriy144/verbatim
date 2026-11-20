@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get Verbatim</title>
+<meta name="description" content="Verbatim, the encrypted desktop memory trainer: place it in a folder of your own choosing; its data sits beside it.">
+<!--
+  Get Verbatim — the one download page (T15 Q5, owner 2026-10-31): the one line, what the app
+  adds over Tiny Verbatim, the three downloads, the steps for opening an unsigned file, the
+  privacy promise (copied word for word from docs/PRIVACY.md), and plainly what a Tiny card
+  shows. Its centre is the portable layout (owner, 2026-11-09): place Verbatim in a folder of
+  your own choosing; its data sits beside it — the same words as the .dmg's README.
+  Self-contained: no script, nothing loaded from outside, follows the system's theme.
+-->
+<style>
+  :root{
+    --bg:#1a1822; --bg-2:#211f2c; --panel:#252333; --panel-2:#2c2a3c; --rule:#3a3850;
+    --ink:#d8d3c4; --dim:#8a87a0; --dim-2:#5f5d75; --gold:#cf9f54; --gold-soft:#cf9f5433;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f4f1ea; --bg-2:#fbf9f4; --panel:#ffffff; --panel-2:#f0ece2; --rule:#d9d2c4;
+      --ink:#2c2a33; --dim:#6b6757; --dim-2:#9a9484; --gold:#9a6b1f; --gold-soft:#9a6b1f22;
+    }
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg);}
+  body{margin:0;color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.55;
+    background:radial-gradient(60% 40% at 50% 0%, var(--bg-2), var(--bg));}
+  .wrap{max-width:760px;margin:0 auto;padding:44px 22px 70px;}
+  a{color:var(--gold);}
+  .back{font-size:14px;margin:0 0 34px;}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--dim);margin:0 0 6px;}
+  h1{font-size:44px;line-height:1.05;margin:0 0 10px;font-weight:600;letter-spacing:-.5px;}
+  h1 .mark{color:var(--gold);}
+  .one{font-size:20px;margin:0 0 8px;}
+  .one b{color:var(--gold);font-weight:600;}
+  .sub{color:var(--dim);font-size:15px;margin:0 0 28px;}
+  section.panel{background:var(--panel);border:1px solid var(--rule);border-radius:12px;
+    padding:22px 26px 20px;margin:18px 0 0;}
+  h2{font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--gold);margin:0 0 12px;font-weight:600;}
+  h3{font-size:16px;margin:18px 0 6px;}
+  p{margin:8px 0;}
+  ul{margin:8px 0;padding-left:22px;}
+  li{margin:5px 0;}
+  li::marker{color:var(--gold);}
+  .dim{color:var(--dim);}
+  .mono{font-family:var(--mono);font-size:13px;}
+  .rule{border:0;border-top:1px solid var(--rule);margin:16px 0;}
+  .steps{counter-reset:step;list-style:none;padding:0;margin:10px 0;}
+  .steps li{counter-increment:step;position:relative;padding-left:34px;margin:9px 0;}
+  .steps li::before{content:counter(step);position:absolute;left:0;top:2px;width:22px;height:22px;
+    border:1px solid var(--gold);border-radius:50%;color:var(--gold);
+    font-family:var(--mono);font-size:12px;display:grid;place-items:center;}
+  .downloads{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0 4px;}
+  .dl{border:1px dashed var(--rule);border-radius:10px;padding:14px 16px;background:var(--gold-soft);}
+  .dl h3{margin:0 0 4px;font-size:16px;}
+  .dl p{margin:0;font-size:14px;color:var(--dim);}
+  .promise{margin:10px 0 4px;padding:0;list-style:none;}
+  .promise li{margin:10px 0;padding-left:2px;}
+  .promise b{color:var(--gold);font-weight:600;}
+  footer{color:var(--dim);font-size:14px;margin-top:36px;}
+  .small{font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="back"><a href=".">← Tiny Verbatim</a> · the light browser version — practice right now, nothing kept.</p>
+
+  <p class="eyebrow">the encrypted desktop app</p>
+  <h1>Verbatim<span class="mark">.</span></h1>
+  <p class="one">A word-perfect memory trainer that keeps everything <b>encrypted on your own computer</b>.</p>
+  <p class="sub">Paste a text, split it into blocks — verses, questions and answers, terms — and type each one
+    from memory, checked to the letter. Tiny Verbatim in the browser practises the same way and forgets
+    everything when you close it; Verbatim keeps what you learn, protected.</p>
+
+  <section class="panel">
+    <h2>01 · What the app adds</h2>
+    <ul>
+      <li>Everything you keep is encrypted on your computer: entries, sessions, notes and tests, history,
+        your personal dictionary and your settings (all but the theme and the screen language, which sit
+        plainly beside the app so it can draw before you unlock). Files are padded, so their sizes say little about
+        what is in them.</li>
+      <li>Accounts, each with a name and a PIN or password, and an admin side that manages them.</li>
+      <li>Secure collections behind passwords of their own — some can stay hidden behind a second
+        password; an inspection of your files doesn't show whether any exist.</li>
+      <li>A library with folders, a 30-day Discarded shelf, and an encrypted backup you can check and
+        restore.</li>
+      <li>Several vaults on one computer, each opened only by its own 12-word recovery phrase; nothing
+        on the screen shows the others exist.</li>
+      <li>Protected share cards, encrypted, signed with the sender's own key and code name.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>02 · Where Verbatim lives</h2>
+    <p>Place Verbatim in a folder of your own choosing; its data sits beside it. It does not need to be
+      Applications — <span class="mono">Documents/Verbatim</span> or a USB stick suits it better.</p>
+    <ul>
+      <li>Verbatim keeps everything it stores in a folder beside itself, named after the app:
+        <span class="mono">Verbatim Data</span>. Your vaults, encrypted, live there. Nothing goes to
+        Application Support, and there are no accounts and no servers.</li>
+      <li>To back up, move or carry Verbatim, copy the app and that folder together.</li>
+      <li>Each app copy in its own folder is its own install, with its own vaults and its own theme
+        and language.</li>
+      <li>Delete the data folder only if you mean to erase every vault in it: without a backup,
+        nothing can bring them back.</li>
+    </ul>
+    <p class="dim small">macOS runs an app straight from a disk image or the Downloads folder from a hidden
+      read-only place, so Verbatim opened there asks you to move it first.</p>
+  </section>
+
+  <section class="panel">
+    <h2>03 · Downloads</h2>
+    <p>The download is not here yet. A first test round with a small invited group begins
+      <b>November 22</b>; the public download arrives on this page after testing has proven it. A test
+      build is a test build: keep backups. The SHA-256 of every file is published beside it.</p>
+    <div class="downloads">
+      <div class="dl"><h3>Mac</h3><p>the <span class="mono">.dmg</span> image, with a read-me beside the app</p></div>
+      <div class="dl"><h3>Windows</h3><p>the <span class="mono">.msi</span> installer</p></div>
+      <div class="dl"><h3>Linux</h3><p>an <span class="mono">.AppImage</span> and a <span class="mono">.deb</span></p></div>
+    </div>
+    <p class="dim small">The files are unsigned for now; the steps below open them. Installers are published
+      only on the releases page this page links to — nowhere else.</p>
+  </section>
+
+  <section class="panel">
+    <h2>04 · Opening an unsigned file</h2>
+    <h3>Mac</h3>
+    <ol class="steps">
+      <li>Drag the app into a folder of yours and open it from there — never straight from the disk image.</li>
+      <li>The first time, macOS says it cannot check the app: open
+        <span class="mono">System Settings &gt; Privacy &amp; Security</span> and choose
+        <b>Open Anyway</b>.</li>
+    </ol>
+    <h3>Windows</h3>
+    <ol class="steps">
+      <li>Windows SmartScreen stops a file it doesn't know: choose <b>More info</b>, then
+        <b>Run anyway</b>.</li>
+    </ol>
+    <h3>Linux</h3>
+    <ol class="steps">
+      <li>An AppImage is made executable and run: <span class="mono">chmod +x Verbatim.AppImage</span>.
+        The <span class="mono">.deb</span> installs with your package manager.</li>
+    </ol>
+  </section>
+
+  <section class="panel">
+    <h2>05 · Cards, in plain words</h2>
+    <p>A <b>Tiny Verbatim</b> card is a container, not a hiding place: it is encoded, not encrypted, and
+      anyone holding it can read what it says and who sent it. The picture openly shows its title, an
+      emoji and a short identifier.</p>
+    <p>A <b>Verbatim</b> card is encrypted; its code travels another way, and only the sender's mark and
+      code name show. Every card one sender signs carries the same code name, so they can be linked —
+      the point of a signature, and its cost.</p>
+  </section>
+
+  <section class="panel">
+    <h2>06 · What it sends</h2>
+    <ul class="promise">
+      <li><b>Verbatim sends nothing on its own.</b> Every send is started by you, and the screen shows
+        what goes and where: a share card, an export, a feedback report, courier sync, a check for
+        updates.</li>
+      <li><b>Everything you keep is encrypted on your computer:</b> entries, sessions, notes and tests,
+        history, your personal dictionary and your settings (all but the theme and the screen language, which sit
+        plainly beside the app so it can draw before you unlock). Files are padded, so their sizes say
+        little about what is in them.</li>
+      <li><b>Some collections can stay hidden behind a second password.</b> An inspection of your files
+        doesn't show whether any hidden collections exist; copies compared over time can show that
+        something changed, never what changed.</li>
+      <li><b>One key hides and locks.</b> The panic shortcut blanks the screen, locks, and clears anything
+        Verbatim put on the clipboard. Work you have not saved is kept in a protected part of your
+        library, so you can pick it up after a crash. Deleting everything is possible: in Settings,
+        after unlocking, by typing DELETE and confirming.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>07 · The code</h2>
+    <p>The source becomes public with version 1.0.</p>
+  </section>
+
+  <footer>
+    <p>Verbatim is free. Tiny Verbatim stays in the browser, for trying things out — two trainers,
+      plainly told apart.</p>
+    <p><a href=".">Back to Tiny Verbatim →</a></p>
+  </footer>
+
+</div>
+</body>
+</html>
