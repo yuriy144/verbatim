@@ -1,6 +1,30 @@
 # Changelog
 
-## 6.0.0 (unreleased, 2026-11-20)
+## 6.0.1 (2026-11-20)
+
+From a click-through of 6.0.0 on verbatim.run.
+
+### For people using Verbatim
+
+- **⚙ Settings looks like the other dialogs:** the text-size label is a small uppercase
+  label like the Share dialog's, and the checkbox is gold, not the browser's blue.
+- **"Practise this again, another way"** shows its label on its own line, so the six ways
+  stay on one row instead of one dropping to a line alone.
+
+### For reviewers
+
+- CSS only, plus the version: `.dlg .lbl` shares `.dlg label`'s style;
+  `.dlg input[type="checkbox"]` takes `accent-color: var(--gold)`; `.again-row .hint`
+  takes the full row. 6.0.1 in the header comment, the `app-version` meta, `APP_VERSION`
+  and `sw.js`'s `CACHE_VERSION`, so installed copies update. The what's-new note still
+  shows only to people coming from 5.x.
+- Checked in the browser: bubbles (place, wrong shown red, Cmd+Z, first time right),
+  Scrambled, Reshuffle, a refresh mid-session, the summary's row, the title, 🔥 with Enter,
+  the estimate setting and all four text sizes (A++ scales the reading area, typing box,
+  bubbles and both text boxes by 1.3). Not tested by hand: the old-library notice and the
+  what's-new note (they need a 5.x visitor's storage; the Playwright checks cover both).
+
+## 6.0.0 (2026-11-20)
 
 A major version: the on-device library is gone. Everything else is additive.
 

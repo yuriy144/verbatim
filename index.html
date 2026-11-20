@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 6.0.0
+  Version 6.0.1
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="6.0.0">
+<meta name="app-version" content="6.0.1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -448,7 +448,7 @@
     color:var(--gold);margin:0 0 14px;font-weight:600;
   }
   .dlg .field{margin:0 0 12px;}
-  .dlg label{
+  .dlg label,.dlg .lbl{
     display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
     text-transform:uppercase;color:var(--dim-2);margin-bottom:5px;
   }
@@ -456,6 +456,7 @@
     display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;
     font-family:var(--serif);font-size:14px;color:var(--ink);cursor:pointer;margin-bottom:0;
   }
+  .dlg input[type="checkbox"]{accent-color:var(--gold);}
   .dlg input[type="text"],.dlg input[type="password"],.dlg select{
     width:100%;background:var(--bg-2);border:1px solid var(--rule);border-radius:3px;
     color:var(--ink);font-family:var(--serif);font-size:14.5px;padding:9px 11px;
@@ -777,6 +778,7 @@
   .bubble{background:var(--panel-2);touch-action:none;}
   .bubble-ghost{position:fixed;z-index:80;pointer-events:none;opacity:.85;border:1px solid var(--gold);background:var(--panel);color:var(--ink);}
   .again-row{border-top:1px solid var(--rule);padding-top:12px;}
+  .again-row .hint{flex-basis:100%;} /* the label on its own line, so the ways stay on one row */
   #cueBubbles{margin-left:6px;}
   /* Text size for the reading and typing areas only (owner, 2026-11-19); the rest of the UI keeps its size. */
   :root{--ts:1;}
@@ -1014,8 +1016,8 @@
       <label><input type="checkbox" id="setEstimate"> <span data-i18n="setEstimate">Show the word count and a rough time before starting</span></label>
     </div>
     <div class="field">
-      <span class="hint" id="textSizeLbl" data-i18n="setTextSize">Text size of the reading and typing areas</span>
-      <div class="split-modes" role="group" aria-labelledby="textSizeLbl" id="textSizes" style="margin-top:8px;">
+      <span class="lbl" id="textSizeLbl" data-i18n="setTextSize">Text size of the reading and typing areas</span>
+      <div class="split-modes" role="group" aria-labelledby="textSizeLbl" id="textSizes">
         <button data-size="s">A−</button>
         <button data-size="m" data-i18n="sizeNormal">Normal</button>
         <button data-size="l">A+</button>
@@ -1135,7 +1137,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '6.0.0';
+const APP_VERSION = '6.0.1';
 const byId = (id) => document.getElementById(id);
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
