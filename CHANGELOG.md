@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.4 (2026-11-20)
+
+- **The burn dialog's confirm button is plain text** ("Burn it"), without the colour 🔥, in
+  every language, so nothing on the burn path is in colour. For reviewers: the leading
+  emoji was removed from `fireGo` in all 14 language blocks and from the button's HTML.
+
 ## 6.0.3 (2026-11-20)
 
 - **The burn button is monochrome:** a drawn flame in the same gold as the buttons beside it,
