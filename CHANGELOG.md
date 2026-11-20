@@ -1,5 +1,33 @@
 # Changelog
 
+## 6.0.2 (2026-11-20)
+
+Two bugs found on verbatim.run.
+
+### For people using Verbatim
+
+- **A missing space now costs one character.** Typing "besidestill" for "beside still"
+  used to mark the following words wrong and the line came out near 65%. Now only the
+  missing space is marked (98.6% on that line). A space typed inside a word ("be side") is
+  likewise one extra space.
+- **With word bubbles, the line above matches the bubbles.** A bubble takes the small
+  words before the hidden word ("me beside still waters"), and the line above now hides
+  those words too, so the two lines agree after every Reshuffle.
+
+### For reviewers
+
+- `wordAlign` and `wordAlignPrefix` gained two moves, at the cost of one near-typo word:
+  *join* (two target words and their space typed as one word, case aside; while typing,
+  the word may be a start of them once it is past the first word) and *split* (a word
+  typed with a space inside). `computeDiff` grades each half against its own word. The
+  backtrace is shared (`wordBacktrace`). The same change is in the full app's
+  `core/src/engine/align.ts` and `diff.ts`. `tiny_e2e/parity.spec.ts` now also checks
+  that committed grades match the core's, mark for mark. Shortcut: a typo inside a joined
+  word ("besidestil") is not joined; it grades as before.
+- `shownCue(i)` is the cue the line above draws: in bubble mode it also hides each gap's
+  range. Bubbles and cues themselves are unchanged.
+- Version 6.0.2 (header comment, `app-version` meta, `APP_VERSION`, `sw.js`).
+
 ## 6.0.1 (2026-11-20)
 
 From a click-through of 6.0.0 on verbatim.run.

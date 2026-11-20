@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 6.0.1
+  Version 6.0.2
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="6.0.1">
+<meta name="app-version" content="6.0.2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1137,7 +1137,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '6.0.1';
+const APP_VERSION = '6.0.2';
 const byId = (id) => document.getElementById(id);
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
@@ -1420,6 +1420,48 @@ function wordSubCost(a, b){
   return sim >= WORD_SIM_THRESHOLD ? WORD_SUB_SIMILAR : WORD_SUB_DISSIMILAR;
 }
 
+// A space left out or put in costs what one near-typo word does, so "besidestill" reads as
+// "beside still" with one missing space, not a run of wrong words (from Verbatim, core/src/engine/align.ts).
+const SPACE_COST = WORD_SUB_SIMILAR;
+const isWsTok = (w) => /^\s+$/.test(w);
+function spaceless(first, second, whole, live){
+  const joined = (first + second).toLowerCase(), w = whole.toLowerCase();
+  return w === joined || (live && w.length > first.length && joined.startsWith(w));
+}
+function canJoin(a, b, i, j, live){
+  return i >= 3 && j >= 1 && isWsTok(a[i-2]) && !isWsTok(a[i-3]) && !isWsTok(a[i-1]) && !isWsTok(b[j-1]) &&
+    spaceless(a[i-3], a[i-1], b[j-1], live && j === b.length);
+}
+function canSplit(a, b, i, j){
+  return j >= 3 && i >= 1 && isWsTok(b[j-2]) && !isWsTok(b[j-3]) && !isWsTok(b[j-1]) && !isWsTok(a[i-1]) &&
+    spaceless(b[j-3], b[j-1], a[i-1], false);
+}
+function spaceMove(a, b, dp, i, j, live){
+  let best = Infinity;
+  if(canJoin(a, b, i, j, live)) best = dp[i-3][j-1] + SPACE_COST;
+  if(canSplit(a, b, i, j)) best = Math.min(best, dp[i-1][j-3] + SPACE_COST);
+  return best;
+}
+function wordBacktrace(a, b, dp, endRow, live){
+  const ops = [];
+  let i = endRow, j = b.length;
+  while(i > 0 || j > 0){
+    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1])){
+      ops.push({type: a[i-1].toLowerCase()===b[j-1].toLowerCase() ? 'match' : 'sub', ai:i-1, bi:j-1}); i--; j--;
+    } else if(canJoin(a, b, i, j, live) && dp[i][j] === dp[i-3][j-1] + SPACE_COST){
+      ops.push({type:'join', ai:i-3, bi:j-1}); i -= 3; j--;
+    } else if(canSplit(a, b, i, j) && dp[i][j] === dp[i-1][j-3] + SPACE_COST){
+      ops.push({type:'split', ai:i-1, bi:j-3}); i--; j -= 3;
+    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
+      ops.push({type:'del', ai:i-1}); i--;
+    } else {
+      ops.push({type:'ins', bi:j-1}); j--;
+    }
+  }
+  ops.reverse();
+  return ops;
+}
+
 function wordAlign(a, b){
   // Weighted Levenshtein over whole tokens (words/whitespace) for COMMITTED lines.
   // Indel cost is 1; substitution cost comes from wordSubCost, so dissimilar words
@@ -1431,22 +1473,10 @@ function wordAlign(a, b){
   for(let j=0;j<=m;j++) dp[0][j] = j;
   for(let i=1;i<=n;i++){
     for(let j=1;j<=m;j++){
-      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1]), dp[i-1][j]+1, dp[i][j-1]+1);
+      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1]), dp[i-1][j]+1, dp[i][j-1]+1, spaceMove(a, b, dp, i, j, false));
     }
   }
-  const ops = [];
-  let i = n, j = m;
-  while(i > 0 || j > 0){
-    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + wordSubCost(a[i-1], b[j-1])){
-      ops.push({type: a[i-1].toLowerCase()===b[j-1].toLowerCase() ? 'match' : 'sub', ai:i-1, bi:j-1}); i--; j--;
-    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
-      ops.push({type:'del', ai:i-1}); i--;
-    } else {
-      ops.push({type:'ins', bi:j-1}); j--;
-    }
-  }
-  ops.reverse();
-  return ops;
+  return wordBacktrace(a, b, dp, n, false);
 }
 
 function wordAlignPrefix(target, typed){
@@ -1461,23 +1491,12 @@ function wordAlignPrefix(target, typed){
   for(let j=0;j<=m;j++) dp[0][j] = j;
   for(let i=1;i<=n;i++){
     for(let j=1;j<=m;j++){
-      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(target[i-1], typed[j-1]), dp[i-1][j]+1, dp[i][j-1]+1);
+      dp[i][j] = Math.min(dp[i-1][j-1] + wordSubCost(target[i-1], typed[j-1]), dp[i-1][j]+1, dp[i][j-1]+1, spaceMove(target, typed, dp, i, j, true));
     }
   }
   let best = Infinity, endRow = 0;
   for(let i=0;i<=n;i++){ if(dp[i][m] <= best){ best = dp[i][m]; endRow = i; } }
-  const ops = [];
-  let i = endRow, j = m;
-  while(i > 0 || j > 0){
-    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + wordSubCost(target[i-1], typed[j-1])){
-      ops.push({type: target[i-1].toLowerCase()===typed[j-1].toLowerCase() ? 'match' : 'sub', ai:i-1, bi:j-1}); i--; j--;
-    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
-      ops.push({type:'del', ai:i-1}); i--;
-    } else {
-      ops.push({type:'ins', bi:j-1}); j--;
-    }
-  }
-  ops.reverse();
+  const ops = wordBacktrace(target, typed, dp, endRow, true);
   for(let k=endRow; k<n; k++) ops.push({type:'pending', ai:k});
   return ops;
 }
@@ -1632,10 +1651,28 @@ function computeDiff(target, typed, isFinal){
   // consumed some typed input). Pending characters inside any earlier word are
   // genuine omissions; only the last reached word can have a "not yet typed" tail.
   let lastReachedOp = -1;
-  ops.forEach((op, idx) => { if(op.type === 'match' || op.type === 'sub' || op.type === 'ins') lastReachedOp = idx; });
+  ops.forEach((op, idx) => { if(['match', 'sub', 'ins', 'join', 'split'].includes(op.type)) lastReachedOp = idx; });
 
+  const addPair = (sub) => {
+    cells.push(...sub.cells);
+    correctCount += sub.correctCount; caseErr += sub.caseErr; punctErr += sub.punctErr;
+    subErr += sub.subErr; extraCount += sub.extraCount; omittedCount += sub.omittedCount;
+  };
   ops.forEach((op, idx) => {
-    if(op.type === 'match' || op.type === 'sub'){
+    const live = !isFinal && idx === lastReachedOp;
+    if(op.type === 'join'){
+      // A space left out: each half of the typed word against its own word, the space omitted.
+      const w1 = targetTokens[op.ai], w2 = targetTokens[op.ai+2], tw = typedTokens[op.bi];
+      addPair(charDiffPair(w1, tw.slice(0, w1.length), isFinal, false));
+      for(const ch of targetTokens[op.ai+1]){ cells.push({ch, cls:'omitted'}); omittedCount++; }
+      addPair(charDiffPair(w2, tw.slice(w1.length), isFinal, live));
+    } else if(op.type === 'split'){
+      // A space put in: each typed half against its part of the word, the typed space extra.
+      const w = targetTokens[op.ai], x = typedTokens[op.bi], y = typedTokens[op.bi+2];
+      addPair(charDiffPair(w.slice(0, x.length), x, isFinal, false));
+      for(const ch of typedTokens[op.bi+1]){ cells.push({ch, cls:'extra'}); extraCount++; }
+      addPair(charDiffPair(w.slice(x.length), y, isFinal, live));
+    } else if(op.type === 'match' || op.type === 'sub'){
       const isLastReachedWord = !isFinal && idx === lastReachedOp;
       const sub = charDiffPair(targetTokens[op.ai], typedTokens[op.bi], isFinal, isLastReachedWord);
       cells.push(...sub.cells);
@@ -2023,7 +2060,7 @@ function buildDiffHtml(cells, maskPending, cue, target){
 function renderDiff(typed, isFinal){
   const target = state.chunks[state.index];
   const d = computeDiff(target, typed, isFinal);
-  diffBox.innerHTML = buildDiffHtml(d.cells, !(state.revealPending || state.peeking), cueForBlock(state.index), target);
+  diffBox.innerHTML = buildDiffHtml(d.cells, !(state.revealPending || state.peeking), shownCue(state.index), target);
   liveAcc.textContent = d.accuracy + '%';
   liveLen.textContent = typed.length;
 }
@@ -2120,6 +2157,15 @@ function cueFor(text, mode, level, seed, split, stop = CUE_FILLER_EN){
 function cueForBlock(i){
   if(state.cueMode === 'none' || !state.chunks || state.chunks[i] == null) return null;
   return cueFor(state.chunks[i], state.cueMode, state.cueLevel, state.cueSeed + i, state.splitMode, state.filler || CUE_FILLER_EN);
+}
+// The cue the line above shows. With word bubbles a gap also takes the small words before it
+// ("me beside still waters"), so the line hides those too and matches the bubble line below.
+function shownCue(i){
+  const cue = cueForBlock(i);
+  if(!cue || state.cueMode !== 'keyWords' || !state.cueBubbles || i !== state.index) return cue;
+  const out = cue.slice();
+  for(const g of currentBubbleSet().gaps) for(let k = g.start; k < g.end; k++) if(cueIsWordChar(state.chunks[i][k])) out[k] = null;
+  return out;
 }
 function setCuePressed(group, attr, value){
   group.querySelectorAll('button[' + attr + ']').forEach(b => {
