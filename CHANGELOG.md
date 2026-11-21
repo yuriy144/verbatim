@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.1.2 (2026-11-21)
+
+- **Opening a share card fills both boxes:** the text above and the blocks below. Before, only
+  the blocks changed and the last text stayed above, which was confusing. A card now carries its
+  reference text as well as its blocks; a card made before this fills both boxes with its blocks.
+- **Fixed:** an open card from the full app put its whole text, unsplit, into the blocks box. It
+  is now split as the sender chose.
+
 ## 6.1.1 (2026-11-21)
 
 - **Open cards from the full Verbatim app open here.** A card made there without a code shows its

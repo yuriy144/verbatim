@@ -30,7 +30,7 @@
 */
 'use strict';
 
-const CACHE_VERSION = 'v6.1.1';
+const CACHE_VERSION = 'v6.1.2';
 const CACHE_NAME = 'verbatim-' + CACHE_VERSION;
 
 // Must match the repository layout exactly — GitHub Pages URLs are
