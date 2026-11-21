@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.1.1 (2026-11-21)
+
+- **Open cards from the full Verbatim app open here.** A card made there without a code shows its
+  title and blocks, ready to practise. A card protected with a code says to open it in the full
+  app, instead of saying no passage was found.
+- **Word bubbles come in phrases sized by level:** Easy 4–7 words, Medium 2–5, Hard 1–3.
+- **Extra phrases for Scrambled,** off by default: a few phrases from the text's other lines join
+  the tray.
+
 ## 6.1.0 (2026-11-20)
 
 - **The full Verbatim app comes first.** Under the text box and at the top of the footer, a line
