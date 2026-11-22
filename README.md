@@ -6,6 +6,8 @@ Verbatim started as a way to actually memorize scripture and poetry instead of j
 
 No app store. No login. No "create an account to continue." It's one file. You open it. It works.
 
+Want to keep what you learn? The full Verbatim desktop app keeps an encrypted library on your own computer — see [verbatim.run/get.html](https://verbatim.run/get.html).
+
 ---
 
 ## Why this exists
@@ -29,12 +31,15 @@ It's built as a single self-contained HTML file on purpose. You can save it to a
 - **Light/dark theme** that defaults to whatever your OS prefers.
 - **PNG export** — save a clean image of your session summary, or copy it to the clipboard.
 - **Keyboard shortcuts** that work properly across platforms (yes, including the Mac Option key).
+- **Cues** — first letters, first words or key words at three levels, word bubbles to place instead of type, and scrambled phrases to put back in order (with optional extra phrases).
+- **Share cards** — a PNG that carries the text and its blocks inside the picture; opening one fills both boxes. Cards from the full Verbatim app open here too, unless protected with a code.
+- **Interface in 14 languages**, with regional variants.
 
 ---
 
 ## How to use it
 
-1. **Open the file.** You have the option to run it directly as hosted on Github, or download `verbatim.html` and open it in any modern browser, or use the hosted version (link below). That's the install step. There is no other install step.
+1. **Open it.** Use the hosted version at [verbatim.run](https://verbatim.run), or download `index.html` and open it in any modern browser. You can also install it as a web app from the page. That's the install step. There is no other install step.
 2. **Paste your text** into the input area.
 3. **Pick how to split it** — lines, sentences, verses, or Q&A — depending on what you're memorizing.
 4. **Start typing.** Verbatim shows each block, then hides it and waits for you to reproduce it.
@@ -49,7 +54,7 @@ Verbatim does not collect your data, because Verbatim has no way to collect your
 
 Everything happens inside your own browser, on your own device. Nothing you type, paste, or score is ever sent anywhere. There are no servers, no analytics, no trackers, no cookies, no "anonymized telemetry," no third parties, and no mysterious background phone-home. The page doesn't even know you exist, which can honestly be a nice feeling in today's era of users becoming products.
 
-And here's the kicker: **nothing is saved.** Not on a server, not on your device. When you refresh the page or close the tab, your session is gone — text, scores, diffs, all of it. That's not a bug; it's the whole design. If you're practicing something personal, sensitive, or just embarrassingly difficult, that's between you and your keyboard. If you want a record, that's exactly what the PNG export is for. Save it before you close, or it vanishes like it never happened.
+And here's the kicker: **nothing is kept.** Not on a server, not on your device. A refresh keeps your session (it sits in the tab's own session storage), but when you close the tab it is gone — text, scores, diffs, all of it. Only the theme, the language and a few settings are remembered. That's not a bug; it's the whole design. If you're practicing something personal, sensitive, or just embarrassingly difficult, that's between you and your keyboard. If you want a record, that's exactly what the PNG export is for. Save it before you close, or it vanishes like it never happened.
 
 Treat it like a whiteboard, not a notebook.
 
