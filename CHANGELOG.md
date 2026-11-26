@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.1.3 (2026-11-26)
+
+- **Q & A reads the ways people write questions and answers.** "Q1 …" with "A …" under it,
+  "Question 1 … Answer …" on one line, "Q: … / A: …", "Ans.", a list number before "Q", and the
+  words in Tiny's languages ("Frage / Antwort", "Вопрос / Ответ", "问 / 答"). Before, several of
+  these gave no blocks at all. A text with no markers reads each line ending in "?" as a question
+  and the lines under it as its answer.
+
 ## 6.1.2 (2026-11-21)
 
 - **Opening a share card fills both boxes:** the text above and the blocks below. Before, only
