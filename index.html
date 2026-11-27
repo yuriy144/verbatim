@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Verbatim — a local-only memorization and accuracy trainer
-  Version 6.1.3
+  Version 6.1.4
   Copyright (c) 2026 Yuriy Vereshchagin (https://github.com/yuriy144)
   Source & docs: https://github.com/yuriy144/verbatim
 
@@ -17,7 +17,7 @@
 <title>Verbatim — memorization typing trainer</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTheme" content="#1a1822">
-<meta name="app-version" content="6.1.3">
+<meta name="app-version" content="6.1.4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1148,7 +1148,7 @@
 /* Single source of truth for the app version at runtime; also declared in the
    header comment and the app-version meta above, and mirrored by sw.js's
    CACHE_VERSION — bump all four together when releasing. */
-const APP_VERSION = '6.1.3';
+const APP_VERSION = '6.1.4';
 const byId = (id) => document.getElementById(id);
 
 /* MODULE MAP — search "---------- <name>" to jump to a section:
@@ -1650,6 +1650,50 @@ function charDiffPair(targetWord, typedWord, isFinal, isLastReachedWord){
   return {cells, correctCount, caseErr, punctErr, subErr, extraCount, omittedCount};
 }
 
+/* ---------- wrong tries (owner, 2026-11-26; the full app's core/src/engine/tries.ts, held by parity.spec.ts) ----------
+   A finished word that is another word than the text's, never a typo or the word being typed. */
+function osaDistance(a, b){
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  for(let j = 1; j <= b.length; j++) d[0][j] = j;
+  for(let i = 1; i <= a.length; i++)
+    for(let j = 1; j <= b.length; j++){
+      const c = a[i-1] === b[j-1] ? 0 : 1;
+      let v = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + c);
+      if(i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) v = Math.min(v, d[i-2][j-2] + 1);
+      d[i][j] = v;
+    }
+  return d[a.length][b.length];
+}
+// A misspelling, not another word: case or punctuation only, or one slip (two in a word of six letters or more).
+function isTypo(target, typed){
+  const bare = (w) => w.toLowerCase().replace(/[\p{P}\p{S}]/gu, '');
+  const a = bare(target), b = bare(typed);
+  if(a === b) return true;
+  return osaDistance(a, b) <= ([...a].length >= 6 ? 2 : 1);
+}
+// Finished wrong words keyed by place: "3" for the text's token 3 typed as another, "+3" for a word put in after token 3.
+function wrongWords(target, typed){
+  typed = normalizeText(typed);
+  const tt = target.match(/\S+|\s+/g) || [];
+  let ut = typed.match(/\S+|\s+/g) || [];
+  if(!/\s$/.test(typed)) ut = ut.slice(0, -1);
+  const out = new Map();
+  let last = -1, extra = 0;
+  for(const op of wordAlignPrefix(tt, ut)){
+    const at = op.type === 'join' ? op.ai + 2 : 'ai' in op && op.type !== 'del' && op.type !== 'pending' ? op.ai : -1;
+    if(at >= 0 && /\S/.test(tt[at])){ last = at; extra = 0; }
+    if(op.type === 'sub'){
+      const a = tt[op.ai], b = ut[op.bi];
+      if(/\S/.test(a) && /\S/.test(b) && !isTypo(a, b)) out.set(String(op.ai), b);
+    } else if(op.type === 'ins' && /\S/.test(ut[op.bi])){
+      const due = tt.slice(last + 1).find(w => /\S/.test(w));
+      if(!due || !isTypo(due, ut[op.bi])) out.set('+' + last + (extra ? '.' + extra : ''), ut[op.bi]);
+      extra++;
+    }
+  }
+  return out;
+}
+
 function computeDiff(target, typed, isFinal){
   // Two-tier diff: align whole words/whitespace runs first (case-insensitively,
   // so "The" and "the" share a slot), then diff characters within each aligned
@@ -1855,6 +1899,7 @@ function beginPractice(){
   state.results = new Array(blocks.length).fill(null);
   state.drafts = new Array(blocks.length).fill('');
   state.peeks = new Array(blocks.length).fill(0);
+  state.tries = blocks.map(() => ({ seen: [], standing: [], restarts: 0 }));
   state.peeking = false;
   state.bubbles = [];
   bubbleUndo = [];
@@ -2243,7 +2288,11 @@ let _diffRaf = 0;
 typeInput.addEventListener('input', (e) => {
   noteActivity();
   typedSinceFocus = true;
-  state.drafts[state.index] = e.target.value;
+  const was = state.drafts[state.index] || '', v = e.target.value;
+  state.drafts[state.index] = v;
+  // The whole block erased with a wrong word in it is one restart; a letter added to the word being typed changes nothing.
+  if(!v.trim()) restartTries();
+  else if(!(v.length === was.length + 1 && v.startsWith(was) && /\S/.test(v.at(-1)))) noteTries();
   state.currentIsFinal = false; // actively editing again, even if this line was committed before
   // Coalesce diff renders to one per frame: on fast typing (or key repeat) the
   // O(n·m) diff + innerHTML swap ran per keystroke; extra runs between frames
@@ -2503,6 +2552,7 @@ function recordResult(){
   const target = state.chunks[state.index];
   const typed = typeInput.value;
   const d = computeDiff(target, typed, true);
+  noteTries(true);
   state.results[state.index] = {
     typed, accuracy:d.accuracy, caseErr:d.caseErr, punctErr:d.punctErr,
     subErr:d.subErr, extraCount:d.extraCount, omittedCount:d.omittedCount,
@@ -2542,6 +2592,8 @@ document.getElementById('btnNext').addEventListener('click', () => {
   commitLine();
 });
 function retryBlock(){
+  noteTries(true);
+  restartTries();
   state.currentIsFinal = false;
   setTypedValue('', false);
   if(state.bubbles) state.bubbles[state.index] = null;
@@ -2735,6 +2787,7 @@ function computeSessionStats(){
     [t('stCase'), String(caseErr)],
     [t('stPunct'), String(punctErr)],
     [t('stSlips'), String(lengthSlips)],
+    [t('stTries'), String(state.chunks.reduce((n, _, i) => n + triesOf(i), 0))],
   );
   return {stats, scored, overall, caseErr, punctErr, lengthSlips, perfect, elapsedMs, afkMs, activeMs};
 }
@@ -3030,10 +3083,38 @@ function undoBubble(){
   selGap = st.placed.includes(null) ? st.placed.indexOf(null) : null;
   state.currentIsFinal = false;
   setTypedValue(placedText(set, st), false);
+  noteTries();
   bubbleSr.textContent = t('bubUndone');
   renderBubbles();
   (bubbleLine.querySelector('button[tabindex="0"]') || byId('btnNext')).focus();
   return true;
+}
+/* Wrong tries on the block on screen (owner, 2026-11-26): each wrong finished word that is not a typo,
+   or each wrong bubble placed, is noted; it counts once it no longer stands. done: the line is finished. */
+function noteTries(done = false){
+  const i = state.index, target = state.chunks[i];
+  if(target === undefined) return;
+  state.tries = state.tries || [];
+  const tr = state.tries[i] = state.tries[i] || { seen: [], standing: [], restarts: 0 };
+  let now;
+  if(bubbleMode()){
+    const set = currentBubbleSet(), st = bubbleState(set);
+    now = st.placed.flatMap((p, g) => p !== null && set.bubbles[p] !== st.words[g] ? ['g' + g + '\u0000' + set.bubbles[p]] : []);
+  } else now = [...wrongWords(target, done ? typeInput.value + ' ' : typeInput.value)].map(([k, w]) => k + '\u0000' + w);
+  for(const k of now) if(!tr.seen.includes(k)) tr.seen.push(k);
+  tr.standing = now;
+}
+// The block started over (Retry, or the box erased): one try if a wrong word stood, which then does not count again.
+function restartTries(){
+  const tr = state.tries && state.tries[state.index];
+  if(!tr || !tr.standing.length) return;
+  tr.restarts++;
+  tr.seen = tr.seen.filter(k => !tr.standing.includes(k));
+  tr.standing = [];
+}
+function triesOf(i){
+  const tr = state.tries && state.tries[i];
+  return tr ? tr.seen.filter(k => !tr.standing.includes(k)).length + tr.restarts : 0;
 }
 // Per cent of gaps whose first placed word was right, one decimal; null when the block had no bubbles.
 function firstTimeRight(st){
@@ -3054,6 +3135,7 @@ function placeBubble(bi, gi = selGap){
   selGap = after >= 0 ? after : st.placed.includes(null) ? st.placed.indexOf(null) : null;
   state.currentIsFinal = false;
   setTypedValue(placedText(set, st), false);
+  noteTries();
   bubbleSr.textContent = t('bubPlaced', { word: set.bubbles[bi], i: target + 1 });
   renderBubbles();
   // Focus stays in the tray, or goes to Next → once every gap is filled: Enter then goes on.
@@ -3068,6 +3150,7 @@ function chooseGap(gi){
     st.placed[gi] = null;
     state.currentIsFinal = false;
     setTypedValue(placedText(set, st), false);
+    noteTries();
     bubbleSr.textContent = t('bubBack', { word: set.bubbles[p], i: gi + 1 });
   } else bubbleSr.textContent = t('bubChosen', { i: gi + 1 });
   selGap = gi;
@@ -3221,7 +3304,7 @@ byId('btnDoFire').addEventListener('click', () => {
    tab still clears it, so the privacy line stays true word for word (owner, 2026-11-19). */
 const SESSION_KEY = 'verbatim-session';
 const SESSION_FIELDS = ['splitMode', 'sentenceOpts', 'cueMode', 'cueLevel', 'cueSeed', 'cueBubbles', 'cueExtras', 'chunks', 'prompts', 'results',
-  'drafts', 'peeks', 'bubbles', 'index', 'startTime', 'endTime', 'afkMs', 'lastInputTime', 'timeLimitSec', 'revealPending', 'boxHidden', 'diffMode', 'typeMode'];
+  'drafts', 'peeks', 'bubbles', 'tries', 'index', 'startTime', 'endTime', 'afkMs', 'lastInputTime', 'timeLimitSec', 'revealPending', 'boxHidden', 'diffMode', 'typeMode'];
 function saveSession(){
   if(burning) return;
   const snap = { v: 1, screen: SCREENS.find(s => !byId(s).classList.contains('hidden')),
@@ -3324,8 +3407,10 @@ function showSummary(){
     // The way it was done, named (owner, 2026-11-20): word bubbles or scrambled, then the figure.
     const way = bst && bst.key.split('\u0001')[0] === 'scrambled' ? 'cueScrambled' : 'cueBubbles';
     const firstRight = ftr === null ? '' : ' · ' + escapeProse(t(way) + ' · ' + t('bubFirstRight', { n: ftr }));
+    const w = triesOf(i);
+    const tries = w ? ' · ' + escapeProse(w === 1 ? t('triesOnce') : t('triesN', { n: w })) : '';
     return `<div class="review-item ${cls}">
-      <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span class="acc">${r.accuracy}%${peeked}${firstRight}</span></div>
+      <div class="review-meta"><span>${blockLabel}${cueLabel}</span><span class="acc">${r.accuracy}%${peeked}${firstRight}${tries}</span></div>
       <div class="review-diff">${buildDiffHtml(d.cells, false)}</div>
     </div>`;
   }).join('');
@@ -3343,7 +3428,7 @@ document.getElementById('btnBackToPractice').addEventListener('click', () => {
 function restartSession(){
   showScreen('setup');
   document.body.classList.remove('kb-open');
-  state.results = []; state.drafts = []; state.peeks = []; state.bubbles = [];
+  state.results = []; state.drafts = []; state.peeks = []; state.bubbles = []; state.tries = [];
   // brand-new session: reset the timer entirely
   stopTimer();
   state.startTime = null;
@@ -4481,6 +4566,7 @@ const LANGS = {
     stCase:'Case errors',
     stPunct:'Punctuation errors',
     stSlips:'Length slips',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Wrong tries corrected', triesOnce:'1 wrong try corrected', triesN:'{n} wrong tries corrected',
     ttRetry:'Clear and retry this block (Ctrl+Alt+R)',
     
     
@@ -4810,6 +4896,7 @@ const LANGS = {
     stCase:'大小写错误',
     stPunct:'标点错误',
     stSlips:'长度偏差',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'已更正的错误尝试', triesOnce:'更正了 1 次错误尝试', triesN:'更正了 {n} 次错误尝试',
     ttRetry:'清空并重做本块（Ctrl+Alt+R）',
     
     
@@ -5139,6 +5226,7 @@ const LANGS = {
     stCase:'大細楷錯誤',
     stPunct:'標點錯誤',
     stSlips:'長度偏差',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'改返嘅錯誤嘗試', triesOnce:'改返 1 次錯誤嘗試', triesN:'改返 {n} 次錯誤嘗試',
     ttRetry:'清空並重做呢段（Ctrl+Alt+R）',
     
     
@@ -5467,6 +5555,7 @@ const LANGS = {
     stCase:'Erreurs de casse',
     stPunct:'Erreurs de ponctuation',
     stSlips:'Écarts de longueur',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Essais erronés corrigés', triesOnce:'1 essai erroné corrigé', triesN:'{n} essais erronés corrigés',
     ttRetry:'Effacer et refaire ce bloc (Ctrl+Alt+R)',
     
     
@@ -5798,6 +5887,7 @@ const LANGS = {
     stCase:'Groß-/Kleinschreibfehler',
     stPunct:'Zeichensetzungsfehler',
     stSlips:'Längenabweichungen',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Korrigierte Fehlversuche', triesOnce:'1 Fehlversuch korrigiert', triesN:'{n} Fehlversuche korrigiert',
     ttRetry:'Diesen Block löschen und wiederholen (Strg+Alt+R)',
     
     
@@ -6126,6 +6216,7 @@ const LANGS = {
     stCase:'केस त्रुटियाँ',
     stPunct:'विराम-चिह्न त्रुटियाँ',
     stSlips:'लंबाई विचलन',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'सुधारे गए गलत प्रयास', triesOnce:'1 गलत प्रयास सुधारा गया', triesN:'{n} गलत प्रयास सुधारे गए',
     ttRetry:'इस खंड को साफ़ करके फिर से करें (Ctrl+Alt+R)',
     
     
@@ -6455,6 +6546,7 @@ const LANGS = {
     stCase:'Errori di maiuscole',
     stPunct:'Errori di punteggiatura',
     stSlips:'Scarti di lunghezza',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Tentativi errati corretti', triesOnce:'1 tentativo errato corretto', triesN:'{n} tentativi errati corretti',
     ttRetry:'Cancella e ripeti questo blocco (Ctrl+Alt+R)',
     
     
@@ -6783,6 +6875,7 @@ const LANGS = {
     stCase:'大文字小文字の誤り',
     stPunct:'句読点の誤り',
     stSlips:'長さのずれ',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'直した誤答', triesOnce:'誤答を1回直した', triesN:'誤答を{n}回直した',
     ttRetry:'このブロックを消してやり直す（Ctrl+Alt+R）',
     
     
@@ -7111,6 +7204,7 @@ const LANGS = {
     stCase:'대소문자 오류',
     stPunct:'문장부호 오류',
     stSlips:'길이 오차',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'고친 오답', triesOnce:'오답 1번 고침', triesN:'오답 {n}번 고침',
     ttRetry:'이 블록을 지우고 다시 하기 (Ctrl+Alt+R)',
     
     
@@ -7439,6 +7533,7 @@ const LANGS = {
     stCase:'Erros de maiúsculas',
     stPunct:'Erros de pontuação',
     stSlips:'Desvios de comprimento',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Tentativas erradas corrigidas', triesOnce:'1 tentativa errada corrigida', triesN:'{n} tentativas erradas corrigidas',
     ttRetry:'Limpar e repetir este bloco (Ctrl+Alt+R)',
     
     
@@ -7838,6 +7933,7 @@ const LANGS = {
     stCase:'Ошибки регистра',
     stPunct:'Ошибки пунктуации',
     stSlips:'Отклонения длины',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Исправленные неверные попытки', triesOnce:'1 неверная попытка исправлена', triesN:'Неверных попыток исправлено: {n}',
     ttRetry:'Очистить и повторить этот блок (Ctrl+Alt+R)',
     
     
@@ -8167,6 +8263,7 @@ const LANGS = {
     stCase:'Errores de mayúsculas',
     stPunct:'Errores de puntuación',
     stSlips:'Desviaciones de longitud',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Intentos erróneos corregidos', triesOnce:'1 intento erróneo corregido', triesN:'{n} intentos erróneos corregidos',
     ttRetry:'Borrar y repetir este bloque (Ctrl+Alt+R)',
     
     
@@ -8495,6 +8592,7 @@ const LANGS = {
     stCase:'Büyük/küçük harf hataları',
     stPunct:'Noktalama hataları',
     stSlips:'Uzunluk sapmaları',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Düzeltilen yanlış denemeler', triesOnce:'1 yanlış deneme düzeltildi', triesN:'{n} yanlış deneme düzeltildi',
     ttRetry:'Bu bloğu temizle ve yeniden dene (Ctrl+Alt+R)',
     
     
@@ -8824,6 +8922,7 @@ const LANGS = {
     stCase:'Помилки регістру',
     stPunct:'Помилки пунктуації',
     stSlips:'Відхилення довжини',
+    /* 6.1.4 (2026-11-26), unchecked */ stTries:'Виправлені хибні спроби', triesOnce:'1 хибну спробу виправлено', triesN:'Хибних спроб виправлено: {n}',
     ttRetry:'Очистити й повторити цей блок (Ctrl+Alt+R)',
     
     

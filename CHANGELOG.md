@@ -1,5 +1,14 @@
 # Changelog
 
+## 6.1.4 (2026-11-26)
+
+- **The summary counts wrong tries you corrected.** A finished word that was another word than the
+  text's and was then retyped, a word bubble or phrase put in the wrong place and then moved, and
+  a block erased or retried with a wrong word in it each count one. Typos ("teh", "Shakspeare")
+  don't count, and neither does a word fixed before its space. The total sits with the other
+  numbers, and each block in the review says how many it had. The new strings are machine
+  translated and marked unchecked.
+
 ## 6.1.3 (2026-11-26)
 
 - **Q & A reads the ways people write questions and answers.** "Q1 …" with "A …" under it,
