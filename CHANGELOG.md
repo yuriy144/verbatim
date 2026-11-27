@@ -1,5 +1,17 @@
 # Changelog
 
+## 6.1.5 (2026-11-26)
+
+- **One theme across the site.** The download page (get.html) has the same light and dark switch as
+  Tiny, and both keep one choice: switch on either page and the other opens the same way, open tabs
+  included. With no choice made yet, both follow the system's theme as before.
+- **Q & A reads markers in any language or alphabet.** Two marks that take turns at the start of
+  lines are read as question and answer, whatever letters or signs they are: "В1 … / A …",
+  "В1. … / О: …", "Ф … ? / Ж …". The question keeps its own mark as the cue ("В1 Какое…"), and
+  the answer's mark is left out of what you type. Questions numbered but answers unmarked work too.
+  This happens only when the questions carry numbers or end in "?", so a poem whose lines start
+  with short words isn't cut up.
+
 ## 6.1.4 (2026-11-26)
 
 - **The summary counts wrong tries you corrected.** A finished word that was another word than the

@@ -11,8 +11,21 @@
   privacy promise (copied word for word from docs/PRIVACY.md), and plainly what a Tiny card
   shows. Its centre is the portable layout (owner, 2026-11-09): place Verbatim in a folder of
   your own choosing; its data sits beside it — the same words as the .dmg's README.
-  Self-contained: no script, nothing loaded from outside, follows the system's theme.
+  Self-contained: nothing loaded from outside. The theme is Tiny's own choice, shared through
+  localStorage "verbatim-theme" on this site (owner, 2026-11-26): switched here or in Tiny, it holds
+  on every page and in open tabs; with no choice yet, the system's theme.
 -->
+<script>
+(function(){
+  try{
+    var stored = localStorage.getItem('verbatim-theme');
+    var theme = stored || ((window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  }catch(e){
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+</script>
 <style>
   :root{
     --bg:#1a1822; --bg-2:#211f2c; --panel:#252333; --panel-2:#2c2a3c; --rule:#3a3850;
@@ -20,17 +33,21 @@
     --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   }
-  @media (prefers-color-scheme: light){
-    :root{
-      --bg:#f4f1ea; --bg-2:#fbf9f4; --panel:#ffffff; --panel-2:#f0ece2; --rule:#d9d2c4;
-      --ink:#2c2a33; --dim:#6b6757; --dim-2:#9a9484; --gold:#9a6b1f; --gold-soft:#9a6b1f22;
-    }
+  [data-theme="light"]{
+    --bg:#f4f1ea; --bg-2:#fbf9f4; --panel:#ffffff; --panel-2:#f0ece2; --rule:#d9d2c4;
+    --ink:#2c2a33; --dim:#6b6757; --dim-2:#9a9484; --gold:#9a6b1f; --gold-soft:#9a6b1f22;
   }
   *{box-sizing:border-box;}
   html{background:var(--bg);}
   body{margin:0;color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.55;
     background:radial-gradient(60% 40% at 50% 0%, var(--bg-2), var(--bg));}
-  .wrap{max-width:760px;margin:0 auto;padding:44px 22px 70px;}
+  .wrap{max-width:760px;margin:0 auto;padding:44px 22px 70px;position:relative;}
+  /* Tiny's theme button, the same size and look. */
+  .theme-toggle{position:absolute;top:34px;right:22px;width:38px;height:38px;border-radius:50%;
+    background:var(--panel);border:1px solid var(--rule);color:var(--gold);font-size:17px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s;}
+  .theme-toggle:hover,.theme-toggle:focus-visible{border-color:var(--gold);}
+  .back{padding-right:52px;}
   a{color:var(--gold);}
   .back{font-size:14px;margin:0 0 34px;}
   .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
@@ -70,6 +87,7 @@
 </head>
 <body>
 <div class="wrap">
+  <button id="btnTheme" class="theme-toggle" type="button"></button>
 
   <p class="back"><a href=".">← Tiny Verbatim</a> · the light browser version — practice right now, nothing kept.</p>
 
@@ -190,5 +208,27 @@
   </footer>
 
 </div>
+<script>
+(function(){
+  var btn = document.getElementById('btnTheme');
+  function apply(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    // The icon shows what a click switches to, as in Tiny.
+    btn.textContent = theme === 'light' ? '\u263E' : '\u2600';
+    btn.title = theme === 'light' ? 'Switch to the dark theme' : 'Switch to the light theme';
+    btn.setAttribute('aria-label', btn.title);
+  }
+  apply(document.documentElement.getAttribute('data-theme') || 'dark');
+  btn.addEventListener('click', function(){
+    var theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    apply(theme);
+    try { localStorage.setItem('verbatim-theme', theme); } catch(e){}
+  });
+  // Switched in another tab (Tiny or this page): follow it.
+  window.addEventListener('storage', function(e){
+    if(e.key === 'verbatim-theme' && (e.newValue === 'light' || e.newValue === 'dark')) apply(e.newValue);
+  });
+})();
+</script>
 </body>
 </html>
